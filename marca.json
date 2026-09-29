@@ -1,8 +1,8 @@
 {
-  "observacao": "Perfil de educação financeira. O nome abaixo é provisório: troque pelo nome definitivo do perfil.",
-  "nome": "Começando a Investir",
-  "descricao": "Perfil de educação financeira para jovens que ainda não sabem investir. Explica do zero, em linguagem simples, sem prometer ganhos e sem indicar produtos.",
-  "tom_de_voz": "Próximo, direto e didático, como um amigo que entende do assunto. Frases curtas. Quando usar um termo técnico, explica logo em seguida. Sem exageros, sem promessas e sem gírias forçadas. Trata o leitor por você.",
+  "observacao": "Marca do perfil de educação financeira Papo de Grana. O logo da arte fica no arquivo logo.png.",
+  "nome": "Papo de Grana",
+  "descricao": "Perfil de educação financeira para jovens que ainda não sabem investir. Explica do zero, sem enrolação, sem prometer ganhos e sem indicar produtos.",
+  "tom_de_voz": "Próximo e descontraído, como um amigo que entende de dinheiro e explica sem enrolar. Frases curtas. Quando usar um termo técnico, explica logo em seguida. Pode ter humor leve, nunca às custas de quem está endividado. Sem exageros, sem promessas e sem gírias forçadas. Trata o leitor por você.",
   "valores": [
     "clareza",
     "honestidade",
@@ -16,17 +16,17 @@
     "Fazer o seguidor salvar e compartilhar os posts."
   ],
   "cores": {
-    "primaria": "#123B6D",
-    "secundaria": "#F2B705",
+    "primaria": "#0B3B2E",
+    "secundaria": "#C8F169",
     "texto_sobre_primaria": "#FFFFFF",
-    "texto_sobre_secundaria": "#123B6D"
+    "texto_sobre_secundaria": "#0B3B2E"
   },
   "fontes": {
     "titulo": "Poppins-Bold.ttf",
     "destaque": "Poppins-Medium.ttf",
     "texto": "Poppins-Regular.ttf"
   },
-  "logo": null,
+  "logo": "logo.png",
   "estilos_visuais": {
     "fotografia_lifestyle": "Editorial lifestyle photograph, natural daylight, warm and optimistic mood, authentic everyday Brazilian setting, realistic skin tones, shallow depth of field, clean uncluttered composition",
     "ilustracao_flat": "Flat vector illustration, clean geometric shapes, solid colors, friendly and modern, generous negative space",
