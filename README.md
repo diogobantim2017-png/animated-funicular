@@ -1,5 +1,7 @@
 # Motor de campanhas com IA e autonomia governada
 
+> **Configuração atual:** perfil de educação financeira para jovens que ainda não sabem investir, com o nome provisório "Começando a Investir" (troque em `marca.json`). O catálogo de ofertas está desligado e a categoria "Como funcionam os investimentos" é sempre revisada por uma pessoa. O funcionamento descrito abaixo vale para qualquer marca: onde o texto fala em banco, leia "perfil".
+
 MVP de um motor que percebe a necessidade de um post, define público e objetivo, escreve os textos, gera a imagem com IA, monta a arte no template da marca, passa a peça pelas travas de governança e então publica no Instagram ou manda para revisão humana.
 
 A autonomia é conquistada por categoria. Toda categoria começa com aprovação humana em todas as peças. A publicação automática só pode ser liberada quando os dados mostram que as travas e os revisores humanos concordam, e ela volta sozinha para humano se essa concordância cair.
@@ -98,8 +100,8 @@ Toda peça recebe um de três vereditos:
 | Textos obrigatórios preenchidos | Bloqueio |
 | Tamanhos dentro do limite | Alerta |
 | Sem termos proibidos | Bloqueio |
-| Números financeiros só do catálogo oficial | Bloqueio |
-| Sem menção a outros bancos | Bloqueio |
+| Sem taxas, valores ou rendimentos escritos pela IA | Bloqueio |
+| Sem citar bancos, corretoras ou marcas | Bloqueio |
 | Sem vícios de texto gerado por IA | Alerta |
 | Segmento permitido para a categoria | Bloqueio |
 | Oferta vinculada ao catálogo oficial | Bloqueio |

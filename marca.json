@@ -1,14 +1,19 @@
 {
-  "observacao": "Preencha com o manual de marca do banco. Enquanto houver [DADO A SER VALIDADO], a publicação real fica bloqueada.",
-  "nome": "[DADO A SER VALIDADO]",
-  "descricao": "Banco de varejo brasileiro com clientes pessoa física e pequenas empresas. [DADO A SER VALIDADO]",
-  "tom_de_voz": "Próximo, claro e confiável. Frases curtas, sem jargão financeiro, sem exageros e sem promessas. Trata o cliente por você.",
-  "valores": ["transparência", "segurança", "inclusão financeira"],
+  "observacao": "Perfil de educação financeira. O nome abaixo é provisório: troque pelo nome definitivo do perfil.",
+  "nome": "Começando a Investir",
+  "descricao": "Perfil de educação financeira para jovens que ainda não sabem investir. Explica do zero, em linguagem simples, sem prometer ganhos e sem indicar produtos.",
+  "tom_de_voz": "Próximo, direto e didático, como um amigo que entende do assunto. Frases curtas. Quando usar um termo técnico, explica logo em seguida. Sem exageros, sem promessas e sem gírias forçadas. Trata o leitor por você.",
+  "valores": [
+    "clareza",
+    "honestidade",
+    "autonomia financeira"
+  ],
   "objetivos_de_negocio": [
-    "Reduzir golpes contra clientes com conteúdo educativo sobre Pix, WhatsApp e falsa central.",
-    "Aumentar o uso do app e dos canais digitais.",
-    "Promover educação financeira e uso consciente do crédito.",
-    "Fortalecer a imagem de banco próximo e transparente."
+    "Ensinar a base antes de investir: organizar o orçamento, sair das dívidas caras e montar a reserva de emergência.",
+    "Explicar como funcionam os investimentos mais comuns, como Tesouro Direto, CDB, fundos e ações, sem recomendar produto, instituição, valor ou momento de compra.",
+    "Proteger contra golpes e promessas de ganho rápido, como pirâmides, falsos gurus e apostas vendidas como investimento.",
+    "Mostrar que dá para começar com pouco e que a constância importa mais do que o valor.",
+    "Fazer o seguidor salvar e compartilhar os posts."
   ],
   "cores": {
     "primaria": "#123B6D",

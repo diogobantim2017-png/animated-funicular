@@ -60,13 +60,13 @@ export function avaliarRegras({ textos, categoriaId, segmentoId, ofertaId, arte,
   for (const [campo, texto] of Object.entries(campos)) {
     for (const p of NUMEROS_FINANCEIROS) if (p.regex.test(texto)) numeros.push(`${p.descricao} em ${campo}`);
   }
-  r.push(resultado('numeros_so_do_catalogo', 'Números financeiros só do catálogo oficial', numeros.length === 0, 'bloqueio',
+  r.push(resultado('numeros_so_do_catalogo', 'Sem taxas, valores ou rendimentos escritos pela IA', numeros.length === 0, 'bloqueio',
     numeros.length ? `A IA escreveu ${numeros.join('; ')}.` : 'A IA não escreveu taxas, valores nem condições.'));
 
   const nomeProprio = normalizar(marca.nome);
   const citados = politica.concorrentes.filter((c) => normalizar(c) !== nomeProprio && contemTermo(tudo, c));
-  r.push(resultado('sem_concorrentes', 'Sem menção a outros bancos', citados.length === 0, 'bloqueio',
-    citados.length ? `Citado: ${citados.join(', ')}.` : 'Nenhum concorrente citado.'));
+  r.push(resultado('sem_concorrentes', 'Sem citar bancos, corretoras ou marcas', citados.length === 0, 'bloqueio',
+    citados.length ? `Citado: ${citados.join(', ')}.` : 'Nenhuma marca da lista citada.'));
 
   const estilo = (politica.padroes_estilo_ia || []).filter((p) => new RegExp(p.regex, 'i').test(tudo)).map((p) => p.descricao);
   r.push(resultado('estilo_de_texto', 'Sem vícios de texto gerado por IA', estilo.length === 0, 'alerta',

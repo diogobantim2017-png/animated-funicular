@@ -29,7 +29,7 @@ export async function radar({ ia, hoje, historico, orientacao }) {
 
   const ferramenta = {
     name: 'propor_oportunidade',
-    description: 'Registra a necessidade de comunicação mais relevante para o banco publicar agora.',
+    description: 'Registra a necessidade de comunicação mais relevante para o perfil publicar agora.',
     input_schema: {
       type: 'object',
       properties: {
@@ -37,7 +37,7 @@ export async function radar({ ia, hoje, historico, orientacao }) {
         categoria: { type: 'string', enum: categorias.map((c) => c.id) },
         gatilho: {
           type: 'string',
-          enum: ['data_do_calendario', 'objetivo_do_banco', 'lacuna_no_historico', 'orientacao_da_equipe'],
+          enum: ['data_do_calendario', 'objetivo_do_perfil', 'lacuna_no_historico', 'orientacao_da_equipe'],
         },
         sinal: {
           type: 'string',
@@ -45,7 +45,7 @@ export async function radar({ ia, hoje, historico, orientacao }) {
         },
         justificativa: {
           type: 'string',
-          description: 'Por que o tema importa para o cliente e para o banco agora, em até 3 frases.',
+          description: 'Por que o tema importa para o seguidor e para o perfil agora, em até 3 frases.',
         },
         urgencia: { type: 'string', enum: ['baixa', 'media', 'alta'] },
         oferta_id: {
@@ -58,12 +58,12 @@ export async function radar({ ia, hoje, historico, orientacao }) {
     },
   };
 
-  const sistema = `Você é o radar de conteúdo do banco ${marca.nome}. Sua função é perceber qual necessidade de comunicação é mais relevante agora, usando apenas os sinais fornecidos.
+  const sistema = `Você é o radar de conteúdo do perfil de educação financeira ${marca.nome}.\nPerfil: ${marca.descricao}\nSua função é perceber qual necessidade de comunicação é mais relevante agora, usando apenas os sinais fornecidos.
 
 Critérios, nesta ordem:
-1. Proteger o cliente: em períodos de compras, festas, viagens e impostos, os golpes costumam aumentar.
+1. Proteger o seguidor: em períodos de compras, festas, viagens e impostos, os golpes costumam aumentar.
 2. Datas próximas do calendário, com antecedência suficiente para o conteúdo ser útil.
-3. Objetivos de negócio do banco.
+3. Objetivos do perfil. Com público iniciante, prefira temas que ensinam a base antes dos avançados.
 4. Variedade: evite repetir o tema ou a categoria que dominaram as últimas peças.
 
 Não invente números, notícias, pesquisas ou tendências que não estejam nos sinais. Quando a equipe der uma orientação, ela tem prioridade.`;
@@ -73,7 +73,7 @@ Não invente números, notícias, pesquisas ou tendências que não estejam nos 
 Datas no radar:
 ${linhas(eventos, (e) => `${e.nome}: ${e.situacao}${e.data ? ` (${e.data})` : ''}${e.ate ? ` até ${e.ate}` : ''}. Temas sugeridos: ${e.temas.join(', ')}`)}
 
-Objetivos do banco:
+Objetivos do perfil:
 ${linhas(marca.objetivos_de_negocio || [], (o) => o)}
 
 Categorias disponíveis:
@@ -129,7 +129,7 @@ export async function criarBrief({ ia, oportunidade, oferta }) {
     },
   };
 
-  const sistema = `Você é estrategista de conteúdo do banco ${marca.nome}. Transforme a oportunidade em um brief para um post de feed do Instagram (orgânico, formato 4:5).
+  const sistema = `Você é estrategista de conteúdo do perfil ${marca.nome}. Transforme a oportunidade em um brief para um post de feed do Instagram (orgânico, formato 4:5).
 
 Marca: ${marca.descricao}
 Tom de voz: ${marca.tom_de_voz}
@@ -177,7 +177,7 @@ export async function escreverTextos({ ia, oportunidade, brief, segmento, oferta
     },
   };
 
-  const sistema = `Você é redator do banco ${marca.nome}. Escreva em português do Brasil, com acentuação completa.
+  const sistema = `Você é redator do perfil ${marca.nome}. Escreva em português do Brasil, com acentuação completa.
 Tom de voz: ${marca.tom_de_voz}
 
 O título e o subtítulo vão na arte. A legenda vai no texto do post.
@@ -186,7 +186,8 @@ Regras verificadas automaticamente. Se você descumprir, a peça é bloqueada:
 - Título até ${l.titulo_max} caracteres, subtítulo até ${l.subtitulo_max}, chamada da arte até ${l.cta_max}, legenda até ${l.legenda_max}, no máximo ${l.hashtags_max} hashtags.
 - Não escreva percentuais, valores em reais, taxas, prazos de pagamento ou rendimentos. Quando há oferta, o sistema insere os dados oficiais e o texto legal.
 - Não use estes termos: ${politica.termos_proibidos.join(', ')}.
-- Não prometa aprovação, ganho, retorno ou ausência de risco. Não cite outros bancos.
+- Não prometa ganho, retorno ou ausência de risco. Não cite bancos, corretoras, plataformas ou marcas.
+- Explique, não recomende: nunca diga qual produto comprar, quanto colocar em cada coisa nem qual é a hora certa de investir.
 - Evite construções típicas de texto gerado por IA: "não é só X, é Y", "mais do que um X", travessões, perguntas retóricas em sequência e trios de adjetivos.
 - Legenda com 2 a 4 parágrafos curtos, útil por si só, terminando com a chamada para ação. Sem hashtags no corpo da legenda.
 - Hashtags sem espaços, começando com #.`;

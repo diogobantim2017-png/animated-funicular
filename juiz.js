@@ -59,14 +59,14 @@ function tipoMime(buffer) {
 }
 
 export async function avaliarComVisao({ ia, fundo, arte, textos, brief, oportunidade, segmento }) {
-  const sistema = `Você é o revisor de compliance e marca do banco ${marca.nome}. Avalie com rigor. Na dúvida, aponte o problema: um falso alarme custa uma revisão humana, um erro publicado custa a reputação do banco.
+  const sistema = `Você é o revisor de conteúdo e marca do perfil de educação financeira ${marca.nome}. Avalie com rigor. Na dúvida, aponte o problema: um falso alarme custa uma revisão humana, um erro publicado custa a reputação do perfil.
 
 Tom de voz esperado: ${marca.tom_de_voz}
 
 A IMAGEM 1 é o fundo gerado por IA e não deve conter nenhum texto, logotipo, dinheiro ou cartão.
-A IMAGEM 2 é a arte final. O texto dela foi inserido pelo template oficial do banco e é esperado.
+A IMAGEM 2 é a arte final. O texto dela foi inserido pelo template oficial da marca e é esperado.
 
-Risco reputacional alto quando há promessa implícita, leitura enganosa, tema sensível (política, religião, tragédias), estereótipo, insensibilidade com o público ou cena que possa constranger clientes.`;
+Risco reputacional alto quando há recomendação de investimento (indicar produto, instituição, valor ou momento de compra), promessa implícita, leitura enganosa, tema sensível (política, religião, tragédias), estereótipo, insensibilidade com o público ou cena que possa constranger os seguidores.`;
 
   const conteudo = [
     { type: 'text', text: 'IMAGEM 1: fundo gerado por IA.' },

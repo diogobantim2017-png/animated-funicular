@@ -1,14 +1,24 @@
 {
-  "versao": "2026-09-28.1",
-  "observacao": "Política inicial de referência. Termos, avisos legais e limites precisam ser validados com o jurídico e o compliance do banco antes do piloto.",
+  "versao": "2026-09-29.1",
+  "observacao": "Política de referência para um perfil de educação financeira. Conteúdo educativo não pode virar recomendação de investimento. Revise termos e limites com um especialista antes de publicar em conta real.",
   "categorias": {
-    "seguranca_golpes": {
-      "nome": "Segurança e prevenção a golpes",
+    "educacao_financeira": {
+      "nome": "Primeiros passos: orçamento e reserva",
       "risco": "baixo",
       "autonomia_maxima": "auto"
     },
-    "educacao_financeira": {
-      "nome": "Educação financeira",
+    "dividas_credito": {
+      "nome": "Dívidas, cartão e crédito",
+      "risco": "baixo",
+      "autonomia_maxima": "auto"
+    },
+    "como_investir": {
+      "nome": "Como funcionam os investimentos",
+      "risco": "medio",
+      "autonomia_maxima": "humano"
+    },
+    "seguranca_golpes": {
+      "nome": "Golpes e falsas promessas",
       "risco": "baixo",
       "autonomia_maxima": "auto"
     },
@@ -16,25 +26,6 @@
       "nome": "Data comemorativa",
       "risco": "baixo",
       "autonomia_maxima": "auto"
-    },
-    "institucional": {
-      "nome": "Institucional",
-      "risco": "medio",
-      "autonomia_maxima": "auto"
-    },
-    "produto_credito": {
-      "nome": "Oferta de crédito",
-      "risco": "alto",
-      "autonomia_maxima": "humano",
-      "exige_oferta": "credito",
-      "avisos_obrigatorios": ["CET"]
-    },
-    "produto_investimento": {
-      "nome": "Oferta de investimento",
-      "risco": "alto",
-      "autonomia_maxima": "humano",
-      "exige_oferta": "investimento",
-      "avisos_obrigatorios": ["não representa garantia de rentabilidade futura"]
     }
   },
   "termos_proibidos": [
@@ -49,7 +40,13 @@
     "dinheiro fácil",
     "fique rico",
     "lucro certo",
-    "rendimento garantido"
+    "rendimento garantido",
+    "enriquecer rápido",
+    "ficar rico rápido",
+    "oportunidade única",
+    "imperdível",
+    "melhor investimento",
+    "invista agora"
   ],
   "concorrentes": [
     "Itaú",
@@ -61,12 +58,26 @@
     "Banco Inter",
     "C6 Bank",
     "PicPay",
-    "Mercado Pago"
+    "Mercado Pago",
+    "XP Investimentos",
+    "BTG Pactual",
+    "Rico Investimentos",
+    "NuInvest",
+    "Binance"
   ],
   "padroes_estilo_ia": [
-    { "regex": "n[aã]o [ée] (s[oó]|apenas)\\b", "descricao": "Construção \"não é só X, é Y\"" },
-    { "regex": "mais do que (um|uma|apenas|s[oó])\\b", "descricao": "Construção \"mais do que um X\"" },
-    { "regex": "—", "descricao": "Travessão, marca comum de texto gerado por IA" }
+    {
+      "regex": "n[aã]o [ée] (s[oó]|apenas)\\b",
+      "descricao": "Construção \"não é só X, é Y\""
+    },
+    {
+      "regex": "mais do que (um|uma|apenas|s[oó])\\b",
+      "descricao": "Construção \"mais do que um X\""
+    },
+    {
+      "regex": "—",
+      "descricao": "Travessão, marca comum de texto gerado por IA"
+    }
   ],
   "limites": {
     "titulo_max": 48,
@@ -80,7 +91,9 @@
   "juiz": {
     "nota_minima_media": 8,
     "nota_minima_item": 6,
-    "riscos_aceitos_para_auto": ["baixo"]
+    "riscos_aceitos_para_auto": [
+      "baixo"
+    ]
   },
   "visao": {
     "texto_no_fundo": "bloqueio",

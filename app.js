@@ -27,7 +27,8 @@ const NOME_ETAPA = Object.fromEntries(ETAPAS);
 
 const GATILHOS = {
   data_do_calendario: 'Data do calendário',
-  objetivo_do_banco: 'Objetivo do banco',
+  objetivo_do_perfil: 'Objetivo do perfil',
+  objetivo_do_banco: 'Objetivo do perfil',
   lacuna_no_historico: 'Lacuna no histórico de posts',
   orientacao_da_equipe: 'Orientação da equipe',
 };
@@ -672,7 +673,7 @@ function auditoriaHtml(eventos = []) {
 
 function boasVindas() {
   const passos = [
-    ['Radar', 'Percebe a necessidade: datas do calendário, objetivos do banco, histórico de posts e orientação da equipe.'],
+    ['Radar', 'Percebe a necessidade: datas do calendário, objetivos do perfil, histórico de posts e orientação da equipe.'],
     ['Brief e público', 'Define objetivo, segmento, mensagem, métrica de sucesso e a cena da imagem.'],
     ['Textos', 'Escreve título, subtítulo, chamada e legenda, sem números financeiros e sem promessas.'],
     ['Imagem', 'Gera só a cena, sem texto, marcas, dinheiro ou pessoas públicas.'],

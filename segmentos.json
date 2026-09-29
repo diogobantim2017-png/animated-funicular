@@ -1,34 +1,34 @@
 {
-  "observacao": "Segmentos de referência para conteúdo orgânico. Substitua pelos segmentos oficiais do banco [DADO A SER VALIDADO]. Segmentos marcados como vulneráveis nunca recebem oferta de crédito.",
+  "observacao": "Segmentos do público do perfil. Os marcados como vulneráveis nunca recebem oferta de crédito, caso o catálogo de ofertas volte a ser usado.",
   "segmentos": [
     {
       "id": "publico_geral",
-      "nome": "Público geral",
-      "descricao": "Clientes e não clientes de todas as idades que acompanham o perfil do banco.",
+      "nome": "Seguidores em geral",
+      "descricao": "Jovens de 18 a 30 anos que acompanham o perfil e ainda não investem ou estão começando agora.",
       "vulneravel": false
     },
     {
-      "id": "jovens_inicio_vida_financeira",
-      "nome": "Jovens no início da vida financeira",
-      "descricao": "De 18 a 25 anos, primeiro emprego ou estágio, usam o app para quase tudo.",
+      "id": "primeiro_salario",
+      "nome": "Primeiro salário ou estágio",
+      "descricao": "Começaram a ganhar o próprio dinheiro há pouco tempo e ainda não sabem para onde ele vai.",
       "vulneravel": false
     },
     {
-      "id": "familias",
-      "nome": "Famílias com filhos",
-      "descricao": "Adultos que organizam o orçamento da casa e planejam gastos com filhos e escola.",
+      "id": "estudantes",
+      "nome": "Estudantes",
+      "descricao": "Universitários e estudantes com renda pequena ou irregular, como bolsa, mesada ou trabalhos avulsos.",
       "vulneravel": false
     },
     {
-      "id": "empreendedores",
-      "nome": "Pequenos empreendedores e MEIs",
-      "descricao": "Donos de pequenos negócios que misturam finanças pessoais e da empresa.",
+      "id": "querem_comecar",
+      "nome": "Querem começar a investir",
+      "descricao": "Já têm algum dinheiro guardado, geralmente parado na conta ou na poupança, e não sabem por onde começar.",
       "vulneravel": false
     },
     {
-      "id": "aposentados",
-      "nome": "Aposentados e pensionistas",
-      "descricao": "Pessoas com 60 anos ou mais, alvo frequente de golpes. Público protegido para ofertas de crédito.",
+      "id": "jovens_endividados",
+      "nome": "Jovens com dívidas",
+      "descricao": "Estão com cartão, cheque especial ou empréstimo atrasado. Precisam de orientação acolhedora, sem culpa e sem julgamento.",
       "vulneravel": true
     }
   ]

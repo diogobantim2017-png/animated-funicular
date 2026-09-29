@@ -23,7 +23,11 @@ Object.assign(process.env, {
   FUSO_HORARIO: 'America/Sao_Paulo',
 });
 
-const { raiz, marca, politica, MARCADOR_PENDENTE, temPendencia } = await import('./config.js');
+const { raiz, marca, politica, ofertas, MARCADOR_PENDENTE, temPendencia } = await import('./config.js');
+
+/* Só no teste: o perfil atual não usa ofertas, mas as travas de oferta continuam no código e seguem testadas. */
+politica.categorias.produto_credito = { nome: 'Oferta de crédito (só no teste)', risco: 'alto', autonomia_maxima: 'humano', exige_oferta: 'credito', avisos_obrigatorios: ['CET'] };
+ofertas.push({ id: 'credito_pessoal', ativa: false, tipo: 'credito', produto: 'Crédito pessoal', destaque: 'Condições do teste', texto_legal: 'Crédito sujeito a análise. CET informado no teste.', validade: '2099-12-31' });
 const { criarArmazenamentoLocal } = await import('./local.js');
 const { criarCanalInstagram } = await import('./instagram.js');
 const { criarMotor } = await import('./motor.js');
@@ -42,7 +46,7 @@ await fs.mkdir(saida, { recursive: true });
 const OPORTUNIDADE = {
   tema: 'Golpe da falsa central de atendimento',
   categoria: 'seguranca_golpes',
-  gatilho: 'objetivo_do_banco',
+  gatilho: 'objetivo_do_perfil',
   sinal: 'Objetivo do banco: reduzir golpes contra clientes com conteúdo educativo sobre falsa central.',
   justificativa: 'A falsa central segue entre os golpes mais comuns. Um lembrete simples ajuda o cliente a desligar a tempo.',
   urgencia: 'alta',
@@ -243,12 +247,12 @@ await caso('Taxa escrita pela IA é bloqueada: números só vêm do catálogo of
 });
 
 await caso('Crédito nunca é direcionado a público vulnerável', async () => {
-  assert.ok(!segmentosPermitidos('produto_credito').some((s) => s.id === 'aposentados'));
-  assert.ok(segmentosPermitidos('educacao_financeira').some((s) => s.id === 'aposentados'));
+  assert.ok(!segmentosPermitidos('produto_credito').some((s) => s.id === 'jovens_endividados'));
+  assert.ok(segmentosPermitidos('educacao_financeira').some((s) => s.id === 'jovens_endividados'));
   const regras = avaliarRegras({
     textos: TEXTOS,
     categoriaId: 'produto_credito',
-    segmentoId: 'aposentados',
+    segmentoId: 'jovens_endividados',
     ofertaId: 'credito_pessoal',
     arte: null,
     hoje: HOJE,
@@ -349,7 +353,7 @@ await caso('Escada de autonomia: libera com evidência, publica sozinho, audita 
   const categoria = 'educacao_financeira';
   roteiro.oportunidade = { tema: 'Como montar uma reserva de emergência' };
   await assert.rejects(motor.definirModo(categoria, 'auto', 'teste'), /Faltam 3/);
-  await assert.rejects(motor.definirModo('produto_credito', 'auto', 'teste'), /não permite/);
+  await assert.rejects(motor.definirModo('como_investir', 'auto', 'teste'), /não permite/);
 
   for (let i = 0; i < 3; i++) {
     const peca = await gerarPeca({ orientacao: { categoria } });
