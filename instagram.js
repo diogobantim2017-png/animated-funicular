@@ -34,6 +34,31 @@ async function aguardarContainer(base, containerId) {
   throw new Error('O Instagram demorou demais para processar a mídia.');
 }
 
+let idDescoberto = '';
+
+/** ID da conta profissional. Se IG_USER_ID não foi preenchido, descobre pelo próprio token (login do Instagram). */
+async function idDaConta(base) {
+  if (env.igUserId) return env.igUserId;
+  if (idDescoberto) return idDescoberto;
+  const eu = await graph('GET', `${base}/me?fields=user_id,username`);
+  idDescoberto = String(eu.user_id || eu.id || '');
+  if (!idDescoberto) throw new Error('Não consegui descobrir a conta do Instagram pelo token. Preencha IG_USER_ID.');
+  return idDescoberto;
+}
+
+/** Confere se o token funciona e qual conta ele representa. Não publica nada. */
+export async function verificarConexaoInstagram() {
+  if (!env.igToken) return { ok: false, erro: 'falta a variável IG_ACCESS_TOKEN.' };
+  try {
+    const base = `https://${env.metaHost}/${env.metaVersao}`;
+    const eu = await graph('GET', `${base}/me?fields=user_id,username`);
+    if (!env.igUserId) idDescoberto = String(eu.user_id || eu.id || '');
+    return { ok: true, usuario: eu.username || null, id: env.igUserId || idDescoberto };
+  } catch (erro) {
+    return { ok: false, erro: `o token não funcionou (${erro.message}). Gere um novo no site da Meta e troque IG_ACCESS_TOKEN no Render.` };
+  }
+}
+
 export function criarCanalInstagram() {
   return {
     nome: 'instagram',
@@ -47,14 +72,15 @@ export function criarCanalInstagram() {
           observacao: 'Publicação simulada. Nada foi enviado ao Instagram. Use PUBLICACAO_MODO=real para publicar.',
         };
       }
-      if (!env.igUserId || !env.igToken) throw new Error('Configure IG_USER_ID e IG_ACCESS_TOKEN para publicar.');
+      if (!env.igToken) throw new Error('Configure IG_ACCESS_TOKEN para publicar.');
       if (!/^https:\/\//.test(urlImagem || '')) {
         throw new Error('A imagem precisa de uma URL pública em https para o Instagram baixar. Veja PUBLIC_BASE_URL ou ARMAZENAMENTO=supabase.');
       }
       const base = `https://${env.metaHost}/${env.metaVersao}`;
-      const container = await graph('POST', `${base}/${env.igUserId}/media`, { image_url: urlImagem, caption: legenda });
+      const conta = await idDaConta(base);
+      const container = await graph('POST', `${base}/${conta}/media`, { image_url: urlImagem, caption: legenda });
       await aguardarContainer(base, container.id);
-      const publicado = await graph('POST', `${base}/${env.igUserId}/media_publish`, { creation_id: container.id });
+      const publicado = await graph('POST', `${base}/${conta}/media_publish`, { creation_id: container.id });
       let permalink = null;
       try {
         permalink = (await graph('GET', `${base}/${publicado.id}?fields=permalink`)).permalink || null;

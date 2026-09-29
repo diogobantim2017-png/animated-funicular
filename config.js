@@ -83,7 +83,7 @@ export function pendenciasDeConfiguracao() {
     p.push('marca.json ainda tem campos [DADO A SER VALIDADO]. A publicação real fica bloqueada até completar.');
   }
   if (env.publicacaoModo === 'real') {
-    if (!env.igUserId || !env.igToken) p.push('PUBLICACAO_MODO=real exige IG_USER_ID e IG_ACCESS_TOKEN.');
+    if (!env.igToken) p.push('PUBLICACAO_MODO=real exige IG_ACCESS_TOKEN. O IG_USER_ID é opcional: o sistema descobre a conta pelo token.');
     if (env.armazenamento === 'local' && !env.publicBaseUrl.startsWith('https://')) {
       p.push('Publicação real com armazenamento local exige PUBLIC_BASE_URL em https (o Instagram baixa a imagem por esse endereço). Alternativa: ARMAZENAMENTO=supabase.');
     }

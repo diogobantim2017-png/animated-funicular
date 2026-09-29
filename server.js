@@ -3,6 +3,10 @@ import cron from 'node-cron';
 import path from 'node:path';
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { env, raiz, politica, pendenciasDeConfiguracao } from './config.js';
+import { verificarConexaoInstagram } from './instagram.js';
+
+/* Conexão com o Instagram, conferida no início quando a publicação é real. */
+let statusInstagram = null;
 import { criarArmazenamento } from './index.js';
 import { chamarFerramenta } from './claude.js';
 import { criarGeradorImagem } from './gerador.js';
@@ -98,7 +102,12 @@ app.get('/api/estado', async (req, res) => {
   const estado = await motor.estado();
   res.json({
     ...estado,
-    pendencias: avisoAgenda ? [...estado.pendencias, avisoAgenda] : estado.pendencias,
+    pendencias: [
+      ...estado.pendencias,
+      ...(avisoAgenda ? [avisoAgenda] : []),
+      ...(statusInstagram && !statusInstagram.ok ? [`Instagram: ${statusInstagram.erro}`] : []),
+    ],
+    instagram: statusInstagram,
     agenda: agenda(),
     sessao: { autenticacao: autenticacaoAtiva, usuario: req.usuario || null },
     rotulos: { checagens_visuais: CHECAGENS_VISUAIS, notas: NOTAS, severidade_visao: politica.visao, juiz: politica.juiz },
@@ -186,6 +195,12 @@ const servidor = app.listen(env.porta, () => {
     for (const p of pendencias) console.log(`  - ${p}`);
   }
   console.log('');
+  if (canal.modo === 'real') {
+    verificarConexaoInstagram().then((s) => {
+      statusInstagram = s;
+      console.log(s.ok ? `Instagram conectado: @${s.usuario || 'conta sem nome'} (id ${s.id})` : `Instagram: ${s.erro}`);
+    });
+  }
 });
 
 function encerrar() {

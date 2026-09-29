@@ -272,7 +272,7 @@ function renderTopo() {
     : 'Agenda automática desligada';
   const html = `
     <span class="estado-chip ${pausado ? 'estado-chip--pausado' : ''}">${pausado ? 'Pausado' : 'Operando'}</span>
-    <span class="modo-chip ${real ? 'modo-chip--real' : ''}">${real ? 'Publicação real no Instagram' : 'Simulação: nada é publicado'}</span>
+    <span class="modo-chip ${real ? 'modo-chip--real' : ''}">${real ? `Publicação real no Instagram${ui.estado?.instagram?.usuario ? `: @${esc(ui.estado.instagram.usuario)}` : ''}` : 'Simulação: nada é publicado'}</span>
     <span>${pausado ? `Pausado por ${esc(e.controle.atualizado_por || 'equipe')}${e.controle.motivo ? `: ${esc(e.controle.motivo)}` : ''}` : esc(agenda)}</span>
     <span>Hoje: ${e.contagens.geradas_hoje} de ${e.limites.geracoes_por_dia} gerações, ${e.contagens.publicadas_hoje} de ${e.limites.publicacoes_por_dia} publicações</span>`;
   pintar($('#topo-situacao'), 'topo', html);
