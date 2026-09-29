@@ -1,0 +1,31 @@
+{
+  "observacao": "Preencha com o manual de marca do banco. Enquanto houver [DADO A SER VALIDADO], a publicação real fica bloqueada.",
+  "nome": "[DADO A SER VALIDADO]",
+  "descricao": "Banco de varejo brasileiro com clientes pessoa física e pequenas empresas. [DADO A SER VALIDADO]",
+  "tom_de_voz": "Próximo, claro e confiável. Frases curtas, sem jargão financeiro, sem exageros e sem promessas. Trata o cliente por você.",
+  "valores": ["transparência", "segurança", "inclusão financeira"],
+  "objetivos_de_negocio": [
+    "Reduzir golpes contra clientes com conteúdo educativo sobre Pix, WhatsApp e falsa central.",
+    "Aumentar o uso do app e dos canais digitais.",
+    "Promover educação financeira e uso consciente do crédito.",
+    "Fortalecer a imagem de banco próximo e transparente."
+  ],
+  "cores": {
+    "primaria": "#123B6D",
+    "secundaria": "#F2B705",
+    "texto_sobre_primaria": "#FFFFFF",
+    "texto_sobre_secundaria": "#123B6D"
+  },
+  "fontes": {
+    "titulo": "Poppins-Bold.ttf",
+    "destaque": "Poppins-Medium.ttf",
+    "texto": "Poppins-Regular.ttf"
+  },
+  "logo": null,
+  "estilos_visuais": {
+    "fotografia_lifestyle": "Editorial lifestyle photograph, natural daylight, warm and optimistic mood, authentic everyday Brazilian setting, realistic skin tones, shallow depth of field, clean uncluttered composition",
+    "ilustracao_flat": "Flat vector illustration, clean geometric shapes, solid colors, friendly and modern, generous negative space",
+    "render_3d_suave": "Soft 3D render, rounded clay-like shapes, gentle studio lighting, soft tones, minimal scene"
+  },
+  "restricoes_visuais_en": "Absolutely no text, letters, numbers, words, signage, readable screens, logos, brand marks, watermarks, banknotes or coins, credit cards with numbers, and no real public figures."
+}

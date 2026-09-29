@@ -1,0 +1,24 @@
+{
+  "name": "motor-campanhas-ia",
+  "version": "0.1.0",
+  "description": "Motor de campanhas com IA e autonomia governada: radar, brief, criação, travas de governança e publicação.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "teste": "node teste-offline.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.129.0",
+    "@napi-rs/canvas": "^1.0.9",
+    "@supabase/supabase-js": "^2.117.2",
+    "dotenv": "^18.0.4",
+    "express": "^5.2.1",
+    "node-cron": "^4.6.0"
+  },
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  }
+}

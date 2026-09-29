@@ -1,0 +1,35 @@
+{
+  "observacao": "Segmentos de referência para conteúdo orgânico. Substitua pelos segmentos oficiais do banco [DADO A SER VALIDADO]. Segmentos marcados como vulneráveis nunca recebem oferta de crédito.",
+  "segmentos": [
+    {
+      "id": "publico_geral",
+      "nome": "Público geral",
+      "descricao": "Clientes e não clientes de todas as idades que acompanham o perfil do banco.",
+      "vulneravel": false
+    },
+    {
+      "id": "jovens_inicio_vida_financeira",
+      "nome": "Jovens no início da vida financeira",
+      "descricao": "De 18 a 25 anos, primeiro emprego ou estágio, usam o app para quase tudo.",
+      "vulneravel": false
+    },
+    {
+      "id": "familias",
+      "nome": "Famílias com filhos",
+      "descricao": "Adultos que organizam o orçamento da casa e planejam gastos com filhos e escola.",
+      "vulneravel": false
+    },
+    {
+      "id": "empreendedores",
+      "nome": "Pequenos empreendedores e MEIs",
+      "descricao": "Donos de pequenos negócios que misturam finanças pessoais e da empresa.",
+      "vulneravel": false
+    },
+    {
+      "id": "aposentados",
+      "nome": "Aposentados e pensionistas",
+      "descricao": "Pessoas com 60 anos ou mais, alvo frequente de golpes. Público protegido para ofertas de crédito.",
+      "vulneravel": true
+    }
+  ]
+}

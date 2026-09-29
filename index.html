@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Motor de campanhas</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2300112C'/%3E%3Crect x='7' y='9' width='18' height='4' rx='2' fill='%2300AEEF'/%3E%3Crect x='7' y='19' width='12' height='4' rx='2' fill='%23ffffff'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="estilo.css">
+  <script src="app.js" type="module"></script>
+</head>
+<body>
+  <header class="topo">
+    <div class="topo__identidade">
+      <h1 class="topo__titulo">Motor de campanhas</h1>
+      <p class="topo__marca" id="topo-marca">Carregando</p>
+    </div>
+    <div class="topo__situacao" id="topo-situacao" aria-live="polite"></div>
+    <div class="topo__acoes">
+      <label class="revisor">
+        <span class="revisor__rotulo">Seu nome</span>
+        <input id="revisor" type="text" maxlength="60" autocomplete="name" placeholder="Fica na auditoria">
+      </label>
+      <button id="btn-gerar" class="botao botao--claro" type="button">Gerar peça agora</button>
+      <button id="btn-pausa" class="botao botao--alerta" type="button">Pausar tudo</button>
+    </div>
+  </header>
+
+  <nav class="abas" aria-label="Seções do painel">
+    <div class="abas__lista" role="tablist">
+      <button class="aba" role="tab" id="aba-fila" data-aba="fila" aria-selected="true">Fila de revisão <span class="aba__contador" id="contador-fila"></span></button>
+      <button class="aba" role="tab" id="aba-todas" data-aba="todas" aria-selected="false">Todas as peças</button>
+      <button class="aba" role="tab" id="aba-autonomia" data-aba="autonomia" aria-selected="false">Autonomia</button>
+    </div>
+  </nav>
+
+  <section class="pendencias" id="pendencias" hidden></section>
+
+  <main class="principal" id="principal">
+    <div class="area-pecas" id="area-pecas">
+      <aside class="lista" id="lista" aria-label="Peças"></aside>
+      <section class="detalhe" id="detalhe" aria-live="polite"></section>
+    </div>
+    <div class="area-autonomia" id="area-autonomia" hidden></div>
+  </main>
+
+  <dialog class="dialogo" id="dlg-gerar" aria-labelledby="dlg-gerar-titulo">
+    <form class="dialogo__form" id="form-gerar" method="dialog">
+      <h2 class="dialogo__titulo" id="dlg-gerar-titulo">Gerar peça agora</h2>
+      <p class="dialogo__texto">O radar escolhe o tema pelo calendário, pelos objetivos do banco e pelo histórico de peças. Se quiser, oriente o radar ou fixe a categoria.</p>
+      <label class="campo">
+        <span class="campo__rotulo">Orientação para o radar (opcional)</span>
+        <textarea name="texto" rows="3" maxlength="600" placeholder="Ex.: reforçar o cuidado com golpes no WhatsApp nesta semana"></textarea>
+      </label>
+      <label class="campo">
+        <span class="campo__rotulo">Categoria</span>
+        <select name="categoria" id="gerar-categoria"></select>
+      </label>
+      <p class="dialogo__nota">Leva de 1 a 2 minutos. A peça aparece na fila assim que as travas terminarem a avaliação.</p>
+      <div class="dialogo__acoes">
+        <button class="botao botao--secundario" value="cancelar" formnovalidate>Cancelar</button>
+        <button class="botao botao--primario" value="confirmar">Gerar peça</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="dialogo" id="dlg-confirmar" aria-labelledby="dlg-confirmar-titulo">
+    <form class="dialogo__form" id="form-confirmar" method="dialog">
+      <h2 class="dialogo__titulo" id="dlg-confirmar-titulo"></h2>
+      <p class="dialogo__texto" id="dlg-confirmar-texto"></p>
+      <label class="campo" id="dlg-confirmar-campo" hidden>
+        <span class="campo__rotulo" id="dlg-confirmar-rotulo"></span>
+        <textarea name="valor" rows="3" maxlength="500"></textarea>
+      </label>
+      <div class="dialogo__acoes">
+        <button class="botao botao--secundario" value="cancelar" formnovalidate>Cancelar</button>
+        <button class="botao botao--primario" value="confirmar" id="dlg-confirmar-botao"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="aviso" id="aviso" role="status" aria-live="polite"></div>
+</body>
+</html>

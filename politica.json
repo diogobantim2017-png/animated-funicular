@@ -1,0 +1,103 @@
+{
+  "versao": "2026-09-28.1",
+  "observacao": "Política inicial de referência. Termos, avisos legais e limites precisam ser validados com o jurídico e o compliance do banco antes do piloto.",
+  "categorias": {
+    "seguranca_golpes": {
+      "nome": "Segurança e prevenção a golpes",
+      "risco": "baixo",
+      "autonomia_maxima": "auto"
+    },
+    "educacao_financeira": {
+      "nome": "Educação financeira",
+      "risco": "baixo",
+      "autonomia_maxima": "auto"
+    },
+    "data_comemorativa": {
+      "nome": "Data comemorativa",
+      "risco": "baixo",
+      "autonomia_maxima": "auto"
+    },
+    "institucional": {
+      "nome": "Institucional",
+      "risco": "medio",
+      "autonomia_maxima": "auto"
+    },
+    "produto_credito": {
+      "nome": "Oferta de crédito",
+      "risco": "alto",
+      "autonomia_maxima": "humano",
+      "exige_oferta": "credito",
+      "avisos_obrigatorios": ["CET"]
+    },
+    "produto_investimento": {
+      "nome": "Oferta de investimento",
+      "risco": "alto",
+      "autonomia_maxima": "humano",
+      "exige_oferta": "investimento",
+      "avisos_obrigatorios": ["não representa garantia de rentabilidade futura"]
+    }
+  },
+  "termos_proibidos": [
+    "garantido",
+    "garantida",
+    "sem risco",
+    "risco zero",
+    "sem consulta",
+    "sem análise",
+    "aprovação imediata",
+    "aprovação garantida",
+    "dinheiro fácil",
+    "fique rico",
+    "lucro certo",
+    "rendimento garantido"
+  ],
+  "concorrentes": [
+    "Itaú",
+    "Bradesco",
+    "Santander",
+    "Banco do Brasil",
+    "Caixa Econômica",
+    "Nubank",
+    "Banco Inter",
+    "C6 Bank",
+    "PicPay",
+    "Mercado Pago"
+  ],
+  "padroes_estilo_ia": [
+    { "regex": "n[aã]o [ée] (s[oó]|apenas)\\b", "descricao": "Construção \"não é só X, é Y\"" },
+    { "regex": "mais do que (um|uma|apenas|s[oó])\\b", "descricao": "Construção \"mais do que um X\"" },
+    { "regex": "—", "descricao": "Travessão, marca comum de texto gerado por IA" }
+  ],
+  "limites": {
+    "titulo_max": 48,
+    "subtitulo_max": 110,
+    "cta_max": 24,
+    "legenda_max": 1200,
+    "hashtags_max": 5,
+    "geracoes_por_dia": 6,
+    "publicacoes_por_dia": 3
+  },
+  "juiz": {
+    "nota_minima_media": 8,
+    "nota_minima_item": 6,
+    "riscos_aceitos_para_auto": ["baixo"]
+  },
+  "visao": {
+    "texto_no_fundo": "bloqueio",
+    "logos_ou_marcas": "bloqueio",
+    "dinheiro_ou_cartao": "bloqueio",
+    "pessoas_deformadas": "bloqueio",
+    "conteudo_sensivel": "bloqueio",
+    "pessoa_publica": "bloqueio",
+    "criancas": "alerta"
+  },
+  "autonomia": {
+    "min_amostras": 20,
+    "meta_concordancia": 0.9,
+    "amostragem_auditoria": 0.1
+  },
+  "segmentacao": {
+    "credito_bloqueia_vulneraveis": true
+  },
+  "rotulo_ia": "Imagem ilustrativa criada com IA."
+}
