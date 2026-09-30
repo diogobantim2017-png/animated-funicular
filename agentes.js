@@ -1,5 +1,5 @@
 import { env, marca, politica, segmentos } from './config.js';
-import { LIMITES_SLIDE } from './formatos.js';
+import { LIMITES_SLIDE, FORMATOS, VISUAIS, OPCOES_DESIGN } from './formatos.js';
 import { proximosEventos, ofertasDisponiveis } from './sinais.js';
 
 /** Categorias que o radar pode escolher hoje. Oferta sem catálogo ativo não entra. */
@@ -243,7 +243,7 @@ export async function escreverTextos({ ia, oportunidade, brief, segmento, oferta
 - O conteúdo principal fica nos cartões. A legenda complementa: 1 ou 2 parágrafos curtos com contexto e a chamada para ação, até ${LIMITES_SLIDE.legenda} caracteres, sem repetir os cartões.`
       : `Formato: carrossel de ${numSlides} imagens.
 - Capa: título e subtítulo que despertam curiosidade para deslizar. A chamada da arte fica no slide final.
-- ${miolo} slides de conteúdo: um título curto (até ${LIMITES_SLIDE.titulo} caracteres) e um texto de até ${LIMITES_SLIDE.texto} caracteres cada. Uma ideia por slide, em sequência lógica, como passos ou tópicos.
+- ${miolo} slides de conteúdo: um título curto (até ${LIMITES_SLIDE.titulo} caracteres) e um texto de até ${LIMITES_SLIDE.texto} caracteres cada. Uma ideia por slide, em sequência lógica, como passos ou tópicos. Não numere os títulos ("Passo 1", "2."): a arte já mostra a posição de cada slide.
 - Slide final: "fechamento" com uma frase curta de conclusão e a chamada da arte no botão.
 - O conteúdo principal fica nos slides. A legenda complementa: 1 ou 2 parágrafos curtos com contexto e a chamada para ação, até ${LIMITES_SLIDE.legenda} caracteres, sem repetir os slides.`;
 
@@ -305,4 +305,93 @@ export function montarLegendaFinal({ textos, oferta, visual = 'ia', credito = nu
   if (visual === 'foto' && credito?.autor) partes.push(`Foto: ${credito.autor} / ${credito.fonte || 'Pexels'}`);
   if (textos.hashtags?.length) partes.push(textos.hashtags.join(' '));
   return partes.join('\n\n');
+}
+
+/* ------------------------------------------------------- ajuste de visual */
+
+/**
+ * Lê o pedido da equipe no "Novo visual" e o transforma em ajustes concretos:
+ * layout (formas, fundo, números, contador, pontos, tamanho do texto), nova cena para a IA de imagem
+ * ou nova busca de foto. Mudanças de texto ficam de fora e são devolvidas à equipe.
+ */
+export async function interpretarAjusteVisual({ ia, peca, direcao, designAtual }) {
+  const formato = peca.formato || 'post';
+  const visual = peca.visual || 'ia';
+  const ferramenta = {
+    name: 'ajustar_visual',
+    description: 'Registra os ajustes de visual pedidos pela equipe.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        design: {
+          type: 'object',
+          properties: {
+            formas: { type: 'string', enum: OPCOES_DESIGN.formas, description: 'Formas decorativas (círculos, anéis, pontinhos).' },
+            fundo: {
+              type: 'string',
+              enum: OPCOES_DESIGN.fundo,
+              description: 'padrao: o visual normal do formato. claro: fundos claros em tudo. escuro: fundos escuros em tudo.',
+            },
+            numeros_grandes: {
+              type: 'string',
+              enum: OPCOES_DESIGN.numeros_grandes,
+              description: 'Números grandes decorativos (01, 02...) nos slides de conteúdo. auto: só quando os títulos não têm numeração própria.',
+            },
+            contador: { type: 'boolean', description: 'Contador de posição no topo (ex.: 2/6) e a etiqueta "cartão 1 de 3".' },
+            pontos: { type: 'boolean', description: 'Pontinhos de navegação no rodapé.' },
+            texto_maior: { type: 'boolean', description: 'Letras maiores nos títulos e textos.' },
+          },
+          required: ['formas', 'fundo', 'numeros_grandes', 'contador', 'pontos', 'texto_maior'],
+        },
+        trocar_imagem: {
+          type: 'boolean',
+          description:
+            'true quando o pedido quer outra imagem, outra foto ou outra composição. false quando pede só ajustes de layout e a imagem atual pode ficar.',
+        },
+        nova_cena_en: {
+          type: 'string',
+          description: 'Só para imagem criada por IA e trocar_imagem true: a cena reescrita em inglês, em 1 a 3 frases, já com o pedido. Vazio nos outros casos.',
+        },
+        nova_busca_foto_en: {
+          type: 'string',
+          description: 'Só para foto real e trocar_imagem true: de 2 a 5 palavras em inglês para buscar uma nova foto que atenda o pedido. Vazio nos outros casos.',
+        },
+        resumo: { type: 'string', description: 'Uma frase, em português, dizendo o que vai mudar.' },
+        fora_do_visual: {
+          type: 'string',
+          description:
+            'Em português: partes do pedido que são mudança de texto (palavras, títulos, numeração escrita, legenda) e precisam ser editadas nos campos de texto. Vazio se não houver.',
+        },
+      },
+      required: ['design', 'trocar_imagem', 'nova_cena_en', 'nova_busca_foto_en', 'resumo', 'fora_do_visual'],
+    },
+  };
+
+  const sobreImagem =
+    visual === 'ia'
+      ? 'A imagem da capa é criada por IA. Se o pedido falar da cena, reescreva-a em nova_cena_en, sem texto, logotipos, dinheiro, cartões ou pessoas públicas.'
+      : visual === 'foto'
+        ? 'A capa usa uma foto real de banco de imagens. Se o pedido falar da foto, escreva nova_busca_foto_en com palavras simples de banco de imagens.'
+        : 'A peça não tem imagem: é feita só com as formas e cores da marca. Pedir "outra composição" é trocar_imagem true. Deixe nova_cena_en e nova_busca_foto_en vazios.';
+
+  const sistema = `Você é diretor de arte do perfil ${marca.nome}. A equipe revisou uma peça e pediu ajustes no visual. Traduza o pedido em ajustes concretos.
+
+Regras:
+- Mude só o que o pedido pede. O que não for mencionado volta igual ao estado atual.
+- As cores são sempre as da marca. Pedidos de cor viram escolha entre fundo claro e escuro.
+- ${sobreImagem}
+- Textos não mudam aqui. Palavras, títulos, numeração escrita nos títulos e legenda vão para fora_do_visual, para a equipe editar.
+- Se o pedido for vago ("ficou ruim", "tenta de novo"), marque trocar_imagem como true e mantenha o layout.`;
+
+  const titulos = (peca.textos?.slides || []).map((sl, i) => `${i + 2}. ${sl.titulo}`).join('\n');
+  const conteudo = `Formato: ${FORMATOS[formato]}. Imagem: ${VISUAIS[visual]}.
+Layout atual: ${JSON.stringify(designAtual)}
+Cena atual (inglês): ${peca.cena_ajustada_en || peca.brief?.prompt_imagem_en || '-'}
+Busca de foto atual: ${peca.busca_foto_en || peca.brief?.busca_foto_en || '-'}
+Título da capa: ${peca.textos?.titulo || '-'}
+${titulos ? `Títulos dos slides:\n${titulos}\n` : ''}
+Pedido da equipe: "${direcao}"`;
+
+  const r = await ia({ modelo: env.modeloIa, sistema, conteudo, ferramenta, maxTokens: 900 });
+  return { dados: r.dados, modelo: r.modelo };
 }

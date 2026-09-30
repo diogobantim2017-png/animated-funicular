@@ -25,3 +25,24 @@ export function normalizarFormato({ formato, visual, num_slides } = {}) {
 /** Peças antigas não têm formato nem visual: eram post único com imagem de IA. */
 export const formatoDaPeca = (peca) => peca?.formato || 'post';
 export const visualDaPeca = (peca) => peca?.visual || 'ia';
+
+/**
+ * Ajustes de layout que a equipe pode pedir no "Novo visual".
+ * fundo "padrao" mantém o visual de cada tipo de imagem (capa clara, cartões em fundo escuro).
+ */
+export const DESIGN_PADRAO = { formas: 'normal', fundo: 'padrao', numeros_grandes: 'auto', contador: true, pontos: true, texto_maior: false };
+export const OPCOES_DESIGN = {
+  formas: ['nenhuma', 'poucas', 'normal'],
+  fundo: ['padrao', 'claro', 'escuro'],
+  numeros_grandes: ['auto', 'sim', 'nao'],
+};
+
+export function normalizarDesign(bruto = {}) {
+  const design = { ...DESIGN_PADRAO };
+  for (const [campo, opcoes] of Object.entries(OPCOES_DESIGN)) if (opcoes.includes(bruto?.[campo])) design[campo] = bruto[campo];
+  for (const campo of ['contador', 'pontos', 'texto_maior']) if (typeof bruto?.[campo] === 'boolean') design[campo] = bruto[campo];
+  return design;
+}
+
+/** Título que já traz numeração própria ("Passo 2", "Passos 4 e 5", "3.", "1)"). */
+export const temNumeracaoPropria = (titulo = '') => /^\s*(passos?\s*\d|etapa\s*\d|\d+\s*[.)º°:–-]|#\s*\d)/i.test(String(titulo));

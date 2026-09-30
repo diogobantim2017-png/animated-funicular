@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createCanvas, loadImage, GlobalFonts } from '@napi-rs/canvas';
 import { marca, politica, raiz } from './config.js';
+import { normalizarDesign, temNumeracaoPropria } from './formatos.js';
 
 export const LARGURA = 1080;
 export const ALTURA = 1350;
@@ -56,6 +57,18 @@ function quebrarLinhas(ctx, texto, larguraMax) {
     atual = pedaco;
   }
   if (atual) linhas.push(atual);
+  // Evita palavra sozinha na última linha: traz uma palavra da linha de cima quando cabe.
+  if (linhas.length >= 2) {
+    const ultima = linhas[linhas.length - 1];
+    const anterior = linhas[linhas.length - 2].split(' ');
+    if (!ultima.includes(' ') && anterior.length >= 3) {
+      const juntas = `${anterior[anterior.length - 1]} ${ultima}`;
+      if (ctx.measureText(juntas).width <= larguraMax) {
+        linhas[linhas.length - 2] = anterior.slice(0, -1).join(' ');
+        linhas[linhas.length - 1] = juntas;
+      }
+    }
+  }
   return linhas;
 }
 
@@ -114,8 +127,9 @@ async function desenharAssinatura(ctx) {
  * Compõe a arte final. A IA só fornece o fundo e os textos de marketing;
  * logo, oferta, texto legal e rótulo de IA vêm de configuração oficial.
  */
-export async function renderizarArte({ fundo, textos, oferta, visual = 'ia', credito = null, semente = 1 }) {
+export async function renderizarArte({ fundo, textos, oferta, visual = 'ia', credito = null, semente = 1, design = {} }) {
   registrarFontes();
+  const d = normalizarDesign(design);
   const canvas = createCanvas(LARGURA, ALTURA);
   const ctx = canvas.getContext('2d');
 
@@ -126,11 +140,11 @@ export async function renderizarArte({ fundo, textos, oferta, visual = 'ia', cre
     const h = imagem.height * escala;
     ctx.drawImage(imagem, (LARGURA - w) / 2, (ALTURA - h) * 0.3, w, h);
   } else {
-    desenharFundoDesign(ctx, semente);
+    desenharFundoDesign(ctx, semente, d);
   }
 
-  const titulo = ajustarBloco(ctx, textos.titulo, { familia: 'Marca Titulo', maximo: 72, minimo: 50, maxLinhas: 3, entrelinha: 1.12 });
-  const subtitulo = ajustarBloco(ctx, textos.subtitulo, { familia: 'Marca Texto', maximo: 36, minimo: 28, maxLinhas: 3, entrelinha: 1.35 });
+  const titulo = ajustarBloco(ctx, textos.titulo, { familia: 'Marca Titulo', maximo: d.texto_maior ? 82 : 72, minimo: 50, maxLinhas: 3, entrelinha: 1.12 });
+  const subtitulo = ajustarBloco(ctx, textos.subtitulo, { familia: 'Marca Texto', maximo: d.texto_maior ? 41 : 36, minimo: 28, maxLinhas: 3, entrelinha: 1.35 });
   const destaque = oferta?.destaque
     ? ajustarBloco(ctx, oferta.destaque, { familia: 'Marca Destaque', maximo: 34, minimo: 26, maxLinhas: 2, entrelinha: 1.3 })
     : null;
@@ -153,7 +167,8 @@ export async function renderizarArte({ fundo, textos, oferta, visual = 'ia', cre
   const alturaCard = conteudo + RESPIRO * 2;
   const topoCard = ALTURA - MARGEM - alturaCard;
 
-  ctx.fillStyle = marca.cores.primaria;
+  // Em fundo escuro sem imagem, o painel fica um tom abaixo para não sumir no fundo.
+  ctx.fillStyle = !fundo && d.fundo === 'escuro' ? misturar(marca.cores.primaria, '#000000', 0.35) : marca.cores.primaria;
   ctx.beginPath();
   ctx.roundRect(MARGEM, topoCard, LARGURA_CARD, alturaCard, 40);
   ctx.fill();
@@ -239,33 +254,38 @@ function sorteador(semente) {
 const textoDoCredito = (visual, credito) => (visual === 'foto' && credito?.autor ? `Foto: ${credito.autor} / ${credito.fonte || 'Pexels'}.` : null);
 
 /** Fundo feito só com as cores da marca: formas geométricas, sem pessoas nem objetos. */
-function desenharFundoDesign(ctx, semente = 1) {
+function desenharFundoDesign(ctx, semente = 1, d = normalizarDesign()) {
   const r = sorteador(semente);
   const { primaria, secundaria } = marca.cores;
-  ctx.fillStyle = misturar(secundaria, '#FFFFFF', 0.78);
+  const escuro = d.fundo === 'escuro';
+  ctx.fillStyle = escuro ? primaria : misturar(secundaria, '#FFFFFF', 0.78);
   ctx.fillRect(0, 0, LARGURA, ALTURA);
+  if (d.formas === 'nenhuma') return;
 
-  ctx.globalAlpha = 0.6;
+  ctx.globalAlpha = escuro ? 0.35 : 0.6;
   ctx.fillStyle = secundaria;
   ctx.beginPath();
   ctx.arc(LARGURA * (0.6 + r() * 0.3), 250 + r() * 160, 230 + r() * 90, 0, Math.PI * 2);
   ctx.fill();
+  ctx.globalAlpha = 1;
+  if (d.formas === 'poucas') return;
 
-  ctx.globalAlpha = 0.12;
-  ctx.fillStyle = primaria;
+  const contraste = escuro ? '#FFFFFF' : primaria;
+  ctx.globalAlpha = escuro ? 0.07 : 0.12;
+  ctx.fillStyle = contraste;
   ctx.beginPath();
   ctx.arc(LARGURA * (0.08 + r() * 0.25), 420 + r() * 140, 170 + r() * 80, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.globalAlpha = 0.9;
-  ctx.strokeStyle = primaria;
+  ctx.strokeStyle = escuro ? secundaria : primaria;
   ctx.lineWidth = 14;
   ctx.beginPath();
   ctx.arc(LARGURA * (0.3 + r() * 0.3), 330 + r() * 120, 56 + r() * 40, 0, Math.PI * 2);
   ctx.stroke();
 
-  ctx.globalAlpha = 0.35;
-  ctx.fillStyle = primaria;
+  ctx.globalAlpha = escuro ? 0.25 : 0.35;
+  ctx.fillStyle = contraste;
   const ox = 90 + r() * 560;
   const oy = 190 + r() * 180;
   for (let i = 0; i < 4; i++) {
@@ -325,62 +345,89 @@ function ajustarPar(ctx, { area, largura, ...opcoes }) {
   return ultimo;
 }
 
-async function slideConteudo({ titulo, texto, numero, total }) {
+/** Cores de um slide conforme o fundo pedido: claro (tom suave da marca) ou escuro (cor principal). */
+function paleta(escuro) {
+  const { primaria, secundaria } = marca.cores;
+  return escuro
+    ? { fundo: primaria, texto: marca.cores.texto_sobre_primaria, destaque: secundaria, detalhe: secundaria }
+    : { fundo: misturar(secundaria, '#FFFFFF', 0.86), texto: primaria, destaque: secundaria, detalhe: primaria };
+}
+
+async function slideConteudo({ titulo, texto, numero, total, design }) {
+  const d = normalizarDesign(design);
   const canvas = createCanvas(LARGURA, ALTURA);
   const ctx = canvas.getContext('2d');
-  const { primaria, secundaria } = marca.cores;
-  ctx.fillStyle = misturar(secundaria, '#FFFFFF', 0.86);
+  const cor = paleta(d.fundo === 'escuro');
+  ctx.fillStyle = cor.fundo;
   ctx.fillRect(0, 0, LARGURA, ALTURA);
-  ctx.globalAlpha = 0.85;
-  ctx.fillStyle = secundaria;
-  ctx.beginPath();
-  ctx.arc(LARGURA + 40, ALTURA + 20, 200, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.globalAlpha = 1;
+  if (d.formas !== 'nenhuma') {
+    ctx.globalAlpha = d.fundo === 'escuro' ? 0.5 : 0.85;
+    ctx.fillStyle = cor.destaque;
+    ctx.beginPath();
+    ctx.arc(LARGURA + 40, ALTURA + 20, 200, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
 
   await desenharAssinatura(ctx);
-  desenharContador(ctx, `${numero}/${total}`, primaria);
+  if (d.contador) desenharContador(ctx, `${numero}/${total}`, cor.detalhe);
 
+  // Número grande decorativo: só quando o título não traz numeração própria, para não confundir.
+  const mostrarNumero = d.numeros_grandes === 'sim' || (d.numeros_grandes === 'auto' && !temNumeracaoPropria(titulo));
   const x = MARGEM + 20;
   const topo = 190;
   const base = ALTURA - 130;
-  const alturaNumero = 132;
+  const alturaNumero = mostrarNumero ? 132 : 0;
   const par = ajustarPar(ctx, {
     textoTitulo: titulo,
     textoCorpo: texto,
     area: base - topo,
     largura: LARGURA_SLIDE,
-    maxTitulo: 84,
-    maxCorpo: 50,
-    extra: alturaNumero + 24,
+    maxTitulo: d.texto_maior ? 94 : 84,
+    maxCorpo: d.texto_maior ? 57 : 50,
+    extra: mostrarNumero ? alturaNumero + 24 : 0,
     entre: 36,
   });
   let y = topo + Math.max(0, (base - topo - par.altura) / 2);
-  ctx.font = '132px "Marca Titulo"';
-  ctx.fillStyle = primaria;
-  ctx.globalAlpha = 0.16;
-  ctx.textBaseline = 'top';
-  ctx.fillText(String(numero - 1).padStart(2, '0'), x - 6, y);
-  ctx.globalAlpha = 1;
-  y += alturaNumero + 24;
-  y = desenharBloco(ctx, par.bt, x, y, primaria);
+  if (mostrarNumero) {
+    ctx.font = '132px "Marca Titulo"';
+    ctx.fillStyle = cor.detalhe;
+    ctx.globalAlpha = d.fundo === 'escuro' ? 0.35 : 0.22;
+    ctx.textBaseline = 'top';
+    ctx.fillText(String(numero - 1).padStart(2, '0'), x - 6, y);
+    ctx.globalAlpha = 1;
+    y += alturaNumero + 24;
+  }
+  y = desenharBloco(ctx, par.bt, x, y, cor.texto);
   y += 36;
-  ctx.globalAlpha = 0.9;
-  desenharBloco(ctx, par.bx, x, y, primaria);
+  ctx.globalAlpha = 0.92;
+  desenharBloco(ctx, par.bx, x, y, cor.texto);
   ctx.globalAlpha = 1;
-  desenharPontos(ctx, numero, total, primaria);
+  if (d.pontos) desenharPontos(ctx, numero, total, cor.detalhe);
   return { buffer: await canvas.encode('jpeg', 90), coube: par.coube };
 }
 
-async function slideCartao({ titulo, texto, numero, total, cartao, cartoes }) {
+async function slideCartao({ titulo, texto, numero, total, cartao, cartoes, design }) {
+  const d = normalizarDesign(design);
   const canvas = createCanvas(LARGURA, ALTURA);
   const ctx = canvas.getContext('2d');
   const { primaria, secundaria } = marca.cores;
-  ctx.fillStyle = primaria;
+  // Nos cartões, o padrão é fundo escuro com o cartão branco em destaque.
+  const escuro = d.fundo !== 'claro';
+  const cor = paleta(escuro);
+  ctx.fillStyle = cor.fundo;
   ctx.fillRect(0, 0, LARGURA, ALTURA);
+  if (d.formas === 'normal' && !escuro) {
+    ctx.globalAlpha = 0.85;
+    ctx.fillStyle = secundaria;
+    ctx.beginPath();
+    ctx.arc(LARGURA + 40, ALTURA + 20, 200, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
 
   await desenharAssinatura(ctx);
-  desenharContador(ctx, `${numero}/${total}`, secundaria);
+  if (d.contador) desenharContador(ctx, `${numero}/${total}`, escuro ? secundaria : primaria);
 
   const topo = 190;
   const alturaCartao = ALTURA - topo - 170;
@@ -388,25 +435,32 @@ async function slideCartao({ titulo, texto, numero, total, cartao, cartoes }) {
   ctx.beginPath();
   ctx.roundRect(MARGEM, topo, LARGURA - MARGEM * 2, alturaCartao, 48);
   ctx.fill();
+  if (!escuro) {
+    ctx.strokeStyle = misturar(primaria, '#FFFFFF', 0.8);
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  }
 
   const x = MARGEM + 56;
   const largura = LARGURA - MARGEM * 2 - 112;
-  ctx.font = '26px "Marca Destaque"';
-  ctx.fillStyle = primaria;
-  ctx.globalAlpha = 0.7;
-  ctx.textBaseline = 'middle';
-  ctx.fillText(`CARTÃO ${cartao} DE ${cartoes}`, x, topo + 70);
-  ctx.globalAlpha = 1;
+  if (d.contador) {
+    ctx.font = '26px "Marca Destaque"';
+    ctx.fillStyle = primaria;
+    ctx.globalAlpha = 0.7;
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`CARTÃO ${cartao} DE ${cartoes}`, x, topo + 70);
+    ctx.globalAlpha = 1;
+  }
 
-  const inicio = topo + 120;
+  const inicio = topo + (d.contador ? 120 : 60);
   const fim = topo + alturaCartao - 50;
   const par = ajustarPar(ctx, {
     textoTitulo: titulo,
     textoCorpo: texto,
     area: fim - inicio,
     largura,
-    maxTitulo: 92,
-    maxCorpo: 50,
+    maxTitulo: d.texto_maior ? 100 : 92,
+    maxCorpo: d.texto_maior ? 57 : 50,
     extra: 0,
     entre: 30 + 12 + 34,
   });
@@ -420,55 +474,68 @@ async function slideCartao({ titulo, texto, numero, total, cartao, cartoes }) {
   ctx.globalAlpha = 1;
 
   ctx.font = '28px "Marca Destaque"';
-  ctx.fillStyle = secundaria;
+  ctx.fillStyle = escuro ? secundaria : primaria;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText('Salve para revisar depois', LARGURA / 2, ALTURA - 118);
   ctx.textAlign = 'left';
-  desenharPontos(ctx, numero, total, secundaria);
+  if (d.pontos) desenharPontos(ctx, numero, total, escuro ? secundaria : primaria);
   return { buffer: await canvas.encode('jpeg', 90), coube: par.coube };
 }
 
-async function slideFinal({ fechamento, cta, legal, numero, total }) {
+async function slideFinal({ fechamento, cta, legal, numero, total, design }) {
+  const d = normalizarDesign(design);
   const canvas = createCanvas(LARGURA, ALTURA);
   const ctx = canvas.getContext('2d');
   const { primaria, secundaria } = marca.cores;
-  ctx.fillStyle = primaria;
+  // O slide final é escuro por padrão, para a chamada se destacar; com "tudo claro", segue o resto.
+  const claro = d.fundo === 'claro';
+  const corTexto = claro ? primaria : marca.cores.texto_sobre_primaria;
+  ctx.fillStyle = claro ? misturar(secundaria, '#FFFFFF', 0.86) : primaria;
   ctx.fillRect(0, 0, LARGURA, ALTURA);
-  ctx.globalAlpha = 0.9;
-  ctx.fillStyle = secundaria;
-  ctx.beginPath();
-  ctx.arc(LARGURA - 60, 250, 210, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.globalAlpha = 1;
+  if (d.formas !== 'nenhuma') {
+    ctx.globalAlpha = 0.9;
+    ctx.fillStyle = secundaria;
+    ctx.beginPath();
+    ctx.arc(LARGURA - 60, 250, 210, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
 
   await desenharAssinatura(ctx);
 
   const x = MARGEM + 20;
-  const blocoFechamento = ajustarBloco(ctx, fechamento, { familia: 'Marca Titulo', maximo: 78, minimo: 50, maxLinhas: 5, entrelinha: 1.12, largura: LARGURA_SLIDE });
+  const blocoFechamento = ajustarBloco(ctx, fechamento, {
+    familia: 'Marca Titulo',
+    maximo: d.texto_maior ? 86 : 78,
+    minimo: 50,
+    maxLinhas: 5,
+    entrelinha: 1.12,
+    largura: LARGURA_SLIDE,
+  });
   const blocoLegal = legal
     ? ajustarBloco(ctx, legal, { familia: 'Marca Texto', maximo: 22, minimo: 18, maxLinhas: 4, entrelinha: 1.4, largura: LARGURA_SLIDE })
     : null;
   let y = 560;
-  y = desenharBloco(ctx, blocoFechamento, x, y, marca.cores.texto_sobre_primaria);
+  y = desenharBloco(ctx, blocoFechamento, x, y, corTexto);
   y += 48;
   ctx.font = '34px "Marca Destaque"';
   const textoCta = String(cta || '').trim();
   const larguraCta = Math.min(ctx.measureText(textoCta).width + 84, LARGURA_SLIDE);
-  ctx.fillStyle = secundaria;
+  ctx.fillStyle = claro ? primaria : secundaria;
   ctx.beginPath();
   ctx.roundRect(x, y, larguraCta, 86, 43);
   ctx.fill();
-  ctx.fillStyle = marca.cores.texto_sobre_secundaria;
+  ctx.fillStyle = claro ? marca.cores.texto_sobre_primaria : marca.cores.texto_sobre_secundaria;
   ctx.textBaseline = 'middle';
   ctx.fillText(textoCta, x + 42, y + 45, larguraCta - 84);
   y += 86;
   if (blocoLegal) {
     ctx.globalAlpha = 0.8;
-    desenharBloco(ctx, blocoLegal, x, ALTURA - 150 - blocoLegal.linhas.length * 30, marca.cores.texto_sobre_primaria);
+    desenharBloco(ctx, blocoLegal, x, ALTURA - 150 - blocoLegal.linhas.length * 30, corTexto);
     ctx.globalAlpha = 1;
   }
-  desenharPontos(ctx, numero, total, secundaria);
+  if (d.pontos) desenharPontos(ctx, numero, total, claro ? primaria : secundaria);
   return { buffer: await canvas.encode('jpeg', 90), coube: blocoFechamento.coube && (!blocoLegal || blocoLegal.coube) && y < ALTURA - 220 };
 }
 
@@ -476,18 +543,23 @@ async function slideFinal({ fechamento, cta, legal, numero, total }) {
  * Carrossel ou flashcards: capa com o fundo escolhido (IA, foto ou design), slides de conteúdo
  * feitos só com o design da marca e um slide final com a chamada. Todos em 1080 x 1350.
  */
-export async function renderizarCarrossel({ fundo, textos, oferta, formato, visual = 'ia', credito = null, semente = 1 }) {
+export async function renderizarCarrossel({ fundo, textos, oferta, formato, visual = 'ia', credito = null, semente = 1, design = {} }) {
   registrarFontes();
   const miolo = textos.slides || [];
+  // Números grandes no automático: se algum título já traz numeração, nenhum slide mostra o número decorativo.
+  const pedido = normalizarDesign(design);
+  if (pedido.numeros_grandes === 'auto') {
+    design = { ...pedido, numeros_grandes: miolo.some((sl) => temNumeracaoPropria(sl.titulo)) ? 'nao' : 'sim' };
+  }
   const total = miolo.length + 2;
-  const capa = await renderizarArte({ fundo, textos: { ...textos, cta_arte: 'Deslize para o lado' }, oferta: null, visual, credito, semente });
+  const capa = await renderizarArte({ fundo, textos: { ...textos, cta_arte: 'Deslize para o lado' }, oferta: null, visual, credito, semente, design });
   const slides = [capa.buffer];
   let coube = !capa.ajustes.transbordou;
   for (const [i, item] of miolo.entries()) {
     const r =
       formato === 'flashcards'
-        ? await slideCartao({ ...item, numero: i + 2, total, cartao: i + 1, cartoes: miolo.length })
-        : await slideConteudo({ ...item, numero: i + 2, total });
+        ? await slideCartao({ ...item, numero: i + 2, total, cartao: i + 1, cartoes: miolo.length, design })
+        : await slideConteudo({ ...item, numero: i + 2, total, design });
     slides.push(r.buffer);
     coube &&= r.coube;
   }
@@ -497,6 +569,7 @@ export async function renderizarCarrossel({ fundo, textos, oferta, formato, visu
     legal: [oferta?.destaque, oferta?.texto_legal].filter(Boolean).join(' ') || null,
     numero: total,
     total,
+    design,
   });
   slides.push(final.buffer);
   coube &&= final.coube;

@@ -85,8 +85,8 @@
     "cta_max": 24,
     "legenda_max": 1200,
     "hashtags_max": 5,
-    "geracoes_por_dia": 6,
-    "publicacoes_por_dia": 3
+    "geracoes_por_dia": null,
+    "publicacoes_por_dia": null
   },
   "juiz": {
     "nota_minima_media": 8,

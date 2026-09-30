@@ -47,7 +47,7 @@ npm run teste           # pipeline completo com IA simulada: sem chaves e sem cu
 npm start               # painel em http://localhost:3000
 ```
 
-O teste offline roda 18 cenários: pipeline completo, cada tipo de trava, aprovação, edição humana, nova imagem, escada de autonomia, limites diários e pausa. Ele também grava uma prévia da arte em `teste-saida/previa-arte.jpg`, com fundo sintético.
+O teste offline roda 21 cenários: pipeline completo, cada tipo de trava, aprovação, edição humana, novo visual com pedido de correção, escada de autonomia, limites diários, pausa, programação e formatos. Ele também grava uma prévia da arte em `teste-saida/previa-arte.jpg`, com fundo sintético.
 
 **Painel sem chaves, para demonstração de layout:**
 
@@ -88,7 +88,8 @@ Nos formatos com slides, o conteúdo principal fica nas imagens e a legenda comp
 | Só design | Nenhuma imagem: formas e cores da marca. Não chama IA de imagem e não tem custo de imagem. |
 
 - As travas conferem o texto de todos os slides, e o revisor com visão olha todos eles.
-- "Nova imagem" gera outra imagem de IA, busca outra foto ou troca a composição do design.
+- **Novo visual.** Sem pedido, gera outra imagem de IA, busca outra foto ou troca a composição do design. Com pedido ("fundo escuro", "tirar os números grandes", "uma jovem num parque"), um agente diretor de arte transforma o texto em ajustes concretos. Ele pode mexer no layout (formas, fundo claro ou escuro, números grandes, contador, pontinhos, tamanho do texto), escrever uma nova cena para a IA de imagem ou fazer uma nova busca de foto. Quando o pedido é só de layout, a imagem atual é mantida. O que for mudança de texto volta como aviso na trilha de auditoria, para a equipe editar nos campos.
+- Nos carrosséis, os números grandes decorativos só aparecem quando nenhum título tem numeração própria, para não confundir.
 - No Instagram, o carrossel conta como uma única publicação, com até 10 imagens.
 
 ## Configurar para um banco
@@ -161,7 +162,7 @@ No momento do envio, as regras em código rodam de novo com o modo de publicaç�
 4. Se a concordância cair abaixo da meta, a categoria volta sozinha para aprovação humana.
 5. Ofertas de crédito e de investimento são sempre humanas: a política não permite modo automático nessas categorias.
 
-Também há limites diários: 6 gerações e 3 publicações, ajustáveis em `politica.json`.
+Não há limite diário de gerações nem de publicações. Para criar um, preencha `geracoes_por_dia` e `publicacoes_por_dia` em `politica.json`. O Instagram tem limite próprio: até 100 publicações pela API a cada 24 horas.
 
 **Para demonstração:** é possível reduzir `autonomia.min_amostras` numa cópia da política para mostrar a escada em poucas peças. Não use esse ajuste no piloto.
 

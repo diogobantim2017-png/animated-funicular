@@ -142,6 +142,15 @@ async function iaSimulada({ ferramenta, conteudo }) {
       const extras = pedeSlides ? { slides: slidesSimulados(pedeSlides.minItems), fechamento: 'Proteja quem você ama: compartilhe.' } : {};
       return { ...TEXTOS, ...extras, ...roteiro.textos };
     },
+    ajustar_visual: () => ({
+      trocar_imagem: true,
+      nova_cena_en: '',
+      nova_busca_foto_en: '',
+      resumo: 'Ajuste simulado.',
+      fora_do_visual: '',
+      ...roteiro.ajuste,
+      design: { formas: 'normal', fundo: 'padrao', numeros_grandes: 'auto', contador: true, pontos: true, texto_maior: false, ...roteiro.ajuste?.design },
+    }),
     avaliar_peca: () => ({
       ...JUIZ,
       ...roteiro.juiz,
@@ -180,11 +189,13 @@ const imagemSimulada = {
 };
 
 let fotosBuscadas = 0;
+const consultasDeFoto = [];
 const fotosSimuladas = {
   provedor: 'teste',
   disponivel: true,
   async buscar(consulta, { evitar = [] } = {}) {
     fotosBuscadas++;
+    consultasDeFoto.push(consulta);
     let id = 1000;
     while (evitar.includes(String(id))) id++;
     const c = createCanvas(940, 1400);
@@ -580,6 +591,65 @@ await caso('Carrossel, flashcards, foto real e peça só com design', async () =
 
   const slidesPrevia = await Promise.all(editada.slides_arte.map((sl) => db.lerMidia(sl.chave)));
   for (const [i, b] of slidesPrevia.entries()) await fs.writeFile(path.join(saida, `previa-carrossel-${i + 1}.jpg`), b);
+});
+
+await caso('Novo visual com pedido de correção: layout, nova cena, nova foto e sem limite diário', async () => {
+  // Carrossel só com design: pedido só de layout mantém a composição e muda o resto.
+  const car = await gerarPeca({ orientacao: { formato: 'carrossel', visual: 'design', num_slides: 5 } });
+  roteiro = {
+    ajuste: {
+      trocar_imagem: false,
+      resumo: 'Fundo escuro, sem números grandes e sem contador.',
+      fora_do_visual: 'Tirar "Passo 1" dos títulos.',
+      design: { fundo: 'escuro', numeros_grandes: 'nao', contador: false },
+    },
+  };
+  await motor.regenerarImagem(car.id, 'Diogo', 'tira os números grandes e o contador, fundo escuro, e tira o Passo 1 do título');
+  const ajustada = await aguardarProcessamento(car.id);
+  roteiro = {};
+  const pedido = chamadas.filter((c) => c.ferramenta === 'ajustar_visual').at(-1);
+  assert.ok(pedido.conteudo.includes('tira os números grandes'), 'o agente recebe o pedido da equipe');
+  assert.equal(ajustada.design.fundo, 'escuro');
+  assert.equal(ajustada.design.numeros_grandes, 'nao');
+  assert.equal(ajustada.design.contador, false);
+  assert.equal(ajustada.design_semente || 1, car.design_semente || 1, 'só layout: a composição fica');
+  assert.notEqual(ajustada.slides_arte[1].url, car.slides_arte[1].url, 'os slides foram refeitos');
+  assert.equal(ajustada.status, 'em_revisao');
+  const trilha = (await motor.detalhe(car.id)).auditoria;
+  const registro = trilha.find((a) => a.ator === 'ia:diretor');
+  assert.ok(registro.resumo.includes('Fundo escuro') && registro.resumo.includes('Para editar no texto'));
+
+  // Imagem de IA: o pedido vira uma cena nova em inglês, usada na nova imagem.
+  const post = await gerarPeca();
+  roteiro = { ajuste: { trocar_imagem: true, nova_cena_en: 'A young woman reading in a sunny park.' } };
+  const antes = promptsImagem.length;
+  await motor.regenerarImagem(post.id, 'Diogo', 'quero uma jovem num parque');
+  const novaIa = await aguardarProcessamento(post.id);
+  roteiro = {};
+  assert.equal(promptsImagem.length, antes + 1);
+  assert.ok(promptsImagem.at(-1).includes('A young woman reading in a sunny park.'));
+  assert.ok(!promptsImagem.at(-1).includes('quero uma jovem'), 'o pedido entra na cena reescrita, não cru');
+  assert.equal(novaIa.cena_ajustada_en, 'A young woman reading in a sunny park.');
+
+  // Foto real: o pedido vira uma nova busca no banco de imagens.
+  const comFoto = await gerarPeca({ orientacao: { visual: 'foto' } });
+  roteiro = { ajuste: { trocar_imagem: true, nova_busca_foto_en: 'young man studying home' } };
+  await motor.regenerarImagem(comFoto.id, 'Diogo', 'um rapaz estudando em casa');
+  await aguardarProcessamento(comFoto.id);
+  roteiro = {};
+  assert.equal(consultasDeFoto.at(-1), 'young man studying home');
+
+  // Sem limite diário: com os limites vazios, gerar e publicar seguem sem trava.
+  const limites = { ...politica.limites };
+  politica.limites.geracoes_por_dia = null;
+  politica.limites.publicacoes_por_dia = null;
+  try {
+    const extra = await gerarPeca();
+    assert.equal(extra.status, 'em_revisao');
+    assert.equal((await motor.aprovar(extra.id, 'Diogo')).status, 'publicada');
+  } finally {
+    Object.assign(politica.limites, limites);
+  }
 });
 
 await caso('Estado do painel com métricas por categoria e configuração ativa', async () => {

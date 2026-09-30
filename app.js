@@ -23,7 +23,7 @@ const ETAPAS = [
   ['arte', 'Arte'],
   ['governanca', 'Travas'],
 ];
-const NOME_ETAPA = Object.fromEntries(ETAPAS);
+const NOME_ETAPA = { ...Object.fromEntries(ETAPAS), ajuste: 'Lendo o seu pedido' };
 
 const GATILHOS = {
   data_do_calendario: 'Data do calendário',
@@ -144,6 +144,7 @@ function ator(bruto = '') {
     'ia:estrategista': 'Estrategista (IA)',
     'ia:redator': 'Redator (IA)',
     'ia:revisor': 'Revisor com visão (IA)',
+    'ia:diretor': 'Diretor de arte (IA)',
     template: 'Template da marca',
     regras: 'Travas em código',
     governanca: 'Governança',
@@ -318,7 +319,11 @@ function renderTopo() {
     <span class="estado-chip ${pausado ? 'estado-chip--pausado' : ''}">${pausado ? 'Pausado' : 'Operando'}</span>
     <span class="modo-chip ${real ? 'modo-chip--real' : ''}">${real ? `Publicação real no Instagram${ui.estado?.instagram?.usuario ? `: @${esc(ui.estado.instagram.usuario)}` : ''}` : 'Simulação: nada é publicado'}</span>
     <span>${pausado ? `Pausado por ${esc(e.controle.atualizado_por || 'equipe')}${e.controle.motivo ? `: ${esc(e.controle.motivo)}` : ''}` : esc(agenda)}</span>
-    <span>Hoje: ${e.contagens.geradas_hoje} de ${e.limites.geracoes_por_dia} gerações, ${e.contagens.publicadas_hoje} de ${e.limites.publicacoes_por_dia} publicações</span>`;
+    <span>Hoje: ${e.contagens.geradas_hoje}${e.limites.geracoes_por_dia ? ` de ${e.limites.geracoes_por_dia}` : ''} ${
+      e.contagens.geradas_hoje === 1 ? 'geração' : 'gerações'
+    }, ${e.contagens.publicadas_hoje}${e.limites.publicacoes_por_dia ? ` de ${e.limites.publicacoes_por_dia}` : ''} ${
+      e.contagens.publicadas_hoje === 1 ? 'publicação' : 'publicações'
+    }</span>`;
   pintar($('#topo-situacao'), 'topo', html);
 
   const gerar = $('#btn-gerar');
@@ -462,7 +467,8 @@ function contextoDaPeca(p, categoria) {
 }
 
 function progresso(p, reprocessando) {
-  const indice = Math.max(0, ETAPAS.findIndex(([id]) => id === p.etapa));
+  // "ajuste" acontece antes da imagem: o agente lê o pedido de correção.
+  const indice = Math.max(0, ETAPAS.findIndex(([id]) => id === (p.etapa === 'ajuste' ? 'imagem' : p.etapa)));
   const etapas = ETAPAS.map(([id, nome], i) => {
     const classe = i < indice ? 'progresso__etapa--feita' : i === indice ? 'progresso__etapa--atual' : '';
     return `<li class="progresso__etapa ${classe}" ${i === indice ? 'aria-current="step"' : ''}>${nome}</li>`;
@@ -910,7 +916,12 @@ function renderAutonomia() {
       'Agenda automática',
       e.agenda?.ativa ? `${e.agenda.expressao} (${e.agenda.fuso}). Próxima: ${dataHora(e.agenda.proxima, { diaSemana: true })}` : 'Desligada',
     ],
-    ['Limites diários', `${e.limites.geracoes_por_dia} gerações e ${e.limites.publicacoes_por_dia} publicações`],
+    [
+      'Limites diários',
+      e.limites.geracoes_por_dia || e.limites.publicacoes_por_dia
+        ? `${e.limites.geracoes_por_dia || 'sem limite de'} gerações e ${e.limites.publicacoes_por_dia || 'sem limite de'} publicações`
+        : 'Sem limite. O Instagram aceita até 100 publicações pela API a cada 24 horas.',
+    ],
     ['Política', `Versão ${c.politica_versao}, em politica.json`],
   ]);
   pintar(
@@ -1369,21 +1380,25 @@ const acoesPorNome = {
   'nova-imagem': async (alvo) => {
     if (!exigirNome()) return;
     const visual = ui.detalhe?.peca?.visual || 'ia';
+    const rotulo = 'O que está errado e como deve ficar (opcional)';
+    const nota = 'Pode falar da imagem e do layout: fundo, formas, números, tamanho do texto. Para trocar palavras, edite os campos de texto.';
     const opcoes = {
       ia: {
-        titulo: 'Gerar nova imagem',
-        texto: 'O fundo é gerado de novo a partir do mesmo brief. A arte é refeita e passa pelas travas outra vez.',
-        campo: { rotulo: 'O que mudar na imagem (opcional)', placeholder: 'Ex.: cena ao ar livre, pessoa mais velha, menos objetos na mesa' },
-        botao: 'Gerar nova imagem',
+        titulo: 'Novo visual',
+        texto: `Sem pedido, gera outra imagem com o mesmo brief. Com pedido, a IA ajusta o que você descrever. ${nota}`,
+        campo: { rotulo, placeholder: 'Ex.: cena ao ar livre com uma jovem, fundo escuro nos slides, tirar os números grandes' },
+        botao: 'Gerar novo visual',
       },
       foto: {
-        titulo: 'Trocar a foto',
-        texto: 'Busca outra foto real no banco de imagens, com as mesmas palavras do brief. A arte é refeita e passa pelas travas outra vez.',
-        botao: 'Trocar foto',
+        titulo: 'Novo visual',
+        texto: `Sem pedido, busca outra foto com as mesmas palavras. Com pedido, a IA ajusta o que você descrever. ${nota}`,
+        campo: { rotulo, placeholder: 'Ex.: foto de um jovem estudando em casa, mais clara, texto maior' },
+        botao: 'Gerar novo visual',
       },
       design: {
         titulo: 'Novo visual',
-        texto: 'Refaz as formas e a composição do design da marca. Os textos continuam os mesmos.',
+        texto: `Sem pedido, refaz as formas e a composição. Com pedido, a IA ajusta o que você descrever. ${nota}`,
+        campo: { rotulo, placeholder: 'Ex.: menos círculos, fundo escuro, tirar os números grandes e o contador' },
         botao: 'Gerar novo visual',
       },
     };
@@ -1391,7 +1406,7 @@ const acoesPorNome = {
     if (!r.ok) return;
     await executar(alvo, 'Enviando…', async () => {
       await acao(`/api/pecas/${ui.selecionada}/regenerar-imagem`, { direcao: r.valor });
-      avisar('Gerando nova imagem.');
+      avisar(r.valor ? 'Ajustando o visual conforme o seu pedido. O que mudou fica na trilha de auditoria.' : 'Gerando novo visual.');
     });
   },
 
@@ -1576,7 +1591,7 @@ $('#btn-pausa').addEventListener('click', async (evento) => {
     if (n) {
       const r = await confirmar({
         titulo: 'Retomar a operação?',
-        texto: `${n === 1 ? 'Há 1 peça aprovada aguardando' : `Há ${n} peças aprovadas aguardando`} publicação. Ao retomar, elas são publicadas na hora, dentro do limite diário.`,
+        texto: `${n === 1 ? 'Há 1 peça aprovada aguardando' : `Há ${n} peças aprovadas aguardando`} publicação. Ao retomar, elas são publicadas na hora.`,
         botao: 'Retomar e publicar',
       });
       if (!r.ok) return;
