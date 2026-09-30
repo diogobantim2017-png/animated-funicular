@@ -251,6 +251,20 @@ textarea:disabled {
   line-height: 1.2;
 }
 
+.topo__inicio {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.topo__inicio:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
 .topo__marca {
   margin: 3px 0 0;
   font-size: var(--t-1);
@@ -613,7 +627,7 @@ textarea:disabled {
 }
 
 .voltar {
-  display: none;
+  display: inline-block;
   margin: 0 0 14px;
   padding: 0;
   border: 0;

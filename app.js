@@ -827,7 +827,7 @@ function renderDetalhe() {
   }
   const tema = p.oportunidade?.tema || (p.status === 'erro' ? 'Geração interrompida antes da escolha do tema' : 'Tema em definição pelo radar');
   el.innerHTML = `<article class="peca">
-    <button type="button" class="voltar" data-acao="voltar">Voltar para a lista</button>
+    <button type="button" class="voltar" data-acao="voltar">← Voltar ao início</button>
     <p class="peca__contexto">${contextoDaPeca(p, d.categoria)}</p>
     <h2 class="peca__tema">${esc(tema)}</h2>
     ${faixaSuperior(d)}
@@ -1307,6 +1307,7 @@ const acoesPorNome = {
     history.replaceState(null, '', location.pathname);
     renderLista();
     renderDetalhe();
+    $('#detalhe').scrollTop = 0;
     if (telaEstreita()) $('#principal').scrollIntoView({ block: 'start' });
   },
 
@@ -1643,8 +1644,27 @@ $('#btn-pausa').addEventListener('click', async (evento) => {
   });
 });
 
+/** Volta à tela inicial: aba da fila, sem peça aberta. */
+function irParaInicio() {
+  if (ui.aba !== 'fila') trocarAba('fila');
+  acoesPorNome.voltar();
+}
+
+$('#btn-inicio').addEventListener('click', irParaInicio);
+
+// Esc fecha a peça aberta e volta ao início, quando não há janela aberta por cima.
+document.addEventListener('keydown', (evento) => {
+  if (evento.key !== 'Escape' || !ui.selecionada || document.querySelector('dialog[open]')) return;
+  if (evento.target.closest('input, textarea, select')) return;
+  acoesPorNome.voltar();
+});
+
 for (const aba of $$('.aba')) {
-  aba.addEventListener('click', () => trocarAba(aba.dataset.aba));
+  // Clicar de novo na aba em que você já está fecha a peça aberta.
+  aba.addEventListener('click', () => {
+    if (ui.aba === aba.dataset.aba && ui.selecionada) acoesPorNome.voltar();
+    else trocarAba(aba.dataset.aba);
+  });
   aba.addEventListener('keydown', (evento) => {
     if (!['ArrowLeft', 'ArrowRight'].includes(evento.key)) return;
     const abas = $$('.aba');
