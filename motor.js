@@ -695,6 +695,46 @@ export function criarMotor({ db, ia, imagem, fotos = null, canal, sortear = Math
       return db.obterPeca(id);
     },
 
+    /** A equipe descreve o que mudar e a IA reescreve os textos; a arte é refeita e passa pelas travas de novo. */
+    async ajustarTextosComIa(id, usuario, pedido) {
+      const texto = String(pedido || '').trim();
+      if (!texto) throw erroHttp(400, 'Escreva o que a IA deve mudar nos textos.');
+      const peca = await exigirEmRevisao(id);
+      if (!env.anthropicKey) throw erroHttp(400, 'Configure no .env: ANTHROPIC_API_KEY.');
+      await db.atualizarPeca(id, { intervencao_humana: true, status: 'gerando', etapa: 'textos', erro: null });
+      await auditar(id, 'edicao', `humano:${usuario}`, `Ajuste de texto pedido à IA: ${texto}`);
+      emSegundoPlano(id, async () => {
+        const formato = formatoDaPeca(peca);
+        const oferta = peca.oferta_id ? ofertaPorId(peca.oferta_id) : null;
+        const segmento = segmentos.find((s) => s.id === peca.segmento_id) || { nome: 'Público geral', descricao: '' };
+        const numSlides = formato === 'post' ? 1 : (peca.textos.slides?.length || 0) + 2;
+        const r = await escreverTextos({
+          ia,
+          oportunidade: peca.oportunidade,
+          brief: peca.brief,
+          segmento,
+          oferta,
+          formato,
+          numSlides,
+          pedido: texto,
+          textosAtuais: peca.textos,
+        });
+        const textos = { ...peca.textos, ...r.dados };
+        const alterados = CAMPOS_EDITAVEIS.filter((c) => JSON.stringify(textos[c]) !== JSON.stringify(peca.textos[c]));
+        const atual = await db.atualizarPeca(id, { textos, etapa: 'arte' });
+        await auditar(id, 'textos', 'ia:redator', `${r.resumo || 'Textos ajustados conforme o pedido.'}${alterados.length ? '' : ' Nenhum texto mudou.'}`, {
+          pedido: texto,
+          antes: Object.fromEntries(alterados.map((c) => [c, peca.textos[c]])),
+          depois: Object.fromEntries(alterados.map((c) => [c, textos[c]])),
+          modelo: r.modelo,
+        });
+        const fundo = peca.imagem?.chave ? await db.lerMidia(peca.imagem.chave) : null;
+        const artes = await montarVisual(id, { peca: atual, fundo, textos, oferta, versao: Date.now() });
+        await avaliarEDecidir(id, { inicial: false, buffers: { fundo, ...artes } });
+      });
+      return db.obterPeca(id);
+    },
+
     async regenerarImagem(id, usuario, direcao) {
       const peca = await exigirEmRevisao(id);
       const visual = visualDaPeca(peca);

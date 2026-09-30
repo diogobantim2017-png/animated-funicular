@@ -738,7 +738,8 @@ function acoesHtml(d) {
       <button type="button" class="botao botao--primario" data-acao="aprovar" ${bloqueada || alterado ? 'disabled' : ''}>Aprovar</button>
       <button type="button" class="botao botao--secundario" data-acao="salvar-textos" ${alterado ? '' : 'disabled'}>Salvar textos e reavaliar</button>
       ${alterado ? '<button type="button" class="botao botao--texto" data-acao="descartar">Descartar alterações</button>' : ''}
-      <button type="button" class="botao botao--secundario" data-acao="nova-imagem">${{ ia: 'Gerar nova imagem', foto: 'Trocar foto', design: 'Novo visual' }[p.visual || 'ia']}</button>
+      <button type="button" class="botao botao--secundario" data-acao="ajustar-textos-ia" ${alterado ? 'disabled' : ''}>Ajustar texto com IA</button>
+      <button type="button" class="botao botao--secundario" data-acao="nova-imagem">Novo visual</button>
       <span class="acoes__separador"></span>
       <button type="button" class="botao botao--perigo" data-acao="reprovar">Reprovar</button>
       <p class="acoes__nota" id="acoes-nota">${nota}</p>
@@ -1377,11 +1378,37 @@ const acoesPorNome = {
     renderDetalhe();
   },
 
+  'ajustar-textos-ia': async (alvo) => {
+    if (!exigirNome()) return;
+    const emSlides = Boolean(ui.detalhe?.peca?.textos?.slides);
+    const r = await confirmar({
+      titulo: 'Ajustar texto com IA',
+      texto:
+        'Diga o que mudar. A IA reescreve só o necessário, segue as regras da marca e a peça passa pelas travas de novo. Para mudar a imagem ou o layout, use "Novo visual".',
+      campo: {
+        rotulo: 'O que mudar nos textos',
+        placeholder: emSlides
+          ? 'Ex.: tira a numeração dos títulos, deixa o slide 3 mais simples e a legenda mais curta'
+          : 'Ex.: título mais direto, subtítulo mais curto e legenda mais descontraída',
+      },
+      botao: 'Ajustar texto',
+    });
+    if (!r.ok) return;
+    if (!r.valor) {
+      avisar('Escreva o que a IA deve mudar nos textos.', 'erro');
+      return;
+    }
+    await executar(alvo, 'Enviando…', async () => {
+      await acao(`/api/pecas/${ui.selecionada}/ajustar-textos`, { pedido: r.valor });
+      avisar('A IA está ajustando os textos. O que mudou fica na trilha de auditoria.');
+    });
+  },
+
   'nova-imagem': async (alvo) => {
     if (!exigirNome()) return;
     const visual = ui.detalhe?.peca?.visual || 'ia';
     const rotulo = 'O que está errado e como deve ficar (opcional)';
-    const nota = 'Pode falar da imagem e do layout: fundo, formas, números, tamanho do texto. Para trocar palavras, edite os campos de texto.';
+    const nota = 'Pode falar da imagem e do layout: fundo, formas, números, tamanho do texto. Para trocar palavras, use "Ajustar texto com IA".';
     const opcoes = {
       ia: {
         titulo: 'Novo visual',

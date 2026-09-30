@@ -1917,6 +1917,15 @@ textarea:disabled {
     display: none;
   }
 
+  /* No celular, "Salvar textos" só aparece quando há alteração para salvar. */
+  .acoes .botao[data-acao='salvar-textos']:disabled {
+    display: none;
+  }
+
+  .acoes__nota {
+    font-size: 0.8125rem;
+  }
+
   .abas__lista {
     gap: 0;
   }

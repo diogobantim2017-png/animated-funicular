@@ -47,7 +47,7 @@ npm run teste           # pipeline completo com IA simulada: sem chaves e sem cu
 npm start               # painel em http://localhost:3000
 ```
 
-O teste offline roda 21 cenários: pipeline completo, cada tipo de trava, aprovação, edição humana, novo visual com pedido de correção, escada de autonomia, limites diários, pausa, programação e formatos. Ele também grava uma prévia da arte em `teste-saida/previa-arte.jpg`, com fundo sintético.
+O teste offline roda 22 cenários: pipeline completo, cada tipo de trava, aprovação, edição humana, novo visual e ajuste de texto com IA, escada de autonomia, limites diários, pausa, programação e formatos. Ele também grava uma prévia da arte em `teste-saida/previa-arte.jpg`, com fundo sintético.
 
 **Painel sem chaves, para demonstração de layout:**
 
@@ -61,7 +61,7 @@ O painel abre com as peças do teste. Os fundos são sintéticos e o botão de g
 ## O painel
 
 - **Fila de revisão.** Peças aguardando decisão, com a arte, o motivo do post, o público, os textos editáveis, a legenda como será publicada, as travas e as notas do revisor de IA.
-- **Ações.** Aprovar e publicar, salvar textos e reavaliar, gerar nova imagem com uma direção, reprovar com motivo. Uma peça bloqueada não pode ser aprovada: é preciso corrigir, e toda alteração passa pelas travas de novo.
+- **Ações.** Aprovar (agora, no próximo horário da programação ou numa data), salvar textos editados à mão, **ajustar texto com IA** (você diz o que mudar e a IA reescreve só isso, com as mesmas regras, e a peça passa pelas travas de novo), **novo visual** com pedido de correção, e reprovar com motivo. Uma peça bloqueada não pode ser aprovada: é preciso corrigir, e toda alteração passa pelas travas de novo.
 - **Todas as peças.** Histórico com filtro por situação.
 - **Programação.** Dias e horários da semana em que os posts saem. Ao aprovar, você escolhe entre o próximo horário livre, agora ou uma data. Se ligar a geração automática, o sistema cria a peça antes de cada horário, e ela espera aprovação. Os horários seguem o fuso de `FUSO_HORARIO`. O servidor confere a agenda a cada minuto, então precisa estar ligado: um serviço que dorme por inatividade publica o post atrasado, quando acordar.
 - **Autonomia.** Evidência por categoria (revisões e concordância com a meta), liberação e revogação, e a configuração ativa.

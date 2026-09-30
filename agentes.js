@@ -181,11 +181,35 @@ Estilos visuais aprovados: ${estilos.join(', ')}`;
 
 /* ----------------------------------------------------------------- textos */
 
-export async function escreverTextos({ ia, oportunidade, brief, segmento, oferta, formato = 'post', numSlides = 1 }) {
+/** Mostra os textos atuais numerados como o leitor vê: capa, slides e slide final. */
+function textosNumerados(t, numSlides) {
+  const linhas = [`Capa (slide 1). Título: ${t.titulo} | Subtítulo: ${t.subtitulo}`];
+  (t.slides || []).forEach((sl, i) => linhas.push(`Slide ${i + 2}. Título: ${sl.titulo} | Texto: ${sl.texto}`));
+  if (t.slides) linhas.push(`Slide final (slide ${numSlides}). Fechamento: ${t.fechamento} | Botão: ${t.cta_arte}`);
+  else linhas.push(`Botão da arte: ${t.cta_arte}`);
+  linhas.push(`Legenda: ${t.legenda}`, `Hashtags: ${(t.hashtags || []).join(' ')}`);
+  return linhas.join('\n');
+}
+
+/**
+ * Escreve os textos da peça. Com "pedido", revisa textos já escritos: a equipe diz o que mudar
+ * e a IA reescreve só o necessário, com as mesmas regras e limites.
+ */
+export async function escreverTextos({
+  ia,
+  oportunidade,
+  brief,
+  segmento,
+  oferta,
+  formato = 'post',
+  numSlides = 1,
+  pedido = null,
+  textosAtuais = null,
+}) {
   const l = politica.limites;
   const ferramenta = {
-    name: 'escrever_textos',
-    description: 'Registra os textos da arte e da legenda do post.',
+    name: pedido ? 'reescrever_textos' : 'escrever_textos',
+    description: pedido ? 'Registra os textos revisados conforme o pedido da equipe.' : 'Registra os textos da arte e da legenda do post.',
     input_schema: {
       type: 'object',
       properties: {
@@ -262,7 +286,24 @@ Regras verificadas automaticamente. Se você descumprir, a peça é bloqueada:
 - A legenda termina com a chamada para ação. Sem hashtags no corpo da legenda.
 - Hashtags sem espaços, começando com #.`;
 
-  const conteudo = `Brief:
+  if (pedido) {
+    ferramenta.input_schema.properties.resumo_da_mudanca = {
+      type: 'string',
+      description: 'Uma frase, em português, dizendo o que mudou. Se alguma parte do pedido não pôde ser atendida por causa das regras, diga qual.',
+    };
+    ferramenta.input_schema.required.push('resumo_da_mudanca');
+  }
+
+  const revisao = pedido
+    ? `
+
+Revisão: a equipe leu a peça e pediu ajustes nos textos.
+- Atenda o pedido e mude só o necessário. O que o pedido não mencionar volta igual, palavra por palavra.
+- As regras acima continuam valendo, mesmo que o pedido diga o contrário. Se alguma parte não puder ser atendida, explique em resumo_da_mudanca.
+- Mantenha a mesma quantidade de slides.`
+    : '';
+
+  let conteudo = `Brief:
 - Tema: ${oportunidade.tema}
 - Objetivo: ${brief.objetivo}
 - Público: ${segmento.nome}. ${segmento.descricao}
@@ -271,8 +312,14 @@ Regras verificadas automaticamente. Se você descumprir, a peça é bloqueada:
 - Chamada para ação: ${brief.cta}
 ${oferta ? `- Produto em oferta: ${oferta.produto}. Não escreva números: o destaque oficial e o texto legal entram pelo template.\n` : ''}`;
 
-  const r = await ia({ modelo: env.modeloIa, sistema, conteudo, ferramenta, maxTokens: emSlides ? 3000 : 1500 });
+  if (pedido) {
+    conteudo += `\nTextos atuais:\n${textosNumerados(textosAtuais || {}, numSlides)}\n\nPedido da equipe: "${pedido}"`;
+  }
+
+  const r = await ia({ modelo: env.modeloIa, sistema: sistema + revisao, conteudo, ferramenta, maxTokens: emSlides ? 3000 : 1500 });
   const dados = { ...r.dados };
+  const resumo = pedido ? String(dados.resumo_da_mudanca || '').trim() : null;
+  delete dados.resumo_da_mudanca;
   if (emSlides) {
     dados.slides = (dados.slides || []).slice(0, miolo).map((sl) => ({ titulo: String(sl.titulo || '').trim(), texto: String(sl.texto || '').trim() }));
     dados.fechamento = String(dados.fechamento || '').trim();
@@ -281,7 +328,7 @@ ${oferta ? `- Produto em oferta: ${oferta.produto}. Não escreva números: o des
     .map((h) => String(h).trim().replace(/\s+/g, ''))
     .filter(Boolean)
     .map((h) => (h.startsWith('#') ? h : `#${h}`));
-  return { dados, modelo: r.modelo };
+  return { dados, modelo: r.modelo, resumo };
 }
 
 /* ---------------------------------------------------------- prompt imagem */

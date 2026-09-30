@@ -142,6 +142,11 @@ async function iaSimulada({ ferramenta, conteudo }) {
       const extras = pedeSlides ? { slides: slidesSimulados(pedeSlides.minItems), fechamento: 'Proteja quem você ama: compartilhe.' } : {};
       return { ...TEXTOS, ...extras, ...roteiro.textos };
     },
+    reescrever_textos: () => {
+      const pedeSlides = ferramenta.input_schema.properties.slides;
+      const extras = pedeSlides ? { slides: slidesSimulados(pedeSlides.minItems), fechamento: 'Proteja quem você ama: compartilhe.' } : {};
+      return { ...TEXTOS, ...extras, resumo_da_mudanca: 'Textos ajustados.', ...roteiro.reescrita };
+    },
     ajustar_visual: () => ({
       trocar_imagem: true,
       nova_cena_en: '',
@@ -650,6 +655,52 @@ await caso('Novo visual com pedido de correção: layout, nova cena, nova foto e
   } finally {
     Object.assign(politica.limites, limites);
   }
+});
+
+await caso('Ajuste de texto com IA: reescreve a partir do pedido, refaz a arte e passa pelas travas', async () => {
+  const car = await gerarPeca({ orientacao: { formato: 'carrossel', visual: 'design', num_slides: 5 } });
+  const novos = [
+    { titulo: 'Saiba quanto deve', texto: 'Some tudo o que falta pagar na fatura.' },
+    { titulo: 'Pare de usar o cartão', texto: 'Assim a dívida para de crescer.' },
+    { titulo: 'Procure uma dívida mais barata', texto: 'Compare o custo total antes de trocar.' },
+  ];
+  roteiro = {
+    reescrita: {
+      slides: novos,
+      legenda: 'Três atitudes simples para sair do rotativo. Salve este post.',
+      resumo_da_mudanca: 'Tirei a numeração dos títulos e encurtei a legenda.',
+    },
+  };
+  await motor.ajustarTextosComIa(car.id, 'Diogo', 'tira a numeração dos títulos e deixa a legenda mais curta');
+  const ajustada = await aguardarProcessamento(car.id);
+  roteiro = {};
+  const pedido = chamadas.filter((c) => c.ferramenta === 'reescrever_textos').at(-1);
+  assert.ok(pedido.conteudo.includes('tira a numeração dos títulos'), 'a IA recebe o pedido');
+  assert.ok(pedido.conteudo.includes('Slide 2.') && pedido.conteudo.includes('Slide final'), 'a IA vê os slides numerados como o leitor');
+  assert.equal(pedido.schema.properties.slides.minItems, 3, 'mesma quantidade de slides');
+  assert.deepEqual(ajustada.textos.slides, novos);
+  assert.equal(ajustada.textos.legenda, 'Três atitudes simples para sair do rotativo. Salve este post.');
+  assert.equal(ajustada.textos.resumo_da_mudanca, undefined, 'o resumo não vira texto da peça');
+  assert.notEqual(ajustada.slides_arte[1].url, car.slides_arte[1].url, 'a arte foi refeita');
+  assert.equal(ajustada.status, 'em_revisao');
+  assert.equal(ajustada.intervencao_humana, true);
+  const trilha = (await motor.detalhe(car.id)).auditoria;
+  assert.ok(trilha.some((a) => a.ator === 'ia:redator' && a.resumo.includes('Tirei a numeração')));
+
+  // As travas continuam valendo: se o texto reescrito tiver termo proibido, a peça fica bloqueada.
+  roteiro = { reescrita: { legenda: 'Com esse método o lucro é garantido. Salve este post.' } };
+  await motor.ajustarTextosComIa(car.id, 'Diogo', 'promete que dá lucro');
+  const bloqueada = await aguardarProcessamento(car.id);
+  roteiro = {};
+  assert.equal(bloqueada.governanca.gate.veredito, 'bloqueada');
+
+  // Post único também pode ser ajustado; pedido vazio é recusado.
+  const post = await gerarPeca();
+  roteiro = { reescrita: { titulo: 'Senha pelo telefone? É golpe' } };
+  await motor.ajustarTextosComIa(post.id, 'Diogo', 'título mais direto');
+  assert.equal((await aguardarProcessamento(post.id)).textos.titulo, 'Senha pelo telefone? É golpe');
+  roteiro = {};
+  await assert.rejects(motor.ajustarTextosComIa(post.id, 'Diogo', '   '), /Escreva o que/);
 });
 
 await caso('Estado do painel com métricas por categoria e configuração ativa', async () => {

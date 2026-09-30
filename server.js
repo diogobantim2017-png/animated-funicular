@@ -170,6 +170,10 @@ app.post('/api/pecas/:id/editar', async (req, res) => {
   res.json(await motor.editarTextos(req.params.id, quem(req), req.body?.campos || {}));
 });
 
+app.post('/api/pecas/:id/ajustar-textos', async (req, res) => {
+  res.json(await motor.ajustarTextosComIa(req.params.id, quem(req), String(req.body?.pedido || '').slice(0, 1000)));
+});
+
 app.post('/api/pecas/:id/regenerar-imagem', async (req, res) => {
   const direcao = String(req.body?.direcao || '').trim().slice(0, 500);
   res.json(await motor.regenerarImagem(req.params.id, quem(req), direcao));
