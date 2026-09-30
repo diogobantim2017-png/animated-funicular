@@ -9,7 +9,8 @@ import {
   montarLegendaFinal,
   categoriasDisponiveis,
 } from './agentes.js';
-import { renderizarArte } from './arte.js';
+import { renderizarArte, renderizarCarrossel } from './arte.js';
+import { normalizarFormato, formatoDaPeca, visualDaPeca } from './formatos.js';
 import { avaliarRegras } from './regras.js';
 import { avaliarComVisao } from './juiz.js';
 import { consolidarGate, decidirRota, calcularMetricas } from './autonomia.js';
@@ -35,9 +36,9 @@ export function erroHttp(status, mensagem) {
   return erro;
 }
 
-const CAMPOS_EDITAVEIS = ['titulo', 'subtitulo', 'cta_arte', 'legenda', 'hashtags'];
+const CAMPOS_EDITAVEIS = ['titulo', 'subtitulo', 'cta_arte', 'legenda', 'hashtags', 'fechamento', 'slides'];
 
-export function criarMotor({ db, ia, imagem, canal, sortear = Math.random, agora = () => new Date() }) {
+export function criarMotor({ db, ia, imagem, fotos = null, canal, sortear = Math.random, agora = () => new Date() }) {
   let emGeracao = null;
   const ocupadas = new Set();
   /** Horários da programação cuja geração automática já falhou nesta execução (evita tentar a cada minuto). */
@@ -112,53 +113,108 @@ export function criarMotor({ db, ia, imagem, canal, sortear = Math.random, agora
     return modos[id]?.modo || 'humano';
   }
 
-  function verificarChaves() {
+  function verificarChaves(visual = 'ia') {
     const faltando = [];
     if (!env.anthropicKey) faltando.push('ANTHROPIC_API_KEY');
-    if (imagem.provedor === 'openai' && !env.openaiKey) faltando.push('OPENAI_API_KEY');
-    if (imagem.provedor === 'google' && !env.googleKey) faltando.push('GOOGLE_API_KEY');
+    if (visual === 'ia' && imagem.provedor === 'openai' && !env.openaiKey) faltando.push('OPENAI_API_KEY');
+    if (visual === 'ia' && imagem.provedor === 'google' && !env.googleKey) faltando.push('GOOGLE_API_KEY');
+    if (visual === 'foto' && !fotos?.disponivel) faltando.push('PEXELS_API_KEY (fotos reais)');
     if (faltando.length) throw erroHttp(400, `Configure no .env: ${faltando.join(', ')}.`);
   }
 
   /* ---------------------------------------------------------- etapas */
 
-  async function montarArte(id, { fundo, textos, oferta, versao }) {
-    const r = await renderizarArte({ fundo, textos, oferta });
-    const salvo = await db.salvarMidia(`${id}-arte-${versao}.jpg`, r.buffer, 'image/jpeg');
-    const registro = { chave: salvo.chave, url: salvo.url, largura: r.largura, altura: r.altura, ajustes: r.ajustes };
-    await db.atualizarPeca(id, { arte: registro });
-    await auditar(id, 'arte', 'template', 'Arte composta com o template da marca', registro);
-    return r.buffer;
+  /** Monta a arte do post ou todas as imagens do carrossel e registra na peça. */
+  async function montarVisual(id, { peca, fundo, textos, oferta, versao }) {
+    const formato = formatoDaPeca(peca);
+    const visual = visualDaPeca(peca);
+    const credito = peca.imagem?.credito || null;
+    const semente = peca.design_semente || 1;
+    if (formato === 'post') {
+      const r = await renderizarArte({ fundo, textos, oferta, visual, credito, semente });
+      const salvo = await db.salvarMidia(`${id}-arte-${versao}.jpg`, r.buffer, 'image/jpeg');
+      const registro = { chave: salvo.chave, url: salvo.url, largura: r.largura, altura: r.altura, ajustes: r.ajustes };
+      await db.atualizarPeca(id, { arte: registro, slides_arte: null });
+      await auditar(id, 'arte', 'template', 'Arte composta com o template da marca', registro);
+      return { arte: r.buffer, slides: null };
+    }
+    const r = await renderizarCarrossel({ fundo, textos, oferta, formato, visual, credito, semente });
+    const slides = [];
+    for (const [i, buffer] of r.slides.entries()) {
+      const salvo = await db.salvarMidia(`${id}-slide-${i + 1}-${versao}.jpg`, buffer, 'image/jpeg');
+      slides.push({ chave: salvo.chave, url: salvo.url });
+    }
+    const registro = { ...slides[0], largura: r.largura, altura: r.altura, ajustes: r.ajustes };
+    await db.atualizarPeca(id, { arte: registro, slides_arte: slides });
+    await auditar(
+      id,
+      'arte',
+      'template',
+      `${formato === 'flashcards' ? 'Flashcards' : 'Carrossel'} com ${slides.length} imagens montado com o template da marca`,
+      { ...registro, slides },
+    );
+    return { arte: r.slides[0], slides: r.slides };
   }
 
-  async function gerarImagemEArte(id, { brief, textos, oferta, direcaoExtra }) {
+  /** Obtém a imagem de fundo conforme a escolha (IA, foto real ou só design) e monta a arte. */
+  async function produzirVisual(id, { peca, textos, oferta, direcaoExtra = null, evitarFotos = [] }) {
+    const visual = visualDaPeca(peca);
+    const brief = peca.brief;
+    let fundo = null;
+    let registro = null;
     await db.atualizarPeca(id, { etapa: 'imagem' });
-    const prompt = direcaoExtra
-      ? `${montarPromptImagem(brief)} Additional direction from the human reviewer (in Portuguese): ${direcaoExtra}`
-      : montarPromptImagem(brief);
     const inicio = Date.now();
-    const gerada = await imagem.gerar(prompt);
-    const versao = Date.now();
-    const extensao = gerada.mime.includes('jpeg') ? 'jpg' : gerada.mime.includes('webp') ? 'webp' : 'png';
-    const salvo = await db.salvarMidia(`${id}-fundo-${versao}.${extensao}`, gerada.buffer, gerada.mime);
-    const registro = {
-      provedor: imagem.provedor,
-      modelo: imagem.modelo,
-      prompt,
-      chave: salvo.chave,
-      url: salvo.url,
-      segundos: Math.round((Date.now() - inicio) / 1000),
-    };
-    await db.atualizarPeca(id, { etapa: 'arte', imagem: registro });
-    await auditar(id, 'imagem', `ia:imagem:${imagem.provedor}`, `Fundo gerado com ${imagem.modelo}`, registro);
-    const arte = await montarArte(id, { fundo: gerada.buffer, textos, oferta, versao });
-    return { fundo: gerada.buffer, arte };
+    if (visual === 'ia') {
+      const prompt = direcaoExtra
+        ? `${montarPromptImagem(brief)} Additional direction from the human reviewer (in Portuguese): ${direcaoExtra}`
+        : montarPromptImagem(brief);
+      const gerada = await imagem.gerar(prompt);
+      const extensao = gerada.mime.includes('jpeg') ? 'jpg' : gerada.mime.includes('webp') ? 'webp' : 'png';
+      const salvo = await db.salvarMidia(`${id}-fundo-${Date.now()}.${extensao}`, gerada.buffer, gerada.mime);
+      registro = {
+        origem: 'ia',
+        provedor: imagem.provedor,
+        modelo: imagem.modelo,
+        prompt,
+        chave: salvo.chave,
+        url: salvo.url,
+        segundos: Math.round((Date.now() - inicio) / 1000),
+      };
+      await auditar(id, 'imagem', `ia:imagem:${imagem.provedor}`, `Fundo gerado com ${imagem.modelo}`, registro);
+      fundo = gerada.buffer;
+    } else if (visual === 'foto') {
+      if (!fotos) throw new Error('Banco de fotos não configurado.');
+      const foto = await fotos.buscar(brief.busca_foto_en || brief.prompt_imagem_en, { evitar: evitarFotos });
+      const salvo = await db.salvarMidia(`${id}-foto-${Date.now()}.jpg`, foto.buffer, foto.mime);
+      registro = {
+        origem: 'foto',
+        provedor: fotos.provedor,
+        consulta: foto.consulta,
+        foto_id: foto.id,
+        credito: foto.credito,
+        chave: salvo.chave,
+        url: salvo.url,
+        segundos: Math.round((Date.now() - inicio) / 1000),
+      };
+      await auditar(id, 'imagem', `banco:${fotos.provedor}`, `Foto real de ${foto.credito.autor} (${foto.credito.fonte})`, registro);
+      fundo = foto.buffer;
+    } else {
+      await auditar(id, 'imagem', 'template', 'Sem imagem: peça feita só com o design da marca');
+    }
+    const atual = await db.atualizarPeca(id, { etapa: 'arte', imagem: registro });
+    const artes = await montarVisual(id, { peca: atual, fundo, textos, oferta, versao: Date.now() });
+    return { fundo, ...artes };
   }
 
   async function avaliarEDecidir(id, { inicial, buffers }) {
     let peca = await db.atualizarPeca(id, { etapa: 'governanca' });
-    const fundo = buffers?.fundo ?? (await db.lerMidia(peca.imagem.chave));
+    const fundo = buffers ? buffers.fundo : peca.imagem?.chave ? await db.lerMidia(peca.imagem.chave) : null;
     const arte = buffers?.arte ?? (await db.lerMidia(peca.arte.chave));
+    const slides = buffers
+      ? buffers.slides
+      : peca.slides_arte?.length
+        ? await Promise.all(peca.slides_arte.map((sl) => db.lerMidia(sl.chave)))
+        : null;
     const segmento = segmentos.find((s) => s.id === peca.segmento_id);
 
     const regras = avaliarRegras({
@@ -177,6 +233,9 @@ export function criarMotor({ db, ia, imagem, canal, sortear = Math.random, agora
       ia,
       fundo,
       arte,
+      slides,
+      visual: visualDaPeca(peca),
+      formato: formatoDaPeca(peca),
       textos: peca.textos,
       brief: peca.brief,
       oportunidade: peca.oportunidade,
@@ -249,20 +308,23 @@ export function criarMotor({ db, ia, imagem, canal, sortear = Math.random, agora
       await db.atualizarPeca(id, { etapa, categoria: oportunidade.categoria, oportunidade, oferta_id: oportunidade.oferta_id || null });
       await auditar(id, 'radar', 'ia:radar', oportunidade.tema, { oportunidade, sinais: rRadar.contexto, modelo: rRadar.modelo });
 
-      const rBrief = await criarBrief({ ia, oportunidade, oferta });
+      const escolha = await db.obterPeca(id);
+      const formato = formatoDaPeca(escolha);
+      const numSlides = escolha.num_slides || 1;
+      const rBrief = await criarBrief({ ia, oportunidade, oferta, formato, numSlides, visual: visualDaPeca(escolha) });
       const brief = rBrief.dados;
       const segmento = segmentos.find((s) => s.id === brief.segmento_id);
       etapa = 'textos';
       await db.atualizarPeca(id, { etapa, brief, segmento_id: brief.segmento_id });
       await auditar(id, 'brief', 'ia:estrategista', `Público: ${segmento?.nome || brief.segmento_id}`, { brief, modelo: rBrief.modelo });
 
-      const rTextos = await escreverTextos({ ia, oportunidade, brief, segmento, oferta });
+      const rTextos = await escreverTextos({ ia, oportunidade, brief, segmento, oferta, formato, numSlides });
       const textos = rTextos.dados;
       etapa = 'imagem';
       await db.atualizarPeca(id, { etapa, textos });
       await auditar(id, 'textos', 'ia:redator', textos.titulo, { textos, modelo: rTextos.modelo });
 
-      const buffers = await gerarImagemEArte(id, { brief, textos, oferta });
+      const buffers = await produzirVisual(id, { peca: await db.obterPeca(id), textos, oferta });
       etapa = 'governanca';
       return await avaliarEDecidir(id, { inicial: true, buffers });
     } catch (erro) {
@@ -309,9 +371,9 @@ export function criarMotor({ db, ia, imagem, canal, sortear = Math.random, agora
     }
 
     const oferta = peca.oferta_id ? ofertaPorId(peca.oferta_id) : null;
-    const legenda = montarLegendaFinal({ textos: peca.textos, oferta });
+    const legenda = montarLegendaFinal({ textos: peca.textos, oferta, visual: visualDaPeca(peca), credito: peca.imagem?.credito });
     try {
-      const r = await canal.publicar({ urlImagem: peca.arte.url, legenda });
+      const r = await canal.publicar({ urlImagem: peca.arte.url, urlsImagens: peca.slides_arte?.map((sl) => sl.url) || null, legenda });
       const publicacao = { ...r, canal: canal.nome, em: instante(), legenda_final: legenda, ator };
       await auditar(
         id,
@@ -374,7 +436,9 @@ export function criarMotor({ db, ia, imagem, canal, sortear = Math.random, agora
 
   return {
     async gerar({ origem = 'manual', orientacao = null, usuario = 'equipe', aguardar = false, paraHorario = null } = {}) {
-      verificarChaves();
+      const escolha = normalizarFormato(orientacao || {});
+      verificarChaves(escolha.visual);
+      orientacao = { ...(orientacao || {}), ...escolha };
       if (emGeracao) throw erroHttp(409, 'Já existe uma peça sendo gerada. Aguarde terminar.');
       if (orientacao?.categoria && !politica.categorias[orientacao.categoria]) {
         throw erroHttp(400, `Categoria "${orientacao.categoria}" não existe na política.`);
@@ -393,6 +457,10 @@ export function criarMotor({ db, ia, imagem, canal, sortear = Math.random, agora
         criada_por: usuario,
         politica_versao: politica.versao,
         para_horario: paraHorario,
+        formato: escolha.formato,
+        visual: escolha.visual,
+        num_slides: escolha.num_slides,
+        design_semente: Math.floor(Math.random() * 1_000_000) + 1,
       });
       emGeracao = peca.id;
       await auditar(
@@ -563,7 +631,12 @@ export function criarMotor({ db, ia, imagem, canal, sortear = Math.random, agora
       );
       if (!alvo) return;
       try {
-        await this.gerar({ origem: 'programacao', usuario: 'programacao', paraHorario: alvo.para });
+        await this.gerar({
+          origem: 'programacao',
+          usuario: 'programacao',
+          paraHorario: alvo.para,
+          orientacao: { formato: prog.formato_padrao, visual: prog.visual_padrao, num_slides: prog.slides_padrao },
+        });
       } catch (erro) {
         tentativasFalhas.add(alvo.para);
         await auditar(null, 'programacao', 'sistema:programacao', `Não gerou a peça do horário de ${descreverHorario(alvo.para)}: ${erro.message}`);
@@ -586,6 +659,15 @@ export function criarMotor({ db, ia, imagem, canal, sortear = Math.random, agora
       const textos = { ...peca.textos };
       for (const campo of CAMPOS_EDITAVEIS) {
         if (novos[campo] === undefined) continue;
+        if (campo === 'slides') {
+          if (!Array.isArray(peca.textos.slides)) continue;
+          if (!Array.isArray(novos.slides) || novos.slides.length !== peca.textos.slides.length) {
+            throw erroHttp(400, 'A quantidade de slides não muda na edição. Gere outra peça para mudar o tamanho do carrossel.');
+          }
+          textos.slides = novos.slides.map((sl) => ({ titulo: String(sl?.titulo ?? '').trim(), texto: String(sl?.texto ?? '').trim() }));
+          continue;
+        }
+        if (campo === 'fechamento' && peca.textos.fechamento === undefined) continue;
         textos[campo] =
           campo === 'hashtags'
             ? (Array.isArray(novos.hashtags) ? novos.hashtags : String(novos.hashtags).split(/[\s,]+/))
@@ -602,22 +684,29 @@ export function criarMotor({ db, ia, imagem, canal, sortear = Math.random, agora
         depois: Object.fromEntries(alterados.map((c) => [c, textos[c]])),
       });
       emSegundoPlano(id, async () => {
-        const fundo = await db.lerMidia(peca.imagem.chave);
+        const fundo = peca.imagem?.chave ? await db.lerMidia(peca.imagem.chave) : null;
         const oferta = peca.oferta_id ? ofertaPorId(peca.oferta_id) : null;
-        const arte = await montarArte(id, { fundo, textos, oferta, versao: Date.now() });
-        await avaliarEDecidir(id, { inicial: false, buffers: { fundo, arte } });
+        const artes = await montarVisual(id, { peca, fundo, textos, oferta, versao: Date.now() });
+        await avaliarEDecidir(id, { inicial: false, buffers: { fundo, ...artes } });
       });
       return db.obterPeca(id);
     },
 
     async regenerarImagem(id, usuario, direcao) {
       const peca = await exigirEmRevisao(id);
-      verificarChaves();
+      const visual = visualDaPeca(peca);
+      verificarChaves(visual);
+      const pedido = { ia: 'Nova imagem solicitada', foto: 'Outra foto solicitada', design: 'Novo visual solicitado' }[visual];
       await db.atualizarPeca(id, { intervencao_humana: true, status: 'gerando', etapa: 'imagem', erro: null });
-      await auditar(id, 'edicao', `humano:${usuario}`, `Nova imagem solicitada${direcao ? `: ${direcao}` : ''}`);
+      await auditar(id, 'edicao', `humano:${usuario}`, `${pedido}${direcao ? `: ${direcao}` : ''}`);
       emSegundoPlano(id, async () => {
         const oferta = peca.oferta_id ? ofertaPorId(peca.oferta_id) : null;
-        const buffers = await gerarImagemEArte(id, { brief: peca.brief, textos: peca.textos, oferta, direcaoExtra: direcao });
+        const usadas = [...(peca.fotos_usadas || []), peca.imagem?.foto_id].filter(Boolean);
+        const atual = await db.atualizarPeca(id, {
+          design_semente: (peca.design_semente || 1) + 1,
+          ...(visual === 'foto' ? { fotos_usadas: usadas } : {}),
+        });
+        const buffers = await produzirVisual(id, { peca: atual, textos: peca.textos, oferta, direcaoExtra: direcao, evitarFotos: usadas });
         await avaliarEDecidir(id, { inicial: false, buffers });
       });
       return db.obterPeca(id);
@@ -673,7 +762,11 @@ export function criarMotor({ db, ia, imagem, canal, sortear = Math.random, agora
         categoria: politica.categorias[peca.categoria] || null,
         segmento: segmentos.find((s) => s.id === peca.segmento_id) || null,
         oferta,
-        legenda_final: peca.publicacao?.legenda_final || (peca.textos?.legenda ? montarLegendaFinal({ textos: peca.textos, oferta }) : null),
+        legenda_final:
+          peca.publicacao?.legenda_final ||
+          (peca.textos?.legenda
+            ? montarLegendaFinal({ textos: peca.textos, oferta, visual: visualDaPeca(peca), credito: peca.imagem?.credito })
+            : null),
         processando: ocupadas.has(id) || emGeracao === id,
         sugestao_agendamento: ['em_revisao', 'aprovada', 'agendada'].includes(peca.status) ? await horarioSugerido(peca).catch(() => null) : null,
       };
@@ -697,6 +790,9 @@ export function criarMotor({ db, ia, imagem, canal, sortear = Math.random, agora
         publicacao: p.publicacao ? { modo: p.publicacao.modo, permalink: p.publicacao.permalink, pendente: p.publicacao.pendente, motivo: p.publicacao.motivo } : null,
         erro: p.erro || null,
         agendamento_para: p.agendamento?.para || null,
+        formato: formatoDaPeca(p),
+        visual: visualDaPeca(p),
+        slides: p.slides_arte?.length || 1,
       }));
     },
 
@@ -733,6 +829,7 @@ export function criarMotor({ db, ia, imagem, canal, sortear = Math.random, agora
           canal: canal.nome,
           provedor_imagem: imagem.provedor,
           modelo_imagem: imagem.modelo,
+          fotos_disponiveis: Boolean(fotos?.disponivel),
           modelo_ia: env.modeloIa,
           modelo_revisor: env.modeloJuiz,
           armazenamento: db.tipo,

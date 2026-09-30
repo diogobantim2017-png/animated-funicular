@@ -63,7 +63,16 @@ const BRIEF = {
   estilo_visual: 'ilustracao_flat',
   cena_visual: 'Pessoa em casa encerrando uma ligação no celular, com expressão tranquila.',
   prompt_imagem_en: 'A calm Brazilian woman at home ending a phone call on her smartphone, relaxed expression, cozy living room.',
+  busca_foto_en: 'woman phone call home',
 };
+
+/** Slides simulados no tamanho que o schema pede (carrossel e flashcards). */
+function slidesSimulados(n) {
+  return Array.from({ length: n }, (_, i) => ({
+    titulo: `Passo ${i + 1}: desligue e confira`,
+    texto: 'Quem liga pedindo senha ou código não é o banco. Desligue e procure o atendimento pelos canais oficiais que você já conhece.',
+  }));
+}
 
 const TEXTOS = {
   titulo: 'Ligação do banco pedindo senha é golpe',
@@ -108,6 +117,7 @@ function validarSchema(schema, valor, caminho = 'raiz') {
   } else if (schema.type === 'array') {
     assert.ok(Array.isArray(valor), `${caminho} deveria ser lista`);
     if (schema.maxItems != null) assert.ok(valor.length <= schema.maxItems, `${caminho} com itens demais`);
+    if (schema.minItems != null) assert.ok(valor.length >= schema.minItems, `${caminho} com itens de menos`);
     valor.forEach((item, i) => validarSchema(schema.items, item, `${caminho}[${i}]`));
   } else if (schema.type === 'string') {
     assert.equal(typeof valor, 'string', `${caminho} deveria ser texto`);
@@ -127,7 +137,11 @@ async function iaSimulada({ ferramenta, conteudo }) {
   const respostas = {
     propor_oportunidade: () => ({ ...OPORTUNIDADE, ...roteiro.oportunidade }),
     criar_brief: () => ({ ...BRIEF, ...roteiro.brief }),
-    escrever_textos: () => ({ ...TEXTOS, ...roteiro.textos }),
+    escrever_textos: () => {
+      const pedeSlides = ferramenta.input_schema.properties.slides;
+      const extras = pedeSlides ? { slides: slidesSimulados(pedeSlides.minItems), fechamento: 'Proteja quem você ama: compartilhe.' } : {};
+      return { ...TEXTOS, ...extras, ...roteiro.textos };
+    },
     avaliar_peca: () => ({
       ...JUIZ,
       ...roteiro.juiz,
@@ -165,11 +179,27 @@ const imagemSimulada = {
   },
 };
 
+let fotosBuscadas = 0;
+const fotosSimuladas = {
+  provedor: 'teste',
+  disponivel: true,
+  async buscar(consulta, { evitar = [] } = {}) {
+    fotosBuscadas++;
+    let id = 1000;
+    while (evitar.includes(String(id))) id++;
+    const c = createCanvas(940, 1400);
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#6c8f7d';
+    ctx.fillRect(0, 0, 940, 1400);
+    return { buffer: await c.encode('jpeg'), mime: 'image/jpeg', id: String(id), consulta, credito: { autor: 'Fotógrafa Teste', url: 'https://www.pexels.com/photo/1', fonte: 'Pexels' } };
+  },
+};
+
 /* ----------------------------------------------------------------- preparação */
 
 const db = await criarArmazenamentoLocal({ diretorio: temporario, urlPublica: '' });
 let sorteio = 0.99; // 0.99 = nunca cai na amostra de auditoria; 0 = sempre cai
-const motor = criarMotor({ db, ia: iaSimulada, imagem: imagemSimulada, canal: criarCanalInstagram(), sortear: () => sorteio });
+const motor = criarMotor({ db, ia: iaSimulada, imagem: imagemSimulada, fotos: fotosSimuladas, canal: criarCanalInstagram(), sortear: () => sorteio });
 
 // Ajustes só em memória, para o teste caber em um dia e exercitar a escada de autonomia.
 const marcaOriginal = { nome: marca.nome, descricao: marca.descricao };
@@ -422,7 +452,7 @@ await caso('Limite diário de gerações', async () => {
 await caso('Programação: agenda no próximo horário, publica na hora marcada, respeita a pausa e gera antes do horário', async () => {
   const dbProg = await criarArmazenamentoLocal({ diretorio: path.join(temporario, 'programacao'), urlPublica: '' });
   let relogio = new Date('2026-09-29T18:30:00Z'); // terça, 15:30 em São Paulo
-  const m = criarMotor({ db: dbProg, ia: iaSimulada, imagem: imagemSimulada, canal: criarCanalInstagram(), sortear: () => 0.99, agora: () => relogio });
+  const m = criarMotor({ db: dbProg, ia: iaSimulada, imagem: imagemSimulada, fotos: fotosSimuladas, canal: criarCanalInstagram(), sortear: () => 0.99, agora: () => relogio });
   const gerarAqui = () => m.gerar({ origem: 'manual', usuario: 'teste', aguardar: true });
 
   const p1 = await gerarAqui();
@@ -484,6 +514,72 @@ await caso('Programação: agenda no próximo horário, publica na hora marcada,
   assert.equal((await m.publicarAgora(p2.id, 'Diogo')).status, 'publicada');
   const visao = await m.programacao();
   assert.ok(visao.agendadas.some((a) => a.id === geradas[0].id));
+});
+
+await caso('Carrossel, flashcards, foto real e peça só com design', async () => {
+  const antesImagens = promptsImagem.length;
+
+  // Carrossel de 5 imagens só com design: nenhuma imagem de IA nem foto.
+  const car = await gerarPeca({ orientacao: { formato: 'carrossel', visual: 'design', num_slides: 5 } });
+  assert.equal(car.formato, 'carrossel');
+  assert.equal(car.slides_arte.length, 5);
+  assert.equal(car.arte.url, car.slides_arte[0].url, 'a capa é a arte principal');
+  assert.equal(car.imagem, null);
+  assert.equal(car.textos.slides.length, 3);
+  assert.equal(promptsImagem.length, antesImagens, 'design não chama a IA de imagem');
+  const pedidoTextos = chamadas.filter((c) => c.ferramenta === 'escrever_textos').at(-1);
+  assert.equal(pedidoTextos.schema.properties.slides.minItems, 3);
+  const revisao = chamadas.filter((c) => c.ferramenta === 'avaliar_peca').at(-1);
+  const rotulos = revisao.conteudo.filter((b) => b.type === 'text').map((b) => b.text).join('\n');
+  assert.ok(!rotulos.includes('IMAGEM DE FUNDO') && rotulos.includes('SLIDE 5 de 5'), 'o revisor vê os 5 slides e nenhum fundo');
+  const detalheCar = await motor.detalhe(car.id);
+  assert.ok(!detalheCar.legenda_final.includes(politica.rotulo_ia), 'sem imagem de IA, sem rótulo de IA');
+
+  // Edição de um slide refaz todas as imagens e passa pelas travas de novo.
+  const novosSlides = structuredClone(car.textos.slides);
+  novosSlides[1].texto = 'Texto revisado pela equipe, curto e direto.';
+  await motor.editarTextos(car.id, 'Diogo', { slides: novosSlides });
+  const editada = await aguardarProcessamento(car.id);
+  assert.equal(editada.textos.slides[1].texto, 'Texto revisado pela equipe, curto e direto.');
+  assert.notEqual(editada.slides_arte[2].url, car.slides_arte[2].url);
+  assert.equal(editada.status, 'em_revisao');
+  await assert.rejects(motor.editarTextos(car.id, 'Diogo', { slides: novosSlides.slice(0, 2) }), /quantidade de slides/);
+
+  // Termo proibido dentro de um slide bloqueia a peça.
+  roteiro = { textos: { slides: [{ titulo: 'Retorno garantido existe?', texto: 'Não existe.' }, ...slidesSimulados(2)] } };
+  const proibida = await gerarPeca({ orientacao: { formato: 'carrossel', visual: 'design', num_slides: 5 } });
+  roteiro = {};
+  assert.equal(proibida.governanca.gate.veredito, 'bloqueada');
+
+  // Flashcards com foto real: crédito na arte e na legenda, sem rótulo de IA.
+  const flash = await gerarPeca({ orientacao: { formato: 'flashcards', visual: 'foto', num_slides: 4 } });
+  assert.equal(flash.formato, 'flashcards');
+  assert.equal(flash.slides_arte.length, 4);
+  assert.equal(flash.imagem.origem, 'foto');
+  const detalheFlash = await motor.detalhe(flash.id);
+  assert.ok(detalheFlash.legenda_final.includes('Foto: Fotógrafa Teste / Pexels'));
+  assert.ok(!detalheFlash.legenda_final.includes(politica.rotulo_ia));
+  await motor.regenerarImagem(flash.id, 'Diogo');
+  const outraFoto = await aguardarProcessamento(flash.id);
+  assert.notEqual(outraFoto.imagem.foto_id, flash.imagem.foto_id, 'pedir outra foto não repete a anterior');
+
+  // Aprovar publica o carrossel inteiro (simulação conta as imagens).
+  const publicada = await motor.aprovar(flash.id, 'Diogo');
+  assert.equal(publicada.status, 'publicada');
+  assert.equal(publicada.publicacao.itens, 4);
+
+  // Post único só com design também funciona.
+  const post = await gerarPeca({ orientacao: { visual: 'design' } });
+  assert.equal(post.formato, 'post');
+  assert.equal(post.slides_arte, null);
+  assert.equal(post.imagem, null);
+
+  // Sem chave do banco de fotos, a escolha "foto" é recusada com mensagem clara.
+  const semFotos = criarMotor({ db, ia: iaSimulada, imagem: imagemSimulada, fotos: { disponivel: false }, canal: criarCanalInstagram() });
+  await assert.rejects(semFotos.gerar({ orientacao: { visual: 'foto' } }), /PEXELS_API_KEY/);
+
+  const slidesPrevia = await Promise.all(editada.slides_arte.map((sl) => db.lerMidia(sl.chave)));
+  for (const [i, b] of slidesPrevia.entries()) await fs.writeFile(path.join(saida, `previa-carrossel-${i + 1}.jpg`), b);
 });
 
 await caso('Estado do painel com métricas por categoria e configuração ativa', async () => {

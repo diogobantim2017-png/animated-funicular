@@ -1412,6 +1412,94 @@ textarea:disabled {
   font-size: var(--t-3);
 }
 
+/* ---------------------------------------------------- carrossel no detalhe */
+
+.carrossel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 12px;
+}
+
+.carrossel__seta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--linha-forte);
+  border-radius: 50%;
+  background: var(--superficie);
+  color: var(--texto);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.carrossel__seta:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.carrossel__contador {
+  min-width: 70px;
+  text-align: center;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.carrossel__miniaturas {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  padding-bottom: 4px;
+  overflow-x: auto;
+}
+
+.carrossel__miniatura {
+  flex: 0 0 auto;
+  width: 52px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: var(--raio-p);
+  background: none;
+  cursor: pointer;
+}
+
+.carrossel__miniatura img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  border-radius: 2px;
+}
+
+.carrossel__miniatura[aria-current='true'] {
+  border-color: var(--azul);
+}
+
+.campos__grupo {
+  margin: 20px 0 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--linha);
+  font-size: var(--t-2);
+}
+
+.campos-linha {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.campos-linha--tres {
+  grid-template-columns: 1.1fr 0.7fr 1fr;
+}
+
+.campos-linha .campo {
+  max-width: none;
+}
+
 /* ------------------------------------------------------------ programação */
 
 .programacao__grade {

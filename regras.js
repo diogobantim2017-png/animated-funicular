@@ -1,6 +1,7 @@
 import { marca, politica, segmentos, MARCADOR_PENDENTE, temPendencia } from './config.js';
 import { ofertaPorId, ofertaTemPendencia } from './sinais.js';
 import { contemTermo, contraste, normalizar } from './util.js';
+import { LIMITES_SLIDE } from './formatos.js';
 
 /** Padrões de números financeiros que só podem vir do catálogo oficial, nunca da IA. */
 const NUMEROS_FINANCEIROS = [
@@ -22,6 +23,13 @@ function textosDaIa(textos) {
     'chamada da arte': textos.cta_arte || '',
     legenda: textos.legenda || '',
     hashtags: (textos.hashtags || []).join(' '),
+    ...Object.fromEntries(
+      (textos.slides || []).flatMap((s, i) => [
+        [`slide ${i + 2} (título)`, s.titulo || ''],
+        [`slide ${i + 2} (texto)`, s.texto || ''],
+      ]),
+    ),
+    ...(textos.fechamento !== undefined ? { fechamento: textos.fechamento || '' } : {}),
   };
 }
 
@@ -40,6 +48,10 @@ export function avaliarRegras({ textos, categoriaId, segmentoId, ofertaId, arte,
     categoria ? categoria.nome : `Categoria "${categoriaId}" não existe em politica.json.`));
 
   const vazios = ['titulo', 'subtitulo', 'cta_arte', 'legenda'].filter((c) => !String(textos[c] || '').trim());
+  (textos.slides || []).forEach((s, i) => {
+    if (!String(s.titulo || '').trim() || !String(s.texto || '').trim()) vazios.push(`slide ${i + 2}`);
+  });
+  if (textos.fechamento !== undefined && !String(textos.fechamento || '').trim()) vazios.push('fechamento');
   r.push(resultado('campos_obrigatorios', 'Textos obrigatórios preenchidos', vazios.length === 0, 'bloqueio',
     vazios.length ? `Faltando: ${vazios.join(', ')}.` : 'Título, subtítulo, chamada e legenda presentes.'));
 
@@ -49,6 +61,11 @@ export function avaliarRegras({ textos, categoriaId, segmentoId, ofertaId, arte,
   if ((textos.cta_arte || '').length > l.cta_max) excessos.push(`chamada com ${textos.cta_arte.length} de ${l.cta_max}`);
   if ((textos.legenda || '').length > l.legenda_max) excessos.push(`legenda com ${textos.legenda.length} de ${l.legenda_max}`);
   if ((textos.hashtags || []).length > l.hashtags_max) excessos.push(`${textos.hashtags.length} hashtags de ${l.hashtags_max}`);
+  (textos.slides || []).forEach((s, i) => {
+    if ((s.titulo || '').length > LIMITES_SLIDE.titulo) excessos.push(`título do slide ${i + 2} com ${s.titulo.length} de ${LIMITES_SLIDE.titulo}`);
+    if ((s.texto || '').length > LIMITES_SLIDE.texto) excessos.push(`texto do slide ${i + 2} com ${s.texto.length} de ${LIMITES_SLIDE.texto}`);
+  });
+  if ((textos.fechamento || '').length > LIMITES_SLIDE.fechamento) excessos.push(`fechamento com ${textos.fechamento.length} de ${LIMITES_SLIDE.fechamento}`);
   r.push(resultado('limites_de_tamanho', 'Tamanhos dentro do limite', excessos.length === 0, 'alerta',
     excessos.length ? `Acima do limite: ${excessos.join('; ')}.` : 'Todos os textos dentro dos limites.'));
 

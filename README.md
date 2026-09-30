@@ -69,6 +69,28 @@ O painel abre com as peças do teste. Os fundos são sintéticos e o botão de g
 
 O campo "Seu nome" identifica quem aprovou, editou ou liberou cada coisa.
 
+## Formatos e imagens
+
+Na hora de gerar, a equipe escolhe o formato e o tipo de imagem.
+
+| Formato | Como fica |
+| --- | --- |
+| Post único | Uma imagem com título, subtítulo e botão. A legenda aprofunda o assunto. |
+| Carrossel | De 3 a 10 imagens: capa, slides de conteúdo e um slide final com a chamada. |
+| Flashcards | Carrossel de estudo: capa, cartões com um termo ou pergunta e a explicação, e um slide final. |
+
+Nos formatos com slides, o conteúdo principal fica nas imagens e a legenda complementa, com até 700 caracteres.
+
+| Imagem | Como fica |
+| --- | --- |
+| Criada por IA | A IA gera só a cena. A legenda recebe o rótulo de imagem criada com IA. |
+| Foto real | Foto de banco de imagens gratuito (Pexels), com crédito do fotógrafo na arte e na legenda. Precisa de `PEXELS_API_KEY`. |
+| Só design | Nenhuma imagem: formas e cores da marca. Não chama IA de imagem e não tem custo de imagem. |
+
+- As travas conferem o texto de todos os slides, e o revisor com visão olha todos eles.
+- "Nova imagem" gera outra imagem de IA, busca outra foto ou troca a composição do design.
+- No Instagram, o carrossel conta como uma única publicação, com até 10 imagens.
+
 ## Configurar para um banco
 
 Toda a configuração editorial fica em nos arquivos .json. A política de exemplo é uma referência inicial: termos, avisos legais e limites precisam ser validados pelo jurídico e pelo compliance do banco antes do piloto.
@@ -211,7 +233,7 @@ Cada peça faz quatro chamadas ao Claude (radar, brief, textos e revisor com dua
 - Métricas de desempenho dos posts alimentando o radar.
 - SSO corporativo no lugar do Basic Auth.
 - Provedor de imagem com licença comercial ampla, como Adobe Firefly, pela mesma interface de `gerador.js`.
-- Carrossel, stories e outros canais.
+- Stories, reels e outros canais.
 
 ## Documentação das APIs
 

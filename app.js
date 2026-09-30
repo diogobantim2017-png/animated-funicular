@@ -55,6 +55,50 @@ const CAMPOS = [
   { id: 'hashtags', rotulo: 'Hashtags, separadas por espaço', limite: 'hashtags_max' },
 ];
 
+const FORMATOS = { post: 'Post único', carrossel: 'Carrossel', flashcards: 'Flashcards' };
+const VISUAIS = { ia: 'imagem criada por IA', foto: 'foto real', design: 'só design' };
+const LIMITES_SLIDE = { titulo: 60, texto: 240, fechamento: 90, legenda: 700 };
+
+/** Campos editáveis conforme o formato: post único ou capa, slides e slide final. */
+function camposDaPeca(p) {
+  const t = p?.textos || {};
+  if (!Array.isArray(t.slides)) return CAMPOS;
+  const cartao = p.formato === 'flashcards';
+  const campos = [
+    { id: 'titulo', rotulo: 'Título', limite: 'titulo_max', grupo: 'Capa' },
+    { id: 'subtitulo', rotulo: 'Subtítulo', limite: 'subtitulo_max', linhas: 2 },
+  ];
+  t.slides.forEach((_, i) => {
+    const nome = cartao ? `Cartão ${i + 1}` : `Slide ${i + 2}`;
+    campos.push(
+      { id: `slide_${i}_titulo`, rotulo: cartao ? 'Termo ou pergunta' : 'Título', max: LIMITES_SLIDE.titulo, grupo: nome },
+      { id: `slide_${i}_texto`, rotulo: cartao ? 'Explicação' : 'Texto', max: LIMITES_SLIDE.texto, linhas: 3 },
+    );
+  });
+  campos.push(
+    { id: 'fechamento', rotulo: 'Frase de fechamento', max: LIMITES_SLIDE.fechamento, grupo: 'Slide final' },
+    { id: 'cta_arte', rotulo: 'Chamada no botão', limite: 'cta_max' },
+    { id: 'legenda', rotulo: 'Legenda do post', max: LIMITES_SLIDE.legenda, linhas: 6, grupo: 'Legenda' },
+    { id: 'hashtags', rotulo: 'Hashtags, separadas por espaço', limite: 'hashtags_max' },
+  );
+  return campos;
+}
+
+/** Monta o que vai para o servidor a partir do rascunho do formulário. */
+function formParaTextos(r, t = {}) {
+  const saida = { titulo: r.titulo, subtitulo: r.subtitulo, cta_arte: r.cta_arte, legenda: r.legenda, hashtags: r.hashtags };
+  if (t.fechamento !== undefined) saida.fechamento = r.fechamento;
+  if (Array.isArray(t.slides)) saida.slides = t.slides.map((_, i) => ({ titulo: r[`slide_${i}_titulo`], texto: r[`slide_${i}_texto`] }));
+  return saida;
+}
+
+function descreverFormato(p) {
+  const formato = p.formato || 'post';
+  const n = p.slides_arte?.length || p.slides || p.num_slides;
+  const nome = formato === 'post' ? 'Post único' : `${FORMATOS[formato]} de ${n} imagens`;
+  return `${nome}, ${VISUAIS[p.visual || 'ia']}`;
+}
+
 /* ------------------------------------------------------------------ estado */
 
 const ui = {
@@ -324,7 +368,7 @@ function itemHtml(p) {
     <span class="item__miniatura">${p.arte_url ? `<img src="${esc(p.arte_url)}" alt="" loading="lazy">` : ''}</span>
     <span class="item__texto">
       <span class="item__tema">${esc(p.tema || p.titulo || 'Tema em definição pelo radar')}</span>
-      <span class="item__meta"><span>${esc(p.categoria_nome || 'Categoria em definição')}</span><span>${dataHora(p.criada_em)}</span></span>
+      <span class="item__meta"><span>${esc(p.categoria_nome || 'Categoria em definição')}</span>${p.formato && p.formato !== 'post' ? `<span>${esc(FORMATOS[p.formato])} · ${p.slides}</span>` : ''}<span>${dataHora(p.criada_em)}</span></span>
       <span class="selo selo--${selo.classe}">${esc(selo.texto)}</span>
     </span>
   </button>`;
@@ -381,16 +425,23 @@ const textosParaForm = (t = {}) => ({
   cta_arte: t.cta_arte || '',
   legenda: t.legenda || '',
   hashtags: (t.hashtags || []).join(' '),
+  ...(t.fechamento !== undefined ? { fechamento: t.fechamento || '' } : {}),
+  ...Object.fromEntries(
+    (t.slides || []).flatMap((sl, i) => [
+      [`slide_${i}_titulo`, sl.titulo || ''],
+      [`slide_${i}_texto`, sl.texto || ''],
+    ]),
+  ),
 });
 
 function rascunhoAlterado() {
   if (!ui.rascunho || !ui.detalhe?.peca?.textos) return false;
   const original = textosParaForm(ui.detalhe.peca.textos);
-  return CAMPOS.some((c) => (ui.rascunho[c.id] ?? '') !== original[c.id]);
+  return camposDaPeca(ui.detalhe.peca).some((c) => (ui.rascunho[c.id] ?? '') !== original[c.id]);
 }
 
 function medida(campo, valor) {
-  const max = ui.estado?.limites?.[campo.limite];
+  const max = campo.max ?? ui.estado?.limites?.[campo.limite];
   const atual = campo.id === 'hashtags' ? valor.split(/\s+/).filter(Boolean).length : valor.length;
   return { atual, max, excedido: max != null && atual > max, texto: max != null ? `${atual} de ${max}` : String(atual) };
 }
@@ -407,7 +458,7 @@ function fatos(pares) {
 
 function contextoDaPeca(p, categoria) {
   const quem = p.origem === 'agenda' ? 'pela agenda automática' : `por ${esc(p.criada_por || 'equipe')}`;
-  return `${esc(categoria?.nome || 'Categoria em definição')}, criada em ${dataHora(p.criada_em)} ${quem}`;
+  return `${esc(categoria?.nome || 'Categoria em definição')}. ${esc(descreverFormato(p))}. Criada em ${dataHora(p.criada_em)} ${quem}`;
 }
 
 function progresso(p, reprocessando) {
@@ -482,18 +533,54 @@ function figura(d) {
   if (!p.arte?.url) {
     return `<figure class="arte"><div class="arte__vazia">A arte aparece aqui quando a imagem e o template ficarem prontos.</div></figure>`;
   }
-  const fundo = ui.verFundo && p.imagem?.url;
-  const url = fundo ? p.imagem.url : p.arte.url;
-  const alt = fundo ? `Fundo gerado por IA. Cena pedida: ${p.brief?.cena_visual || ''}` : `Arte final. Título: ${p.textos?.titulo || ''}`;
-  const legenda = fundo
-    ? `Gerado com ${esc(p.imagem.modelo)} (${esc(PROVEDORES[p.imagem.provedor] || p.imagem.provedor)}) em ${esc(p.imagem.segundos)} s. É esta imagem que o revisor confere: sem texto, marcas, dinheiro ou pessoas deformadas.`
-    : '1080 × 1350 px. Textos, cores e avisos legais entram pelo template oficial, não pela IA de imagem.';
+  const slides = p.slides_arte?.length ? p.slides_arte : null;
+  const temFundo = Boolean(p.imagem?.url);
+  const fundo = ui.verFundo && temFundo;
+  const ehFoto = p.imagem?.origem === 'foto';
+  const nomeFundo = !temFundo ? 'Sem imagem de fundo' : ehFoto ? 'Foto do banco de imagens' : 'Fundo gerado por IA';
+  const indice = Math.min(ui.slideAtual || 0, (slides?.length || 1) - 1);
+  const url = fundo ? p.imagem.url : slides ? slides[indice].url : p.arte.url;
+  const alt = fundo
+    ? ehFoto
+      ? `Foto real de ${p.imagem.credito?.autor || 'autor não informado'}`
+      : `Fundo gerado por IA. Cena pedida: ${p.brief?.cena_visual || ''}`
+    : slides
+      ? `Slide ${indice + 1} de ${slides.length}`
+      : `Arte final. Título: ${p.textos?.titulo || ''}`;
+  let legenda;
+  if (fundo && ehFoto) {
+    legenda = `Foto de ${esc(p.imagem.credito?.autor || 'autor não informado')} no ${esc(p.imagem.credito?.fonte || 'Pexels')}, buscada por "${esc(p.imagem.consulta || '')}". É esta imagem que o revisor confere: sem texto, marcas ou dinheiro.`;
+  } else if (fundo) {
+    legenda = `Gerado com ${esc(p.imagem.modelo)} (${esc(PROVEDORES[p.imagem.provedor] || p.imagem.provedor)}) em ${esc(p.imagem.segundos)} s. É esta imagem que o revisor confere: sem texto, marcas, dinheiro ou pessoas deformadas.`;
+  } else if (slides) {
+    const capa = p.visual === 'design' ? 'o design da marca' : ehFoto ? 'a foto real' : 'a imagem criada por IA';
+    legenda = `${slides.length} imagens de 1080 × 1350 px. A capa usa ${capa}; os outros slides usam só o design da marca.`;
+  } else if (p.visual === 'design') {
+    legenda = 'Peça feita só com o design da marca: nenhuma imagem de IA nem foto.';
+  } else {
+    legenda = '1080 × 1350 px. Textos, cores e avisos legais entram pelo template oficial, não pela IA de imagem.';
+  }
+  const navegacao =
+    slides && !fundo
+      ? `<div class="carrossel">
+      <button type="button" class="carrossel__seta" data-acao="slide-anterior" ${indice === 0 ? 'disabled' : ''} aria-label="Slide anterior">‹</button>
+      <span class="carrossel__contador">${indice + 1} de ${slides.length}</span>
+      <button type="button" class="carrossel__seta" data-acao="slide-proximo" ${indice === slides.length - 1 ? 'disabled' : ''} aria-label="Próximo slide">›</button>
+    </div>
+    <div class="carrossel__miniaturas">${slides
+      .map(
+        (sl, i) =>
+          `<button type="button" class="carrossel__miniatura" data-acao="ir-slide" data-indice="${i}" aria-label="Ver slide ${i + 1}" ${i === indice ? 'aria-current="true"' : ''}><img src="${esc(sl.url)}" alt="" loading="lazy"></button>`,
+      )
+      .join('')}</div>`
+      : '';
   return `<figure class="arte">
     <div class="arte__alternar" role="group" aria-label="Imagem exibida">
-      <button type="button" data-acao="ver-arte" aria-pressed="${!fundo}">Arte final</button>
-      <button type="button" data-acao="ver-fundo" aria-pressed="${Boolean(fundo)}" ${p.imagem?.url ? '' : 'disabled'}>Fundo gerado por IA</button>
+      <button type="button" data-acao="ver-arte" aria-pressed="${!fundo}">${slides ? 'Slides' : 'Arte final'}</button>
+      <button type="button" data-acao="ver-fundo" aria-pressed="${Boolean(fundo)}" ${temFundo ? '' : 'disabled'}>${nomeFundo}</button>
     </div>
     <a class="arte__link" href="${esc(url)}" target="_blank" rel="noopener"><img class="arte__imagem ${fundo ? 'arte__imagem--fundo' : ''}" src="${esc(url)}" alt="${esc(alt)}"></a>
+    ${navegacao}
     <figcaption class="arte__legenda">${legenda}</figcaption>
   </figure>`;
 }
@@ -537,7 +624,7 @@ function textos(d) {
   if (!p.textos) return '';
   const editavel = p.status === 'em_revisao' && !d.processando;
   const legendaFinal = d.legenda_final
-    ? `<h4 class="bloco__subtitulo">Legenda como será publicada</h4><p class="legenda-final">${esc(d.legenda_final)}</p><p class="dica">Texto legal da oferta, rótulo de imagem criada com IA e hashtags entram automaticamente.${editavel ? ' Atualiza quando você salvar.' : ''}</p>`
+    ? `<h4 class="bloco__subtitulo">Legenda como será publicada</h4><p class="legenda-final">${esc(d.legenda_final)}</p><p class="dica">Texto legal da oferta, rótulo de imagem criada com IA (só quando a imagem é de IA), crédito da foto e hashtags entram automaticamente.${editavel ? ' Atualiza quando você salvar.' : ''}</p>`
     : '';
 
   if (!editavel) {
@@ -546,18 +633,20 @@ function textos(d) {
       fatos([
         ['Título', p.textos.titulo],
         ['Subtítulo', p.textos.subtitulo],
+        ...(p.textos.slides || []).map((sl, i) => [p.formato === 'flashcards' ? `Cartão ${i + 1}` : `Slide ${i + 2}`, `${sl.titulo}. ${sl.texto}`]),
+        ['Fechamento', p.textos.fechamento],
         ['Chamada', p.textos.cta_arte],
       ]) + legendaFinal,
     );
   }
 
   const valores = ui.rascunho || textosParaForm(p.textos);
-  const campos = CAMPOS.map((c) => {
-    const m = medida(c, valores[c.id]);
+  const campos = camposDaPeca(p).map((c) => {
+    const m = medida(c, valores[c.id] ?? '');
     const controle = c.linhas
       ? `<textarea id="campo-${c.id}" data-campo="${c.id}" rows="${c.linhas}">${esc(valores[c.id])}</textarea>`
       : `<input id="campo-${c.id}" type="text" data-campo="${c.id}" value="${esc(valores[c.id])}">`;
-    return `<div class="campo"><label class="campo__rotulo" for="campo-${c.id}"><span>${c.rotulo}</span><span class="campo__contador ${m.excedido ? 'campo__contador--excedido' : ''}" id="contador-${c.id}">${m.texto}</span></label>${controle}</div>`;
+    return `${c.grupo && Array.isArray(p.textos.slides) ? `<h4 class="campos__grupo">${esc(c.grupo)}</h4>` : ''}<div class="campo"><label class="campo__rotulo" for="campo-${c.id}"><span>${c.rotulo}</span><span class="campo__contador ${m.excedido ? 'campo__contador--excedido' : ''}" id="contador-${c.id}">${m.texto}</span></label>${controle}</div>`;
   }).join('');
   return bloco('Textos', `${campos}${legendaFinal}`);
 }
@@ -643,7 +732,7 @@ function acoesHtml(d) {
       <button type="button" class="botao botao--primario" data-acao="aprovar" ${bloqueada || alterado ? 'disabled' : ''}>Aprovar</button>
       <button type="button" class="botao botao--secundario" data-acao="salvar-textos" ${alterado ? '' : 'disabled'}>Salvar textos e reavaliar</button>
       ${alterado ? '<button type="button" class="botao botao--texto" data-acao="descartar">Descartar alterações</button>' : ''}
-      <button type="button" class="botao botao--secundario" data-acao="nova-imagem">Gerar nova imagem</button>
+      <button type="button" class="botao botao--secundario" data-acao="nova-imagem">${{ ia: 'Gerar nova imagem', foto: 'Trocar foto', design: 'Novo visual' }[p.visual || 'ia']}</button>
       <span class="acoes__separador"></span>
       <button type="button" class="botao botao--perigo" data-acao="reprovar">Reprovar</button>
       <p class="acoes__nota" id="acoes-nota">${nota}</p>
@@ -878,17 +967,45 @@ function abrirGerar() {
           `<option value="${esc(c.id)}" ${c.disponivel_hoje ? '' : 'disabled'}>${esc(c.nome)}${c.disponivel_hoje ? '' : ' (sem oferta ativa no catálogo)'}</option>`,
       )
       .join('');
+  const slides = $('#gerar-slides');
+  if (!slides.options.length) {
+    slides.innerHTML = [3, 4, 5, 6, 7, 8, 9, 10].map((n) => `<option value="${n}">${n} imagens</option>`).join('');
+  }
   const dialogo = $('#dlg-gerar');
   $('#form-gerar').reset();
+  slides.value = '6';
+  const opcaoFoto = $('#gerar-visual option[value="foto"]');
+  const temFotos = Boolean(ui.estado?.config?.fotos_disponiveis);
+  opcaoFoto.disabled = !temFotos;
+  opcaoFoto.textContent = temFotos ? 'Foto real de banco de imagens (Pexels)' : 'Foto real de banco de imagens (falta a chave PEXELS_API_KEY)';
+  atualizarDialogoGerar();
   dialogo.returnValue = '';
   dialogo.showModal();
+}
+
+function atualizarDialogoGerar() {
+  const formato = $('#gerar-formato').value;
+  const n = Number($('#gerar-slides').value) || 6;
+  $('#gerar-slides-campo').hidden = formato === 'post';
+  const notas = {
+    post: 'Uma imagem com título, subtítulo e botão. A legenda aprofunda o assunto.',
+    carrossel: `Capa, ${n - 2} slides de conteúdo e um slide final com a chamada. O conteúdo principal vai nos slides, e a legenda fica mais curta.`,
+    flashcards: `Capa, ${n - 2} cartões de estudo (termo e explicação) e um slide final. Bom para ensinar conceitos.`,
+  };
+  $('#gerar-nota-formato').textContent = notas[formato];
 }
 
 $('#dlg-gerar').addEventListener('close', async () => {
   if ($('#dlg-gerar').returnValue !== 'confirmar') return;
   const dados = new FormData($('#form-gerar'));
   try {
-    const peca = await acao('/api/pipeline/rodar', { texto: dados.get('texto'), categoria: dados.get('categoria') });
+    const peca = await acao('/api/pipeline/rodar', {
+      texto: dados.get('texto'),
+      categoria: dados.get('categoria'),
+      formato: dados.get('formato'),
+      visual: dados.get('visual'),
+      slides: Number(dados.get('slides')) || null,
+    });
     avisar('Geração iniciada. Acompanhe as etapas na peça.');
     trocarAba('fila');
     await selecionar(peca.id);
@@ -927,6 +1044,7 @@ async function selecionar(id) {
   if (ui.selecionada !== id) {
     ui.rascunho = null;
     ui.verFundo = false;
+    ui.slideAtual = 0;
   }
   ui.selecionada = id;
   history.replaceState(null, '', id ? `#peca=${id}` : location.pathname);
@@ -949,7 +1067,14 @@ const ANTECEDENCIAS = [
 
 function rascunhoDaProgramacao() {
   const r = ui.progRascunho;
-  return { horarios: r.horarios, gerar_automaticamente: r.gerar_automaticamente, antecedencia_horas: r.antecedencia_horas };
+  return {
+    horarios: r.horarios,
+    gerar_automaticamente: r.gerar_automaticamente,
+    antecedencia_horas: r.antecedencia_horas,
+    formato_padrao: r.formato_padrao,
+    visual_padrao: r.visual_padrao,
+    slides_padrao: r.slides_padrao,
+  };
 }
 
 async function carregarProgramacao() {
@@ -975,12 +1100,26 @@ function renderProgramacao() {
     pintar(alvo, 'programacao', '<div class="autonomia"><p>Carregando a programação…</p></div>');
     return;
   }
-  ui.progRascunho ??= { horarios: [...p.horarios], gerar_automaticamente: p.gerar_automaticamente, antecedencia_horas: p.antecedencia_horas };
+  ui.progRascunho ??= {
+    horarios: [...p.horarios],
+    gerar_automaticamente: p.gerar_automaticamente,
+    antecedencia_horas: p.antecedencia_horas,
+    formato_padrao: p.formato_padrao,
+    visual_padrao: p.visual_padrao,
+    slides_padrao: p.slides_padrao,
+  };
   const r = ui.progRascunho;
   const dias = p.dias_da_semana;
   const alterado =
     JSON.stringify(rascunhoDaProgramacao()) !==
-    JSON.stringify({ horarios: p.horarios, gerar_automaticamente: p.gerar_automaticamente, antecedencia_horas: p.antecedencia_horas });
+    JSON.stringify({
+      horarios: p.horarios,
+      gerar_automaticamente: p.gerar_automaticamente,
+      antecedencia_horas: p.antecedencia_horas,
+      formato_padrao: p.formato_padrao,
+      visual_padrao: p.visual_padrao,
+      slides_padrao: p.slides_padrao,
+    });
 
   const lista = r.horarios.length
     ? `<ul class="horarios">${r.horarios
@@ -1005,6 +1144,24 @@ function renderProgramacao() {
         <select id="prog-antecedencia" ${r.gerar_automaticamente ? '' : 'disabled'}>${ANTECEDENCIAS.map(
           ([v, t]) => `<option value="${v}" ${v === r.antecedencia_horas ? 'selected' : ''}>${t}</option>`,
         ).join('')}</select></label>
+      <div class="campos-linha campos-linha--tres">
+        <label class="campo"><span class="campo__rotulo">Formato</span>
+          <select id="prog-formato" ${r.gerar_automaticamente ? '' : 'disabled'}>${Object.entries(FORMATOS)
+            .map(([v, t]) => `<option value="${v}" ${v === r.formato_padrao ? 'selected' : ''}>${t}</option>`)
+            .join('')}</select></label>
+        <label class="campo"><span class="campo__rotulo">Imagens</span>
+          <select id="prog-slides" ${r.gerar_automaticamente && r.formato_padrao !== 'post' ? '' : 'disabled'}>${[3, 4, 5, 6, 7, 8, 9, 10]
+            .map((n) => `<option value="${n}" ${n === r.slides_padrao ? 'selected' : ''}>${n}</option>`)
+            .join('')}</select></label>
+        <label class="campo"><span class="campo__rotulo">Tipo de imagem</span>
+          <select id="prog-visual" ${r.gerar_automaticamente ? '' : 'disabled'}>${[
+            ['ia', 'Criada por IA'],
+            ['foto', 'Foto real'],
+            ['design', 'Só design'],
+          ]
+            .map(([v, t]) => `<option value="${v}" ${v === r.visual_padrao ? 'selected' : ''}>${t}</option>`)
+            .join('')}</select></label>
+      </div>
       <p class="programacao__nota">A peça gerada entra na fila de revisão. Enquanto a categoria estiver em aprovação humana, nada sai sem você aprovar.</p>
     </div>`;
 
@@ -1196,7 +1353,7 @@ const acoesPorNome = {
 
   'salvar-textos': async (alvo) => {
     if (!exigirNome()) return;
-    const campos = { ...ui.rascunho };
+    const campos = formParaTextos(ui.rascunho, ui.detalhe.peca.textos);
     await executar(alvo, 'Salvando…', async () => {
       await acao(`/api/pecas/${ui.selecionada}/editar`, { campos });
       ui.rascunho = null;
@@ -1211,12 +1368,26 @@ const acoesPorNome = {
 
   'nova-imagem': async (alvo) => {
     if (!exigirNome()) return;
-    const r = await confirmar({
-      titulo: 'Gerar nova imagem',
-      texto: 'O fundo é gerado de novo a partir do mesmo brief. A arte é refeita e passa pelas travas outra vez.',
-      campo: { rotulo: 'O que mudar na imagem (opcional)', placeholder: 'Ex.: cena ao ar livre, pessoa mais velha, menos objetos na mesa' },
-      botao: 'Gerar nova imagem',
-    });
+    const visual = ui.detalhe?.peca?.visual || 'ia';
+    const opcoes = {
+      ia: {
+        titulo: 'Gerar nova imagem',
+        texto: 'O fundo é gerado de novo a partir do mesmo brief. A arte é refeita e passa pelas travas outra vez.',
+        campo: { rotulo: 'O que mudar na imagem (opcional)', placeholder: 'Ex.: cena ao ar livre, pessoa mais velha, menos objetos na mesa' },
+        botao: 'Gerar nova imagem',
+      },
+      foto: {
+        titulo: 'Trocar a foto',
+        texto: 'Busca outra foto real no banco de imagens, com as mesmas palavras do brief. A arte é refeita e passa pelas travas outra vez.',
+        botao: 'Trocar foto',
+      },
+      design: {
+        titulo: 'Novo visual',
+        texto: 'Refaz as formas e a composição do design da marca. Os textos continuam os mesmos.',
+        botao: 'Gerar novo visual',
+      },
+    };
+    const r = await confirmar(opcoes[visual]);
     if (!r.ok) return;
     await executar(alvo, 'Enviando…', async () => {
       await acao(`/api/pecas/${ui.selecionada}/regenerar-imagem`, { direcao: r.valor });
@@ -1294,6 +1465,22 @@ const acoesPorNome = {
     });
   },
 
+  'slide-anterior': () => {
+    ui.slideAtual = Math.max(0, (ui.slideAtual || 0) - 1);
+    renderDetalhe();
+  },
+
+  'slide-proximo': () => {
+    ui.slideAtual = (ui.slideAtual || 0) + 1;
+    renderDetalhe();
+  },
+
+  'ir-slide': (alvo) => {
+    ui.slideAtual = Number(alvo.dataset.indice);
+    ui.verFundo = false;
+    renderDetalhe();
+  },
+
   'publicar-agora': async (alvo) => {
     if (!exigirNome()) return;
     await executar(alvo, 'Publicando…', async () => {
@@ -1344,7 +1531,7 @@ document.addEventListener('input', (evento) => {
   if (!campo || !ui.detalhe?.peca?.textos) return;
   ui.rascunho ??= textosParaForm(ui.detalhe.peca.textos);
   ui.rascunho[campo.dataset.campo] = campo.value;
-  const definicao = CAMPOS.find((c) => c.id === campo.dataset.campo);
+  const definicao = camposDaPeca(ui.detalhe.peca).find((c) => c.id === campo.dataset.campo);
   const m = medida(definicao, campo.value);
   const contador = $(`#contador-${definicao.id}`);
   contador.textContent = m.texto;
@@ -1353,9 +1540,17 @@ document.addEventListener('input', (evento) => {
 });
 
 document.addEventListener('change', (evento) => {
-  if (evento.target.id === 'prog-auto' || evento.target.id === 'prog-antecedencia') {
-    ui.progRascunho.gerar_automaticamente = $('#prog-auto').checked;
-    ui.progRascunho.antecedencia_horas = Number($('#prog-antecedencia').value);
+  if (evento.target.id === 'gerar-formato' || evento.target.id === 'gerar-slides') {
+    atualizarDialogoGerar();
+    return;
+  }
+  if (['prog-auto', 'prog-antecedencia', 'prog-formato', 'prog-visual', 'prog-slides'].includes(evento.target.id)) {
+    const r = ui.progRascunho;
+    r.gerar_automaticamente = $('#prog-auto').checked;
+    r.antecedencia_horas = Number($('#prog-antecedencia').value);
+    r.formato_padrao = $('#prog-formato').value;
+    r.visual_padrao = $('#prog-visual').value;
+    r.slides_padrao = Number($('#prog-slides').value);
     renderProgramacao();
     return;
   }

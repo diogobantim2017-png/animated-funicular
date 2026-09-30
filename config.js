@@ -29,6 +29,7 @@ export const env = {
   imagemTamanho: v('IMAGEM_TAMANHO', '1024x1536'),
   openaiKey: v('OPENAI_API_KEY'),
   googleKey: v('GOOGLE_API_KEY'),
+  pexelsKey: v('PEXELS_API_KEY'),
   armazenamento: v('ARMAZENAMENTO', 'local').toLowerCase(),
   dadosDir: path.resolve(raiz, v('DADOS_DIR', 'dados')),
   publicBaseUrl: v('PUBLIC_BASE_URL').replace(/\/+$/, ''),

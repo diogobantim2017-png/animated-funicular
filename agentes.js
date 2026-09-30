@@ -1,4 +1,5 @@
 import { env, marca, politica, segmentos } from './config.js';
+import { LIMITES_SLIDE } from './formatos.js';
 import { proximosEventos, ofertasDisponiveis } from './sinais.js';
 
 /** Categorias que o radar pode escolher hoje. Oferta sem catálogo ativo não entra. */
@@ -85,7 +86,11 @@ ${linhas(ativas, (o) => `${o.id}: ${o.produto} (${o.tipo})`)}
 Últimas peças, da mais recente para a mais antiga:
 ${linhas(historico, (p) => `${p.criada_em.slice(0, 10)} | ${p.categoria} | ${p.tema} | ${p.status}`)}
 
-Orientação da equipe: ${orientacao?.texto?.trim() || 'nenhuma'}${orientacao?.categoria ? `\nCategoria pedida pela equipe: ${orientacao.categoria}` : ''}`;
+Orientação da equipe: ${orientacao?.texto?.trim() || 'nenhuma'}${orientacao?.categoria ? `\nCategoria pedida pela equipe: ${orientacao.categoria}` : ''}${
+    orientacao?.formato && orientacao.formato !== 'post'
+      ? `\nFormato pedido: ${orientacao.formato === 'flashcards' ? 'flashcards (cartões de estudo)' : 'carrossel'} com ${orientacao.num_slides} imagens. Escolha um tema que renda esse número de partes.`
+      : ''
+  }`;
 
   const r = await ia({ modelo: env.modeloIa, sistema, conteudo, ferramenta, maxTokens: 1200 });
   const dados = { ...r.dados };
@@ -102,7 +107,7 @@ export function segmentosPermitidos(categoriaId) {
   return segmentos.filter((s) => !(protegeVulneraveis && s.vulneravel));
 }
 
-export async function criarBrief({ ia, oportunidade, oferta }) {
+export async function criarBrief({ ia, oportunidade, oferta, formato = 'post', numSlides = 1, visual = 'ia' }) {
   const permitidos = segmentosPermitidos(oportunidade.categoria);
   const estilos = Object.keys(marca.estilos_visuais);
 
@@ -124,12 +129,28 @@ export async function criarBrief({ ia, oportunidade, oferta }) {
           type: 'string',
           description: 'A mesma cena descrita em inglês, em 1 a 3 frases, sem estilo e sem restrições.',
         },
+        busca_foto_en: {
+          type: 'string',
+          description: 'De 2 a 5 palavras em inglês para buscar uma foto real parecida com a cena num banco de imagens.',
+        },
       },
-      required: ['objetivo', 'segmento_id', 'insight', 'mensagem_chave', 'cta', 'kpi', 'estilo_visual', 'cena_visual', 'prompt_imagem_en'],
+      required: ['objetivo', 'segmento_id', 'insight', 'mensagem_chave', 'cta', 'kpi', 'estilo_visual', 'cena_visual', 'prompt_imagem_en', 'busca_foto_en'],
     },
   };
 
-  const sistema = `Você é estrategista de conteúdo do perfil ${marca.nome}. Transforme a oportunidade em um brief para um post de feed do Instagram (orgânico, formato 4:5).
+  const descricaoFormato =
+    formato === 'carrossel'
+      ? `um carrossel de ${numSlides} imagens (capa, ${numSlides - 2} slides de conteúdo e um slide final)`
+      : formato === 'flashcards'
+        ? `flashcards em carrossel: capa, ${numSlides - 2} cartões de estudo (termo ou pergunta e a explicação) e um slide final`
+        : 'um post de imagem única';
+  const descricaoVisual =
+    visual === 'foto'
+      ? 'A capa usa uma foto real de banco de imagens, buscada com busca_foto_en.'
+      : visual === 'design'
+        ? 'A peça usa só o design da marca, sem imagem. Mesmo assim preencha a cena, para registro.'
+        : 'A capa usa uma imagem criada por IA a partir de prompt_imagem_en.';
+  const sistema = `Você é estrategista de conteúdo do perfil ${marca.nome}. Transforme a oportunidade em um brief para ${descricaoFormato} no feed do Instagram (orgânico, formato 4:5). ${descricaoVisual}
 
 Marca: ${marca.descricao}
 Tom de voz: ${marca.tom_de_voz}
@@ -140,7 +161,8 @@ Regras:
 - A cena precisa funcionar sem nenhum texto: nada de letreiros, telas com texto legível, documentos, logotipos, cédulas, moedas ou cartões.
 - Use pessoas e lugares brasileiros reais, com diversidade e sem estereótipos. Prefira cenas simples, com um foco claro.
 - A metade de baixo da imagem recebe um painel de texto. Coloque o assunto principal na metade de cima.
-- Em prompt_imagem_en, descreva só a cena. O sistema acrescenta estilo, paleta e restrições.`;
+- Em prompt_imagem_en, descreva só a cena. O sistema acrescenta estilo, paleta e restrições.
+- Em busca_foto_en, use palavras simples de banco de imagens (ex.: "young woman budget notebook"), sem marcas e sem texto.`;
 
   const conteudo = `Oportunidade escolhida pelo radar:
 - Tema: ${oportunidade.tema}
@@ -159,7 +181,7 @@ Estilos visuais aprovados: ${estilos.join(', ')}`;
 
 /* ----------------------------------------------------------------- textos */
 
-export async function escreverTextos({ ia, oportunidade, brief, segmento, oferta }) {
+export async function escreverTextos({ ia, oportunidade, brief, segmento, oferta, formato = 'post', numSlides = 1 }) {
   const l = politica.limites;
   const ferramenta = {
     name: 'escrever_textos',
@@ -176,11 +198,59 @@ export async function escreverTextos({ ia, oportunidade, brief, segmento, oferta
       required: ['titulo', 'subtitulo', 'cta_arte', 'legenda', 'hashtags'],
     },
   };
+  const emSlides = formato === 'carrossel' || formato === 'flashcards';
+  const miolo = Math.max(1, numSlides - 2);
+  if (emSlides) {
+    const ehCard = formato === 'flashcards';
+    ferramenta.input_schema.properties.slides = {
+      type: 'array',
+      minItems: miolo,
+      maxItems: miolo,
+      description: `Exatamente ${miolo} ${ehCard ? 'cartões' : 'slides de conteúdo'}, na ordem em que aparecem.`,
+      items: {
+        type: 'object',
+        properties: {
+          titulo: {
+            type: 'string',
+            description: ehCard
+              ? `Termo ou pergunta do cartão, até ${LIMITES_SLIDE.titulo} caracteres.`
+              : `Título do slide, até ${LIMITES_SLIDE.titulo} caracteres.`,
+          },
+          texto: {
+            type: 'string',
+            description: ehCard
+              ? `Explicação ou resposta, até ${LIMITES_SLIDE.texto} caracteres.`
+              : `Texto do slide, até ${LIMITES_SLIDE.texto} caracteres.`,
+          },
+        },
+        required: ['titulo', 'texto'],
+      },
+    };
+    ferramenta.input_schema.properties.fechamento = {
+      type: 'string',
+      description: `Frase do slide final, até ${LIMITES_SLIDE.fechamento} caracteres.`,
+    };
+    ferramenta.input_schema.properties.legenda.description = `Legenda do post, até ${LIMITES_SLIDE.legenda} caracteres, sem hashtags.`;
+    ferramenta.input_schema.required.push('slides', 'fechamento');
+  }
+  const regrasDoFormato = !emSlides
+    ? `O título e o subtítulo vão na arte e trazem a ideia principal. A legenda aprofunda, com 2 a 4 parágrafos curtos, sem repetir a arte.`
+    : formato === 'flashcards'
+      ? `Formato: flashcards em carrossel de ${numSlides} imagens.
+- Capa: título e subtítulo que anunciam o que a pessoa vai aprender. A chamada da arte fica no slide final.
+- ${miolo} cartões de estudo: em "titulo", um termo ou pergunta curta; em "texto", a explicação ou resposta em linguagem simples, até ${LIMITES_SLIDE.texto} caracteres. Um conceito por cartão, do mais básico ao mais avançado.
+- Slide final: "fechamento" com uma frase curta de conclusão e a chamada da arte no botão.
+- O conteúdo principal fica nos cartões. A legenda complementa: 1 ou 2 parágrafos curtos com contexto e a chamada para ação, até ${LIMITES_SLIDE.legenda} caracteres, sem repetir os cartões.`
+      : `Formato: carrossel de ${numSlides} imagens.
+- Capa: título e subtítulo que despertam curiosidade para deslizar. A chamada da arte fica no slide final.
+- ${miolo} slides de conteúdo: um título curto (até ${LIMITES_SLIDE.titulo} caracteres) e um texto de até ${LIMITES_SLIDE.texto} caracteres cada. Uma ideia por slide, em sequência lógica, como passos ou tópicos.
+- Slide final: "fechamento" com uma frase curta de conclusão e a chamada da arte no botão.
+- O conteúdo principal fica nos slides. A legenda complementa: 1 ou 2 parágrafos curtos com contexto e a chamada para ação, até ${LIMITES_SLIDE.legenda} caracteres, sem repetir os slides.`;
 
   const sistema = `Você é redator do perfil ${marca.nome}. Escreva em português do Brasil, com acentuação completa.
 Tom de voz: ${marca.tom_de_voz}
 
-O título e o subtítulo vão na arte. A legenda vai no texto do post.
+${regrasDoFormato}
 
 Regras verificadas automaticamente. Se você descumprir, a peça é bloqueada:
 - Título até ${l.titulo_max} caracteres, subtítulo até ${l.subtitulo_max}, chamada da arte até ${l.cta_max}, legenda até ${l.legenda_max}, no máximo ${l.hashtags_max} hashtags.
@@ -189,7 +259,7 @@ Regras verificadas automaticamente. Se você descumprir, a peça é bloqueada:
 - Não prometa ganho, retorno ou ausência de risco. Não cite bancos, corretoras, plataformas ou marcas.
 - Explique, não recomende: nunca diga qual produto comprar, quanto colocar em cada coisa nem qual é a hora certa de investir.
 - Evite construções típicas de texto gerado por IA: "não é só X, é Y", "mais do que um X", travessões, perguntas retóricas em sequência e trios de adjetivos.
-- Legenda com 2 a 4 parágrafos curtos, útil por si só, terminando com a chamada para ação. Sem hashtags no corpo da legenda.
+- A legenda termina com a chamada para ação. Sem hashtags no corpo da legenda.
 - Hashtags sem espaços, começando com #.`;
 
   const conteudo = `Brief:
@@ -201,8 +271,12 @@ Regras verificadas automaticamente. Se você descumprir, a peça é bloqueada:
 - Chamada para ação: ${brief.cta}
 ${oferta ? `- Produto em oferta: ${oferta.produto}. Não escreva números: o destaque oficial e o texto legal entram pelo template.\n` : ''}`;
 
-  const r = await ia({ modelo: env.modeloIa, sistema, conteudo, ferramenta, maxTokens: 1500 });
+  const r = await ia({ modelo: env.modeloIa, sistema, conteudo, ferramenta, maxTokens: emSlides ? 3000 : 1500 });
   const dados = { ...r.dados };
+  if (emSlides) {
+    dados.slides = (dados.slides || []).slice(0, miolo).map((sl) => ({ titulo: String(sl.titulo || '').trim(), texto: String(sl.texto || '').trim() }));
+    dados.fechamento = String(dados.fechamento || '').trim();
+  }
   dados.hashtags = (dados.hashtags || [])
     .map((h) => String(h).trim().replace(/\s+/g, ''))
     .filter(Boolean)
@@ -223,11 +297,12 @@ export function montarPromptImagem(brief) {
   ].join(' ');
 }
 
-/** Legenda final: texto da IA + texto legal oficial + rótulo de IA + hashtags. */
-export function montarLegendaFinal({ textos, oferta }) {
+/** Legenda final: texto da IA + texto legal oficial + rótulo de IA (só com imagem de IA) + crédito da foto + hashtags. */
+export function montarLegendaFinal({ textos, oferta, visual = 'ia', credito = null }) {
   const partes = [textos.legenda.trim()];
   if (oferta?.texto_legal) partes.push(oferta.texto_legal.trim());
-  if (politica.rotulo_ia) partes.push(politica.rotulo_ia);
+  if (visual === 'ia' && politica.rotulo_ia) partes.push(politica.rotulo_ia);
+  if (visual === 'foto' && credito?.autor) partes.push(`Foto: ${credito.autor} / ${credito.fonte || 'Pexels'}`);
   if (textos.hashtags?.length) partes.push(textos.hashtags.join(' '));
   return partes.join('\n\n');
 }

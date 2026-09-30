@@ -3,7 +3,7 @@ import { env, marca, politica } from './config.js';
 const NOTA = { type: 'integer', minimum: 0, maximum: 10 };
 
 export const CHECAGENS_VISUAIS = {
-  texto_no_fundo: 'Texto, letras ou números no fundo gerado',
+  texto_no_fundo: 'Texto, letras ou números na imagem de fundo',
   logos_ou_marcas: 'Logotipo ou marca de terceiros',
   dinheiro_ou_cartao: 'Cédulas, moedas ou cartão com números',
   pessoas_deformadas: 'Pessoa com rosto, mãos ou corpo deformados',
@@ -28,7 +28,7 @@ const ferramenta = {
     properties: {
       elementos_no_fundo: {
         type: 'object',
-        description: 'Marque true quando o elemento aparece na IMAGEM 1 (fundo gerado por IA). Na dúvida, marque true.',
+        description: 'Marque true quando o elemento aparece na IMAGEM DE FUNDO. Na dúvida, marque true. Sem imagem de fundo, marque tudo false.',
         properties: Object.fromEntries(Object.keys(CHECAGENS_VISUAIS).map((k) => [k, { type: 'boolean' }])),
         required: Object.keys(CHECAGENS_VISUAIS),
       },
@@ -58,21 +58,29 @@ function tipoMime(buffer) {
   return 'image/png';
 }
 
-export async function avaliarComVisao({ ia, fundo, arte, textos, brief, oportunidade, segmento }) {
+export async function avaliarComVisao({ ia, fundo, arte, slides = null, visual = 'ia', formato = 'post', textos, brief, oportunidade, segmento }) {
+  const origemFundo = visual === 'foto' ? 'foto real de banco de imagens' : 'imagem gerada por IA';
   const sistema = `Você é o revisor de conteúdo e marca do perfil de educação financeira ${marca.nome}. Avalie com rigor. Na dúvida, aponte o problema: um falso alarme custa uma revisão humana, um erro publicado custa a reputação do perfil.
 
 Tom de voz esperado: ${marca.tom_de_voz}
 
-A IMAGEM 1 é o fundo gerado por IA e não deve conter nenhum texto, logotipo, dinheiro ou cartão.
-A IMAGEM 2 é a arte final. O texto dela foi inserido pelo template oficial da marca e é esperado.
+${
+    fundo
+      ? `A IMAGEM DE FUNDO é uma ${origemFundo} e não deve conter nenhum texto, logotipo, dinheiro ou cartão.`
+      : 'Esta peça não tem imagem de fundo: foi feita só com o design da marca. Marque todos os itens de elementos_no_fundo como false.'
+  }
+${slides?.length ? `As imagens seguintes são os ${slides.length} slides de um ${formato === 'flashcards' ? 'carrossel de flashcards' : 'carrossel'}, na ordem. Avalie a legibilidade e a sequência de todos.` : 'A ARTE FINAL é a imagem publicada.'} O texto das artes foi inserido pelo template oficial da marca e é esperado.
 
 Risco reputacional alto quando há recomendação de investimento (indicar produto, instituição, valor ou momento de compra), promessa implícita, leitura enganosa, tema sensível (política, religião, tragédias), estereótipo, insensibilidade com o público ou cena que possa constranger os seguidores.`;
 
-  const conteudo = [
-    { type: 'text', text: 'IMAGEM 1: fundo gerado por IA.' },
-    imagem(fundo, tipoMime(fundo)),
-    { type: 'text', text: 'IMAGEM 2: arte final com o template da marca.' },
-    imagem(arte, 'image/jpeg'),
+  const conteudo = [];
+  if (fundo) conteudo.push({ type: 'text', text: `IMAGEM DE FUNDO: ${origemFundo}.` }, imagem(fundo, tipoMime(fundo)));
+  if (slides?.length) {
+    slides.forEach((s, i) => conteudo.push({ type: 'text', text: `SLIDE ${i + 1} de ${slides.length}.` }, imagem(s, 'image/jpeg')));
+  } else {
+    conteudo.push({ type: 'text', text: 'ARTE FINAL com o template da marca.' }, imagem(arte, 'image/jpeg'));
+  }
+  conteudo.push(
     {
       type: 'text',
       text: `Brief:
@@ -87,9 +95,11 @@ Textos:
 - Subtítulo: ${textos.subtitulo}
 - Chamada: ${textos.cta_arte}
 - Legenda: ${textos.legenda}
-- Hashtags: ${(textos.hashtags || []).join(' ')}`,
+- Hashtags: ${(textos.hashtags || []).join(' ')}${(textos.slides || []).map((s, i) => `\n- Slide ${i + 2}: ${s.titulo}. ${s.texto}`).join('')}${
+        textos.fechamento ? `\n- Fechamento: ${textos.fechamento}` : ''
+      }`,
     },
-  ];
+  );
 
   const r = await ia({ modelo: env.modeloJuiz, sistema, conteudo, ferramenta, maxTokens: 1500 });
   return { ...r.dados, modelo: r.modelo, politica_versao: politica.versao };

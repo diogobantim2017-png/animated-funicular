@@ -3,10 +3,18 @@
  * Tudo aqui é cálculo puro; quem grava e publica é o motor.
  */
 import { hojeNoFuso } from './util.js';
+import { normalizarFormato, SLIDES_PADRAO } from './formatos.js';
 
 export const DIAS_DA_SEMANA = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 export const ANTECEDENCIAS = [3, 12, 24, 48];
-export const PROGRAMACAO_PADRAO = { horarios: [], gerar_automaticamente: false, antecedencia_horas: 24 };
+export const PROGRAMACAO_PADRAO = {
+  horarios: [],
+  gerar_automaticamente: false,
+  antecedencia_horas: 24,
+  formato_padrao: 'post',
+  visual_padrao: 'ia',
+  slides_padrao: SLIDES_PADRAO,
+};
 const MAX_HORARIOS = 21;
 
 /** Diferença, em minutos, entre o relógio do fuso e o UTC naquele instante. */
@@ -66,10 +74,14 @@ export function normalizarProgramacao(bruto = {}) {
   if (horarios.length > MAX_HORARIOS) throw new Error(`Use no máximo ${MAX_HORARIOS} horários por semana.`);
   horarios.sort((a, b) => a.dia - b.dia || a.hora.localeCompare(b.hora));
   const antecedencia = Number(bruto.antecedencia_horas);
+  const escolha = normalizarFormato({ formato: bruto.formato_padrao, visual: bruto.visual_padrao, num_slides: bruto.slides_padrao });
   return {
     horarios,
     gerar_automaticamente: Boolean(bruto.gerar_automaticamente),
     antecedencia_horas: ANTECEDENCIAS.includes(antecedencia) ? antecedencia : PROGRAMACAO_PADRAO.antecedencia_horas,
+    formato_padrao: escolha.formato,
+    visual_padrao: escolha.visual,
+    slides_padrao: escolha.formato === 'post' ? SLIDES_PADRAO : escolha.num_slides,
   };
 }
 

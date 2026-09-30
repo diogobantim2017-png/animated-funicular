@@ -13,11 +13,13 @@ import { criarGeradorImagem } from './gerador.js';
 import { criarCanalInstagram } from './instagram.js';
 import { CHECAGENS_VISUAIS, NOTAS } from './juiz.js';
 import { criarMotor } from './motor.js';
+import { criarBancoDeFotos } from './fotos.js';
 
 const db = await criarArmazenamento();
 const imagem = criarGeradorImagem();
 const canal = criarCanalInstagram();
-const motor = criarMotor({ db, ia: chamarFerramenta, imagem, canal });
+const fotos = criarBancoDeFotos();
+const motor = criarMotor({ db, ia: chamarFerramenta, imagem, fotos, canal });
 
 const app = express();
 app.disable('x-powered-by');
@@ -128,7 +130,13 @@ app.get('/api/pecas/:id', async (req, res) => {
 app.post('/api/pipeline/rodar', async (req, res) => {
   const texto = String(req.body?.texto || '').trim().slice(0, 600);
   const categoria = String(req.body?.categoria || '').trim();
-  const orientacao = texto || categoria ? { texto: texto || null, categoria: categoria || null } : null;
+  const orientacao = {
+    texto: texto || null,
+    categoria: categoria || null,
+    formato: String(req.body?.formato || 'post'),
+    visual: String(req.body?.visual || 'ia'),
+    num_slides: Number(req.body?.slides) || null,
+  };
   const peca = await motor.gerar({ origem: 'manual', orientacao, usuario: quem(req) });
   res.status(202).json(peca);
 });

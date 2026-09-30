@@ -63,22 +63,36 @@ export function criarCanalInstagram() {
   return {
     nome: 'instagram',
     modo: env.publicacaoModo,
-    async publicar({ urlImagem, legenda }) {
+    async publicar({ urlImagem, urlsImagens = null, legenda }) {
+      const itens = urlsImagens?.length > 1 ? urlsImagens.slice(0, 10) : null;
       if (env.publicacaoModo !== 'real') {
         return {
           modo: 'simulacao',
           id: null,
           permalink: null,
+          itens: itens?.length || 1,
           observacao: 'Publicação simulada. Nada foi enviado ao Instagram. Use PUBLICACAO_MODO=real para publicar.',
         };
       }
       if (!env.igToken) throw new Error('Configure IG_ACCESS_TOKEN para publicar.');
-      if (!/^https:\/\//.test(urlImagem || '')) {
+      if ((itens || [urlImagem]).some((u) => !/^https:\/\//.test(u || ''))) {
         throw new Error('A imagem precisa de uma URL pública em https para o Instagram baixar. Veja PUBLIC_BASE_URL ou ARMAZENAMENTO=supabase.');
       }
       const base = `https://${env.metaHost}/${env.metaVersao}`;
       const conta = await idDaConta(base);
-      const container = await graph('POST', `${base}/${conta}/media`, { image_url: urlImagem, caption: legenda });
+      let container;
+      if (itens) {
+        // Carrossel: um contêiner por imagem, depois o contêiner do carrossel com a legenda.
+        const filhos = [];
+        for (const url of itens) {
+          const filho = await graph('POST', `${base}/${conta}/media`, { image_url: url, is_carousel_item: true });
+          await aguardarContainer(base, filho.id);
+          filhos.push(filho.id);
+        }
+        container = await graph('POST', `${base}/${conta}/media`, { media_type: 'CAROUSEL', children: filhos.join(','), caption: legenda });
+      } else {
+        container = await graph('POST', `${base}/${conta}/media`, { image_url: urlImagem, caption: legenda });
+      }
       await aguardarContainer(base, container.id);
       const publicado = await graph('POST', `${base}/${conta}/media_publish`, { creation_id: container.id });
       let permalink = null;
@@ -87,7 +101,7 @@ export function criarCanalInstagram() {
       } catch {
         permalink = null;
       }
-      return { modo: 'real', id: publicado.id, container_id: container.id, permalink };
+      return { modo: 'real', id: publicado.id, container_id: container.id, permalink, itens: itens?.length || 1 };
     },
   };
 }

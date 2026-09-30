@@ -60,11 +60,11 @@ function quebrarLinhas(ctx, texto, larguraMax) {
 }
 
 /** Reduz a fonte até caber no número de linhas. Nunca corta texto: se não couber, sinaliza. */
-function ajustarBloco(ctx, texto, { familia, maximo, minimo, maxLinhas, entrelinha }) {
+function ajustarBloco(ctx, texto, { familia, maximo, minimo, maxLinhas, entrelinha, largura = LARGURA_TEXTO }) {
   let resultado = null;
   for (let tamanho = maximo; tamanho >= minimo; tamanho -= 2) {
     ctx.font = `${tamanho}px "${familia}"`;
-    const linhas = quebrarLinhas(ctx, texto, LARGURA_TEXTO);
+    const linhas = quebrarLinhas(ctx, texto, largura);
     resultado = { familia, tamanho, linhas, entrelinha, coube: linhas.length <= maxLinhas };
     if (resultado.coube) return resultado;
   }
@@ -114,23 +114,29 @@ async function desenharAssinatura(ctx) {
  * Compõe a arte final. A IA só fornece o fundo e os textos de marketing;
  * logo, oferta, texto legal e rótulo de IA vêm de configuração oficial.
  */
-export async function renderizarArte({ fundo, textos, oferta }) {
+export async function renderizarArte({ fundo, textos, oferta, visual = 'ia', credito = null, semente = 1 }) {
   registrarFontes();
   const canvas = createCanvas(LARGURA, ALTURA);
   const ctx = canvas.getContext('2d');
 
-  const imagem = await loadImage(fundo);
-  const escala = Math.max(LARGURA / imagem.width, ALTURA / imagem.height);
-  const w = imagem.width * escala;
-  const h = imagem.height * escala;
-  ctx.drawImage(imagem, (LARGURA - w) / 2, (ALTURA - h) * 0.3, w, h);
+  if (fundo) {
+    const imagem = await loadImage(fundo);
+    const escala = Math.max(LARGURA / imagem.width, ALTURA / imagem.height);
+    const w = imagem.width * escala;
+    const h = imagem.height * escala;
+    ctx.drawImage(imagem, (LARGURA - w) / 2, (ALTURA - h) * 0.3, w, h);
+  } else {
+    desenharFundoDesign(ctx, semente);
+  }
 
   const titulo = ajustarBloco(ctx, textos.titulo, { familia: 'Marca Titulo', maximo: 72, minimo: 50, maxLinhas: 3, entrelinha: 1.12 });
   const subtitulo = ajustarBloco(ctx, textos.subtitulo, { familia: 'Marca Texto', maximo: 36, minimo: 28, maxLinhas: 3, entrelinha: 1.35 });
   const destaque = oferta?.destaque
     ? ajustarBloco(ctx, oferta.destaque, { familia: 'Marca Destaque', maximo: 34, minimo: 26, maxLinhas: 2, entrelinha: 1.3 })
     : null;
-  const legal = [oferta?.texto_legal, politica.rotulo_ia].filter(Boolean).join(' ');
+  const legal = [oferta?.texto_legal, visual === 'ia' && fundo ? politica.rotulo_ia : null, textoDoCredito(visual, credito)]
+    .filter(Boolean)
+    .join(' ');
   const blocoLegal = legal
     ? ajustarBloco(ctx, legal, { familia: 'Marca Texto', maximo: 22, minimo: 18, maxLinhas: 4, entrelinha: 1.4 })
     : null;
@@ -202,4 +208,297 @@ export async function renderizarArte({ fundo, textos, oferta }) {
       transbordou: Boolean(transbordou),
     },
   };
+}
+
+/* ------------------------------------------------------ design sem imagem */
+
+function hexParaRgb(hex) {
+  const limpo = String(hex).replace('#', '');
+  const cheio = limpo.length === 3 ? limpo.split('').map((c) => c + c).join('') : limpo;
+  return [0, 2, 4].map((i) => parseInt(cheio.slice(i, i + 2), 16));
+}
+
+/** Mistura duas cores; peso é a proporção da segunda. */
+function misturar(cor, outra, peso) {
+  const a = hexParaRgb(cor);
+  const b = hexParaRgb(outra);
+  return `rgb(${a.map((v, i) => Math.round(v * (1 - peso) + b[i] * peso)).join(', ')})`;
+}
+
+/** Sequência pseudoaleatória estável: a mesma semente sempre gera o mesmo desenho. */
+function sorteador(semente) {
+  let t = Math.abs(Math.floor(semente)) || 1;
+  return () => {
+    t += 0x6d2b79f5;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const textoDoCredito = (visual, credito) => (visual === 'foto' && credito?.autor ? `Foto: ${credito.autor} / ${credito.fonte || 'Pexels'}.` : null);
+
+/** Fundo feito só com as cores da marca: formas geométricas, sem pessoas nem objetos. */
+function desenharFundoDesign(ctx, semente = 1) {
+  const r = sorteador(semente);
+  const { primaria, secundaria } = marca.cores;
+  ctx.fillStyle = misturar(secundaria, '#FFFFFF', 0.78);
+  ctx.fillRect(0, 0, LARGURA, ALTURA);
+
+  ctx.globalAlpha = 0.6;
+  ctx.fillStyle = secundaria;
+  ctx.beginPath();
+  ctx.arc(LARGURA * (0.6 + r() * 0.3), 250 + r() * 160, 230 + r() * 90, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.globalAlpha = 0.12;
+  ctx.fillStyle = primaria;
+  ctx.beginPath();
+  ctx.arc(LARGURA * (0.08 + r() * 0.25), 420 + r() * 140, 170 + r() * 80, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.globalAlpha = 0.9;
+  ctx.strokeStyle = primaria;
+  ctx.lineWidth = 14;
+  ctx.beginPath();
+  ctx.arc(LARGURA * (0.3 + r() * 0.3), 330 + r() * 120, 56 + r() * 40, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.globalAlpha = 0.35;
+  ctx.fillStyle = primaria;
+  const ox = 90 + r() * 560;
+  const oy = 190 + r() * 180;
+  for (let i = 0; i < 4; i++) {
+    for (let j = 0; j < 4; j++) {
+      ctx.beginPath();
+      ctx.arc(ox + i * 34, oy + j * 34, 6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+/* --------------------------------------------------- carrossel e flashcards */
+
+const LARGURA_SLIDE = LARGURA - MARGEM * 2 - 40;
+
+function desenharContador(ctx, texto, cor) {
+  ctx.font = '30px "Marca Destaque"';
+  ctx.fillStyle = cor;
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(texto, LARGURA - MARGEM, MARGEM + 40);
+  ctx.textAlign = 'left';
+}
+
+function desenharPontos(ctx, atual, total, cor) {
+  const espaco = 30;
+  const inicio = LARGURA / 2 - ((total - 1) * espaco) / 2;
+  for (let i = 0; i < total; i++) {
+    ctx.globalAlpha = i + 1 === atual ? 1 : 0.28;
+    ctx.fillStyle = cor;
+    ctx.beginPath();
+    ctx.arc(inicio + i * espaco, ALTURA - 64, i + 1 === atual ? 10 : 8, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function barra(ctx, x, y, cor, largura = 110) {
+  ctx.fillStyle = cor;
+  ctx.beginPath();
+  ctx.roundRect(x, y, largura, 12, 6);
+  ctx.fill();
+}
+
+/** Escolhe o maior tamanho de letra em que título e texto cabem juntos na área disponível. */
+function ajustarPar(ctx, { area, largura, ...opcoes }) {
+  const escalas = [1, 0.92, 0.85, 0.78, 0.72, 0.66, 0.6];
+  let ultimo = null;
+  for (const e of escalas) {
+    const bt = ajustarBloco(ctx, opcoes.textoTitulo, { familia: 'Marca Titulo', maximo: Math.round(opcoes.maxTitulo * e), minimo: 40, maxLinhas: 4, entrelinha: 1.1, largura });
+    const bx = ajustarBloco(ctx, opcoes.textoCorpo, { familia: 'Marca Texto', maximo: Math.round(opcoes.maxCorpo * e), minimo: 26, maxLinhas: 12, entrelinha: 1.42, largura });
+    const altura = opcoes.extra + alturaBloco(bt) + opcoes.entre + alturaBloco(bx);
+    ultimo = { bt, bx, altura, coube: bt.coube && bx.coube && altura <= area };
+    if (ultimo.coube) return ultimo;
+  }
+  return ultimo;
+}
+
+async function slideConteudo({ titulo, texto, numero, total }) {
+  const canvas = createCanvas(LARGURA, ALTURA);
+  const ctx = canvas.getContext('2d');
+  const { primaria, secundaria } = marca.cores;
+  ctx.fillStyle = misturar(secundaria, '#FFFFFF', 0.86);
+  ctx.fillRect(0, 0, LARGURA, ALTURA);
+  ctx.globalAlpha = 0.85;
+  ctx.fillStyle = secundaria;
+  ctx.beginPath();
+  ctx.arc(LARGURA + 40, ALTURA + 20, 200, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+
+  await desenharAssinatura(ctx);
+  desenharContador(ctx, `${numero}/${total}`, primaria);
+
+  const x = MARGEM + 20;
+  const topo = 190;
+  const base = ALTURA - 130;
+  const alturaNumero = 132;
+  const par = ajustarPar(ctx, {
+    textoTitulo: titulo,
+    textoCorpo: texto,
+    area: base - topo,
+    largura: LARGURA_SLIDE,
+    maxTitulo: 84,
+    maxCorpo: 50,
+    extra: alturaNumero + 24,
+    entre: 36,
+  });
+  let y = topo + Math.max(0, (base - topo - par.altura) / 2);
+  ctx.font = '132px "Marca Titulo"';
+  ctx.fillStyle = primaria;
+  ctx.globalAlpha = 0.16;
+  ctx.textBaseline = 'top';
+  ctx.fillText(String(numero - 1).padStart(2, '0'), x - 6, y);
+  ctx.globalAlpha = 1;
+  y += alturaNumero + 24;
+  y = desenharBloco(ctx, par.bt, x, y, primaria);
+  y += 36;
+  ctx.globalAlpha = 0.9;
+  desenharBloco(ctx, par.bx, x, y, primaria);
+  ctx.globalAlpha = 1;
+  desenharPontos(ctx, numero, total, primaria);
+  return { buffer: await canvas.encode('jpeg', 90), coube: par.coube };
+}
+
+async function slideCartao({ titulo, texto, numero, total, cartao, cartoes }) {
+  const canvas = createCanvas(LARGURA, ALTURA);
+  const ctx = canvas.getContext('2d');
+  const { primaria, secundaria } = marca.cores;
+  ctx.fillStyle = primaria;
+  ctx.fillRect(0, 0, LARGURA, ALTURA);
+
+  await desenharAssinatura(ctx);
+  desenharContador(ctx, `${numero}/${total}`, secundaria);
+
+  const topo = 190;
+  const alturaCartao = ALTURA - topo - 170;
+  ctx.fillStyle = '#FFFFFF';
+  ctx.beginPath();
+  ctx.roundRect(MARGEM, topo, LARGURA - MARGEM * 2, alturaCartao, 48);
+  ctx.fill();
+
+  const x = MARGEM + 56;
+  const largura = LARGURA - MARGEM * 2 - 112;
+  ctx.font = '26px "Marca Destaque"';
+  ctx.fillStyle = primaria;
+  ctx.globalAlpha = 0.7;
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`CARTÃO ${cartao} DE ${cartoes}`, x, topo + 70);
+  ctx.globalAlpha = 1;
+
+  const inicio = topo + 120;
+  const fim = topo + alturaCartao - 50;
+  const par = ajustarPar(ctx, {
+    textoTitulo: titulo,
+    textoCorpo: texto,
+    area: fim - inicio,
+    largura,
+    maxTitulo: 92,
+    maxCorpo: 50,
+    extra: 0,
+    entre: 30 + 12 + 34,
+  });
+  let y = inicio + Math.max(0, (fim - inicio - par.altura) / 2);
+  y = desenharBloco(ctx, par.bt, x, y, primaria);
+  y += 30;
+  barra(ctx, x, y, secundaria, 120);
+  y += 12 + 34;
+  ctx.globalAlpha = 0.9;
+  desenharBloco(ctx, par.bx, x, y, primaria);
+  ctx.globalAlpha = 1;
+
+  ctx.font = '28px "Marca Destaque"';
+  ctx.fillStyle = secundaria;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('Salve para revisar depois', LARGURA / 2, ALTURA - 118);
+  ctx.textAlign = 'left';
+  desenharPontos(ctx, numero, total, secundaria);
+  return { buffer: await canvas.encode('jpeg', 90), coube: par.coube };
+}
+
+async function slideFinal({ fechamento, cta, legal, numero, total }) {
+  const canvas = createCanvas(LARGURA, ALTURA);
+  const ctx = canvas.getContext('2d');
+  const { primaria, secundaria } = marca.cores;
+  ctx.fillStyle = primaria;
+  ctx.fillRect(0, 0, LARGURA, ALTURA);
+  ctx.globalAlpha = 0.9;
+  ctx.fillStyle = secundaria;
+  ctx.beginPath();
+  ctx.arc(LARGURA - 60, 250, 210, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+
+  await desenharAssinatura(ctx);
+
+  const x = MARGEM + 20;
+  const blocoFechamento = ajustarBloco(ctx, fechamento, { familia: 'Marca Titulo', maximo: 78, minimo: 50, maxLinhas: 5, entrelinha: 1.12, largura: LARGURA_SLIDE });
+  const blocoLegal = legal
+    ? ajustarBloco(ctx, legal, { familia: 'Marca Texto', maximo: 22, minimo: 18, maxLinhas: 4, entrelinha: 1.4, largura: LARGURA_SLIDE })
+    : null;
+  let y = 560;
+  y = desenharBloco(ctx, blocoFechamento, x, y, marca.cores.texto_sobre_primaria);
+  y += 48;
+  ctx.font = '34px "Marca Destaque"';
+  const textoCta = String(cta || '').trim();
+  const larguraCta = Math.min(ctx.measureText(textoCta).width + 84, LARGURA_SLIDE);
+  ctx.fillStyle = secundaria;
+  ctx.beginPath();
+  ctx.roundRect(x, y, larguraCta, 86, 43);
+  ctx.fill();
+  ctx.fillStyle = marca.cores.texto_sobre_secundaria;
+  ctx.textBaseline = 'middle';
+  ctx.fillText(textoCta, x + 42, y + 45, larguraCta - 84);
+  y += 86;
+  if (blocoLegal) {
+    ctx.globalAlpha = 0.8;
+    desenharBloco(ctx, blocoLegal, x, ALTURA - 150 - blocoLegal.linhas.length * 30, marca.cores.texto_sobre_primaria);
+    ctx.globalAlpha = 1;
+  }
+  desenharPontos(ctx, numero, total, secundaria);
+  return { buffer: await canvas.encode('jpeg', 90), coube: blocoFechamento.coube && (!blocoLegal || blocoLegal.coube) && y < ALTURA - 220 };
+}
+
+/**
+ * Carrossel ou flashcards: capa com o fundo escolhido (IA, foto ou design), slides de conteúdo
+ * feitos só com o design da marca e um slide final com a chamada. Todos em 1080 x 1350.
+ */
+export async function renderizarCarrossel({ fundo, textos, oferta, formato, visual = 'ia', credito = null, semente = 1 }) {
+  registrarFontes();
+  const miolo = textos.slides || [];
+  const total = miolo.length + 2;
+  const capa = await renderizarArte({ fundo, textos: { ...textos, cta_arte: 'Deslize para o lado' }, oferta: null, visual, credito, semente });
+  const slides = [capa.buffer];
+  let coube = !capa.ajustes.transbordou;
+  for (const [i, item] of miolo.entries()) {
+    const r =
+      formato === 'flashcards'
+        ? await slideCartao({ ...item, numero: i + 2, total, cartao: i + 1, cartoes: miolo.length })
+        : await slideConteudo({ ...item, numero: i + 2, total });
+    slides.push(r.buffer);
+    coube &&= r.coube;
+  }
+  const final = await slideFinal({
+    fechamento: textos.fechamento,
+    cta: textos.cta_arte,
+    legal: [oferta?.destaque, oferta?.texto_legal].filter(Boolean).join(' ') || null,
+    numero: total,
+    total,
+  });
+  slides.push(final.buffer);
+  coube &&= final.coube;
+  return { slides, largura: LARGURA, altura: ALTURA, ajustes: { ...capa.ajustes, slides: total, transbordou: !coube } };
 }

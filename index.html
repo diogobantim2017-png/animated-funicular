@@ -27,9 +27,9 @@
 
   <nav class="abas" aria-label="Seções do painel">
     <div class="abas__lista" role="tablist">
-      <button class="aba" role="tab" id="aba-fila" data-aba="fila" aria-selected="true">Fila<span class="aba__extra"> de revisão</span> <span class="aba__contador" id="contador-fila"></span></button>
+      <button class="aba" role="tab" id="aba-fila" data-aba="fila" aria-selected="true"><span>Fila<span class="aba__extra"> de revisão</span></span> <span class="aba__contador" id="contador-fila"></span></button>
       <button class="aba" role="tab" id="aba-programacao" data-aba="programacao" aria-selected="false">Programação</button>
-      <button class="aba" role="tab" id="aba-todas" data-aba="todas" aria-selected="false">Todas<span class="aba__extra"> as peças</span></button>
+      <button class="aba" role="tab" id="aba-todas" data-aba="todas" aria-selected="false"><span>Todas<span class="aba__extra"> as peças</span></span></button>
       <button class="aba" role="tab" id="aba-autonomia" data-aba="autonomia" aria-selected="false">Autonomia</button>
     </div>
   </nav>
@@ -57,6 +57,29 @@
         <span class="campo__rotulo">Categoria</span>
         <select name="categoria" id="gerar-categoria"></select>
       </label>
+      <div class="campos-linha">
+        <label class="campo">
+          <span class="campo__rotulo">Formato</span>
+          <select name="formato" id="gerar-formato">
+            <option value="post">Post único</option>
+            <option value="carrossel">Carrossel</option>
+            <option value="flashcards">Flashcards</option>
+          </select>
+        </label>
+        <label class="campo" id="gerar-slides-campo" hidden>
+          <span class="campo__rotulo">Quantidade de imagens</span>
+          <select name="slides" id="gerar-slides"></select>
+        </label>
+      </div>
+      <label class="campo">
+        <span class="campo__rotulo">Imagem</span>
+        <select name="visual" id="gerar-visual">
+          <option value="ia">Criada por IA</option>
+          <option value="foto">Foto real de banco de imagens (Pexels)</option>
+          <option value="design">Só o design da marca, sem imagem</option>
+        </select>
+      </label>
+      <p class="dialogo__nota" id="gerar-nota-formato"></p>
       <p class="dialogo__nota">Leva de 1 a 2 minutos. A peça aparece na fila assim que as travas terminarem a avaliação.</p>
       <div class="dialogo__acoes">
         <button class="botao botao--secundario" value="cancelar" formnovalidate>Cancelar</button>
