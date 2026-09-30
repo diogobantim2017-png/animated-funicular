@@ -184,6 +184,8 @@ textarea {
 /* ------------------------------------------------------------------- campos */
 
 input[type="text"],
+input[type="time"],
+input[type="datetime-local"],
 textarea,
 select {
   width: 100%;
@@ -200,6 +202,7 @@ textarea {
 }
 
 input:disabled,
+select:disabled,
 textarea:disabled {
   background: var(--superficie-2);
   color: var(--texto-2);
@@ -1409,6 +1412,237 @@ textarea:disabled {
   font-size: var(--t-3);
 }
 
+/* ------------------------------------------------------------ programação */
+
+.programacao__grade {
+  display: grid;
+  grid-template-columns: minmax(300px, 1fr) minmax(300px, 1.1fr);
+  gap: 24px;
+  align-items: start;
+  margin-top: 8px;
+}
+
+.programacao__grade .config {
+  margin-top: 16px;
+}
+
+.programacao__alerta {
+  margin: 18px 0 0;
+  padding: 12px 16px;
+  border-radius: var(--raio);
+  background: var(--ambar-fundo);
+  color: var(--ambar);
+  font-weight: 700;
+}
+
+.programacao__vazio,
+.programacao__nota {
+  margin: 0;
+  color: var(--texto-2);
+  font-size: var(--t-1);
+}
+
+.programacao__vazio {
+  margin-bottom: 16px;
+  font-size: var(--t-2);
+}
+
+.horarios {
+  margin: 0 0 18px;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+}
+
+.horarios__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 46px;
+  padding: 6px 8px 6px 14px;
+  border-bottom: 1px solid var(--linha);
+}
+
+.horarios__item:last-child {
+  border-bottom: 0;
+}
+
+.horarios__novo {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(110px, 0.8fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.horarios__novo .campo {
+  margin: 0;
+}
+
+.horarios__novo select,
+.horarios__novo input,
+.programacao__auto select {
+  min-height: 40px;
+}
+
+.programacao__auto {
+  display: grid;
+  gap: 10px;
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--linha);
+}
+
+.programacao__auto .campo {
+  max-width: 280px;
+  margin: 0;
+}
+
+.interruptor {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.interruptor input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--azul);
+}
+
+.programacao__salvar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.programacao__subtitulo {
+  margin-top: 26px;
+}
+
+.proximos {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.proximos__item {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--linha);
+}
+
+.proximos__item:last-child {
+  border-bottom: 0;
+}
+
+.proximos__quando {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--azul);
+  font: inherit;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.link:hover {
+  color: var(--azul-escuro);
+}
+
+/* Escolha de quando publicar */
+
+.quando {
+  display: grid;
+  gap: 8px;
+  margin: 4px 0 18px;
+  padding: 0;
+  border: 0;
+}
+
+.quando legend {
+  margin-bottom: 8px;
+}
+
+.quando__opcao {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  gap: 10px;
+  align-items: start;
+  padding: 12px 14px;
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+  cursor: pointer;
+}
+
+.quando__opcao:has(input:checked) {
+  border-color: var(--azul);
+  background: #eaf4fb;
+}
+
+.quando__opcao input[type='radio'] {
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  accent-color: var(--azul);
+}
+
+.quando__opcao > span {
+  display: grid;
+  gap: 4px;
+}
+
+.quando__detalhe {
+  color: var(--texto-2);
+  font-size: var(--t-1);
+}
+
+.quando__opcao--inativa {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.quando__data {
+  max-width: 240px;
+  min-height: 38px;
+  margin-top: 4px;
+}
+
+@media (max-width: 900px) {
+  .programacao__grade {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .horarios__novo {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .horarios__novo .botao {
+    grid-column: 1 / -1;
+  }
+
+  .proximos__item {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}
+
 /* ------------------------------------------------------------------ diálogos */
 
 .dialogo {
@@ -1603,6 +1837,10 @@ textarea:disabled {
     gap: 6px;
     padding-inline: 9px;
     font-size: 0.875rem;
+  }
+
+  .aba__extra {
+    display: none;
   }
 }
 

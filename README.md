@@ -1,6 +1,6 @@
 # Motor de campanhas com IA e autonomia governada
 
-> **Configuração atual:** perfil de educação financeira para jovens que ainda não sabem investir, com o nome provisório "Começando a Investir" (troque em `marca.json`). O catálogo de ofertas está desligado e a categoria "Como funcionam os investimentos" é sempre revisada por uma pessoa. O funcionamento descrito abaixo vale para qualquer marca: onde o texto fala em banco, leia "perfil".
+> **Configuração atual:** perfil de educação financeira para jovens que ainda não sabem investir, com a marca "Papo de Grana" (nome, cores e tom em `marca.json`, logo em `logo.png`). O catálogo de ofertas está desligado e a categoria "Como funcionam os investimentos" é sempre revisada por uma pessoa. O funcionamento descrito abaixo vale para qualquer marca: onde o texto fala em banco, leia "perfil".
 
 MVP de um motor que percebe a necessidade de um post, define público e objetivo, escreve os textos, gera a imagem com IA, monta a arte no template da marca, passa a peça pelas travas de governança e então publica no Instagram ou manda para revisão humana.
 
@@ -63,6 +63,7 @@ O painel abre com as peças do teste. Os fundos são sintéticos e o botão de g
 - **Fila de revisão.** Peças aguardando decisão, com a arte, o motivo do post, o público, os textos editáveis, a legenda como será publicada, as travas e as notas do revisor de IA.
 - **Ações.** Aprovar e publicar, salvar textos e reavaliar, gerar nova imagem com uma direção, reprovar com motivo. Uma peça bloqueada não pode ser aprovada: é preciso corrigir, e toda alteração passa pelas travas de novo.
 - **Todas as peças.** Histórico com filtro por situação.
+- **Programação.** Dias e horários da semana em que os posts saem. Ao aprovar, você escolhe entre o próximo horário livre, agora ou uma data. Se ligar a geração automática, o sistema cria a peça antes de cada horário, e ela espera aprovação. Os horários seguem o fuso de `FUSO_HORARIO`. O servidor confere a agenda a cada minuto, então precisa estar ligado: um serviço que dorme por inatividade publica o post atrasado, quando acordar.
 - **Autonomia.** Evidência por categoria (revisões e concordância com a meta), liberação e revogação, e a configuração ativa.
 - **Pausar tudo.** Botão de emergência no topo. Enquanto estiver pausado, nada é publicado, nem com aprovação humana, e a agenda não gera peças. O motivo fica na auditoria.
 

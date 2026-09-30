@@ -82,6 +82,16 @@ export async function criarArmazenamentoLocal({ diretorio, urlPublica }) {
       return copiar(estado.categorias);
     },
 
+    async obterProgramacao() {
+      return copiar(estado.programacao || null);
+    },
+
+    async salvarProgramacao(dados, por) {
+      estado.programacao = { dados, atualizado_em: new Date().toISOString(), atualizado_por: por };
+      await salvar();
+      return copiar(estado.programacao);
+    },
+
     async definirModoCategoria(id, modo, por) {
       estado.categorias[id] = { modo, atualizado_em: new Date().toISOString(), atualizado_por: por };
       await salvar();

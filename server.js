@@ -134,7 +134,23 @@ app.post('/api/pipeline/rodar', async (req, res) => {
 });
 
 app.post('/api/pecas/:id/aprovar', async (req, res) => {
-  res.json(await motor.aprovar(req.params.id, quem(req)));
+  res.json(await motor.aprovar(req.params.id, quem(req), { quando: req.body?.quando || 'agora' }));
+});
+
+app.post('/api/pecas/:id/reagendar', async (req, res) => {
+  res.json(await motor.reagendar(req.params.id, quem(req), req.body?.quando || 'proximo'));
+});
+
+app.post('/api/pecas/:id/cancelar-agendamento', async (req, res) => {
+  res.json(await motor.cancelarAgendamento(req.params.id, quem(req)));
+});
+
+app.get('/api/programacao', async (req, res) => {
+  res.json(await motor.programacao());
+});
+
+app.put('/api/programacao', async (req, res) => {
+  res.json(await motor.salvarProgramacao(req.body || {}, quem(req)));
 });
 
 app.post('/api/pecas/:id/reprovar', async (req, res) => {
@@ -180,6 +196,24 @@ app.use((erro, req, res, next) => {
   res.status(status).json({ erro: mensagem });
 });
 
+/* ------------------------------------------------------------ programação */
+
+// A cada minuto: publica o que chegou na hora e gera peças para os próximos horários.
+let tickRodando = false;
+async function tickProgramacao() {
+  if (tickRodando) return;
+  tickRodando = true;
+  try {
+    await motor.tickProgramacao();
+  } catch (erro) {
+    console.error('Programação:', erro.message);
+  } finally {
+    tickRodando = false;
+  }
+}
+const relogioProgramacao = setInterval(tickProgramacao, 60_000);
+setTimeout(tickProgramacao, 15_000);
+
 /* ----------------------------------------------------------------- boot */
 
 const servidor = app.listen(env.porta, () => {
@@ -205,6 +239,7 @@ const servidor = app.listen(env.porta, () => {
 
 function encerrar() {
   tarefaAgenda?.stop();
+  clearInterval(relogioProgramacao);
   servidor.close(() => process.exit(0));
   setTimeout(() => process.exit(0), 5000).unref();
 }

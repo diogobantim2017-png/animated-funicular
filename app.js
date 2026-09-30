@@ -178,8 +178,8 @@ async function carregarEstado() {
 }
 
 async function carregarLista() {
-  if (ui.aba === 'autonomia') return;
-  const status = ui.aba === 'fila' ? 'gerando,em_revisao,aprovada' : ui.filtro;
+  if (ui.aba === 'autonomia' || ui.aba === 'programacao') return;
+  const status = ui.aba === 'fila' ? 'gerando,em_revisao,aprovada,agendada' : ui.filtro;
   ui.pecas = await api(`/api/pecas${status ? `?status=${encodeURIComponent(status)}` : ''}`);
   renderLista();
 }
@@ -307,6 +307,7 @@ function seloDoItem(p) {
   if (p.status === 'erro') return { classe: 'bloqueada', texto: 'Falhou na geração' };
   if (p.status === 'reprovada') return { classe: 'neutro', texto: 'Reprovada' };
   if (p.status === 'aprovada') return { classe: 'aguardando', texto: 'Aprovada, aguardando publicação' };
+  if (p.status === 'agendada') return { classe: 'aguardando', texto: `Agendada: ${dataHora(p.agendamento_para, { diaSemana: true })}` };
   if (p.status === 'publicada') {
     const simulacao = p.publicacao?.modo === 'simulacao' ? ' (simulação)' : '';
     return { classe: 'publicada', texto: `${p.decisao === 'automatica' ? 'Publicada sozinha' : 'Publicada'}${simulacao}` };
@@ -336,6 +337,7 @@ function renderLista() {
       ['', 'Todas'],
       ['em_revisao', 'Em revisão'],
       ['aprovada', 'Aprovadas aguardando publicação'],
+      ['agendada', 'Agendadas'],
       ['publicada', 'Publicadas'],
       ['reprovada', 'Reprovadas'],
       ['erro', 'Com falha na geração'],
@@ -359,6 +361,7 @@ function renderLista() {
       ['gerando', 'Gerando agora'],
       ['em_revisao', 'Para revisar'],
       ['aprovada', 'Aprovadas aguardando publicação'],
+      ['agendada', 'Agendadas'],
     ];
     for (const [status, titulo] of grupos) {
       const itens = ui.pecas.filter((p) => p.status === status);
@@ -427,6 +430,10 @@ function situacao(p) {
     return `Aprovada por ${esc(r?.usuario || 'equipe')} em ${dataHora(r?.em)}. Publicação pendente: ${esc(p.publicacao?.motivo || 'aguardando')}${
       p.publicacao?.erro ? ` (${esc(p.publicacao.erro)})` : ''
     }.`;
+  }
+  if (p.status === 'agendada') {
+    const quem = r?.usuario ? `Aprovada por ${esc(r.usuario)}.` : 'Aprovada pelas travas, sem revisão humana.';
+    return `${quem} Agendada para ${dataHora(p.agendamento?.para, { diaSemana: true })}.`;
   }
   if (p.status === 'publicada') {
     const base =
@@ -628,12 +635,12 @@ function acoesHtml(d) {
   if (p.status === 'em_revisao') {
     const bloqueada = p.governanca?.gate?.veredito === 'bloqueada';
     const alterado = rascunhoAlterado();
-    let nota = `Seu nome fica na trilha de auditoria. ${real ? 'A aprovação publica no Instagram na hora.' : 'Em simulação, nada é enviado ao Instagram.'}`;
+    let nota = `Seu nome fica na trilha de auditoria. Ao aprovar, você escolhe se publica agora ou num horário da programação.${real ? '' : ' Em simulação, nada é enviado ao Instagram.'}`;
     if (pausado) nota = 'Sistema pausado: você pode aprovar, mas a publicação fica aguardando até a retomada.';
     if (bloqueada) nota = 'Peça bloqueada: corrija os textos ou gere nova imagem. Toda alteração passa pelas travas de novo.';
     if (alterado) nota = 'Salve os textos para refazer a arte e passar pelas travas antes de aprovar.';
     return `<div class="acoes" id="acoes">
-      <button type="button" class="botao botao--primario" data-acao="aprovar" ${bloqueada || alterado ? 'disabled' : ''}>${real ? 'Aprovar e publicar no Instagram' : 'Aprovar e publicar'}</button>
+      <button type="button" class="botao botao--primario" data-acao="aprovar" ${bloqueada || alterado ? 'disabled' : ''}>Aprovar</button>
       <button type="button" class="botao botao--secundario" data-acao="salvar-textos" ${alterado ? '' : 'disabled'}>Salvar textos e reavaliar</button>
       ${alterado ? '<button type="button" class="botao botao--texto" data-acao="descartar">Descartar alterações</button>' : ''}
       <button type="button" class="botao botao--secundario" data-acao="nova-imagem">Gerar nova imagem</button>
@@ -642,9 +649,23 @@ function acoesHtml(d) {
       <p class="acoes__nota" id="acoes-nota">${nota}</p>
     </div>`;
   }
+  if (p.status === 'agendada') {
+    return `<div class="acoes" id="acoes">
+      <button type="button" class="botao botao--primario" data-acao="mudar-horario">Mudar horário</button>
+      <button type="button" class="botao botao--secundario" data-acao="publicar-agora" ${pausado ? 'disabled' : ''}>Publicar agora</button>
+      <span class="acoes__separador"></span>
+      <button type="button" class="botao botao--perigo" data-acao="cancelar-agendamento">Cancelar agendamento</button>
+      <p class="acoes__nota">${
+        pausado
+          ? 'Sistema pausado: o post agendado só sai depois da retomada.'
+          : `Sai sozinho em ${dataHora(p.agendamento?.para, { diaSemana: true })}. As travas conferem a peça mais uma vez no envio.`
+      }</p>
+    </div>`;
+  }
   if (p.status === 'aprovada') {
     return `<div class="acoes" id="acoes">
       <button type="button" class="botao botao--primario" data-acao="publicar-agora" ${pausado ? 'disabled' : ''}>Publicar agora</button>
+      <button type="button" class="botao botao--secundario" data-acao="mudar-horario">Agendar</button>
       <p class="acoes__nota">${pausado ? 'Sistema pausado. Retome a operação para publicar.' : 'A publicação passa pelas travas mais uma vez no momento do envio.'}</p>
     </div>`;
   }
@@ -917,15 +938,194 @@ async function selecionar(id) {
   agendar();
 }
 
+/* ---------------------------------------------------------------- programação */
+
+const ANTECEDENCIAS = [
+  [3, '3 horas antes'],
+  [12, '12 horas antes'],
+  [24, '1 dia antes'],
+  [48, '2 dias antes'],
+];
+
+function rascunhoDaProgramacao() {
+  const r = ui.progRascunho;
+  return { horarios: r.horarios, gerar_automaticamente: r.gerar_automaticamente, antecedencia_horas: r.antecedencia_horas };
+}
+
+async function carregarProgramacao() {
+  ui.programacao = await api('/api/programacao');
+  renderProgramacao();
+}
+
+function situacaoDoHorario(h) {
+  if (h.peca?.status === 'agendada') {
+    return `Agendado: <button type="button" class="link" data-acao="abrir-da-programacao" data-id="${esc(h.peca.id)}">${esc(h.peca.titulo || 'peça sem título')}</button>`;
+  }
+  if (h.peca) {
+    return `Peça ${h.peca.status === 'gerando' ? 'sendo gerada' : 'esperando sua aprovação'}: <button type="button" class="link" data-acao="abrir-da-programacao" data-id="${esc(h.peca.id)}">${esc(h.peca.titulo || 'ver peça')}</button>`;
+  }
+  if (h.gera_em) return `Livre. A peça é gerada em ${esc(dataHora(h.gera_em, { diaSemana: true }))} e espera sua aprovação.`;
+  return 'Livre. Aprove uma peça para ocupar este horário.';
+}
+
+function renderProgramacao() {
+  const p = ui.programacao;
+  const alvo = $('#area-programacao');
+  if (!p) {
+    pintar(alvo, 'programacao', '<div class="autonomia"><p>Carregando a programação…</p></div>');
+    return;
+  }
+  ui.progRascunho ??= { horarios: [...p.horarios], gerar_automaticamente: p.gerar_automaticamente, antecedencia_horas: p.antecedencia_horas };
+  const r = ui.progRascunho;
+  const dias = p.dias_da_semana;
+  const alterado =
+    JSON.stringify(rascunhoDaProgramacao()) !==
+    JSON.stringify({ horarios: p.horarios, gerar_automaticamente: p.gerar_automaticamente, antecedencia_horas: p.antecedencia_horas });
+
+  const lista = r.horarios.length
+    ? `<ul class="horarios">${r.horarios
+        .map(
+          (h, i) => `<li class="horarios__item"><span><strong>${esc(dias[h.dia])}</strong>, ${esc(h.hora)}</span>
+            <button type="button" class="botao botao--texto" data-acao="prog-remover" data-indice="${i}">Remover</button></li>`,
+        )
+        .join('')}</ul>`
+    : '<p class="programacao__vazio">Nenhum horário ainda. Adicione o primeiro abaixo.</p>';
+
+  const novo = `<div class="horarios__novo">
+      <label class="campo"><span class="campo__rotulo">Dia</span>
+        <select id="prog-dia">${dias.map((d, i) => `<option value="${i}" ${i === 1 ? 'selected' : ''}>${esc(d)}</option>`).join('')}</select></label>
+      <label class="campo"><span class="campo__rotulo">Horário</span><input type="time" id="prog-hora" value="12:00" step="300"></label>
+      <button type="button" class="botao botao--secundario" data-acao="prog-adicionar">Adicionar horário</button>
+    </div>`;
+
+  const automatico = `<div class="programacao__auto">
+      <label class="interruptor"><input type="checkbox" id="prog-auto" ${r.gerar_automaticamente ? 'checked' : ''}>
+        <span>Gerar as peças sozinho antes de cada horário</span></label>
+      <label class="campo"><span class="campo__rotulo">Com quanto tempo de antecedência</span>
+        <select id="prog-antecedencia" ${r.gerar_automaticamente ? '' : 'disabled'}>${ANTECEDENCIAS.map(
+          ([v, t]) => `<option value="${v}" ${v === r.antecedencia_horas ? 'selected' : ''}>${t}</option>`,
+        ).join('')}</select></label>
+      <p class="programacao__nota">A peça gerada entra na fila de revisão. Enquanto a categoria estiver em aprovação humana, nada sai sem você aprovar.</p>
+    </div>`;
+
+  const proximos = p.proximos.length
+    ? `<ul class="proximos">${p.proximos
+        .map((h) => `<li class="proximos__item"><span class="proximos__quando">${esc(dataHora(h.para, { diaSemana: true }))}</span><span>${situacaoDoHorario(h)}</span></li>`)
+        .join('')}</ul>`
+    : '<p class="programacao__vazio">Salve pelo menos um horário para ver a agenda.</p>';
+
+  const avulsas = p.agendadas.filter((a) => !p.proximos.some((h) => h.para === a.para));
+  const outros = avulsas.length
+    ? `<h3 class="config__titulo programacao__subtitulo">Outros posts agendados</h3><ul class="proximos">${avulsas
+        .map(
+          (a) => `<li class="proximos__item"><span class="proximos__quando">${esc(dataHora(a.para, { diaSemana: true }))}</span>
+            <span><button type="button" class="link" data-acao="abrir-da-programacao" data-id="${esc(a.id)}">${esc(a.titulo || 'ver peça')}</button></span></li>`,
+        )
+        .join('')}</ul>`
+    : '';
+
+  pintar(
+    alvo,
+    'programacao',
+    `<div class="autonomia programacao">
+      <h2 class="autonomia__titulo">Programação de posts</h2>
+      <div class="autonomia__intro">
+        <p>Escolha os dias e horários em que os posts saem. Ao aprovar uma peça, ela entra no próximo horário livre, ou no horário que você escolher.</p>
+        <p>Os horários seguem ${p.fuso === 'America/Sao_Paulo' ? 'o horário de Brasília' : `o fuso ${esc(p.fuso)}`}. Para os posts saírem na hora, o servidor precisa estar ligado. Se ele estiver dormindo no horário, o post sai assim que ele acordar.</p>
+      </div>
+      ${p.indisponivel ? `<p class="programacao__alerta">${esc(p.indisponivel)}</p>` : ''}
+      <div class="programacao__grade">
+        <section class="config">
+          <h3 class="config__titulo">Horários da semana</h3>
+          ${lista}
+          ${novo}
+          ${automatico}
+          <div class="programacao__salvar">
+            <button type="button" class="botao botao--primario" data-acao="prog-salvar" ${alterado && !p.indisponivel ? '' : 'disabled'}>Salvar programação</button>
+            <span class="programacao__nota">${alterado ? 'Há alterações não salvas.' : p.atualizado_em ? `Salva por ${esc(ator(`humano:${p.atualizado_por || 'equipe'}`))} em ${esc(dataHora(p.atualizado_em))}.` : ''}</span>
+          </div>
+        </section>
+        <section class="config">
+          <h3 class="config__titulo">Próximos horários</h3>
+          ${proximos}
+          ${outros}
+        </section>
+      </div>
+    </div>`,
+  );
+}
+
+/** Data e hora no fuso do sistema, no formato do campo datetime-local (AAAA-MM-DDTHH:MM). */
+function paraCampoDeData(iso) {
+  const partes = Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: fuso(),
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    })
+      .formatToParts(new Date(iso))
+      .map((p) => [p.type, p.value]),
+  );
+  return `${partes.year}-${partes.month}-${partes.day}T${partes.hour}:${partes.minute}`;
+}
+
+/** Pergunta quando publicar: no próximo horário da programação, agora ou numa data escolhida. */
+function escolherQuando({ titulo, texto, botao, sugestao }) {
+  const dialogo = $('#dlg-quando');
+  $('#dlg-quando-titulo').textContent = titulo;
+  $('#dlg-quando-texto').textContent = texto;
+  $('#dlg-quando-botao').textContent = botao;
+  const opcaoProximo = $('#quando-opcao-proximo');
+  const radioProximo = opcaoProximo.querySelector('input');
+  radioProximo.disabled = !sugestao;
+  opcaoProximo.classList.toggle('quando__opcao--inativa', !sugestao);
+  $('#quando-proximo').textContent = sugestao
+    ? dataHora(sugestao, { diaSemana: true })
+    : 'Sem horários cadastrados. Crie na aba Programação.';
+  $('#quando-data').value = paraCampoDeData(sugestao || new Date(Date.now() + 3_600_000).toISOString());
+  const escolha = sugestao ? 'proximo' : 'agora';
+  for (const radio of $$('#form-quando input[name="quando"]')) radio.checked = radio.value === escolha;
+  dialogo.returnValue = '';
+  dialogo.showModal();
+  return new Promise((resolver) => {
+    dialogo.addEventListener(
+      'close',
+      () => {
+        if (dialogo.returnValue !== 'confirmar') return resolver({ ok: false });
+        const valor = $('#form-quando input[name="quando"]:checked')?.value || 'agora';
+        if (valor !== 'data') return resolver({ ok: true, quando: valor });
+        const data = $('#quando-data').value;
+        if (!data) {
+          avisar('Escolha a data e a hora.', 'erro');
+          return resolver({ ok: false });
+        }
+        resolver({ ok: true, quando: data }); // o servidor interpreta no fuso do sistema
+      },
+      { once: true },
+    );
+  });
+}
+
+$('#quando-data').addEventListener('focus', () => {
+  const radio = $('#form-quando input[value="data"]');
+  radio.checked = true;
+});
+
 function trocarAba(aba) {
   ui.aba = aba;
   for (const b of $$('.aba')) {
     b.setAttribute('aria-selected', String(b.dataset.aba === aba));
     b.tabIndex = b.dataset.aba === aba ? 0 : -1;
   }
-  $('#area-pecas').hidden = aba === 'autonomia';
+  $('#area-pecas').hidden = aba === 'autonomia' || aba === 'programacao';
   $('#area-autonomia').hidden = aba !== 'autonomia';
+  $('#area-programacao').hidden = aba !== 'programacao';
   if (aba === 'autonomia') renderAutonomia();
+  else if (aba === 'programacao') carregarProgramacao().catch((erro) => avisar(erro.message, 'erro'));
   else carregarLista().catch((erro) => avisar(erro.message, 'erro'));
 }
 
@@ -955,17 +1155,22 @@ const acoesPorNome = {
 
   aprovar: async (alvo) => {
     if (!exigirNome()) return;
-    if (ui.estado?.config?.publicacao_modo === 'real') {
-      const r = await confirmar({
-        titulo: 'Publicar no Instagram agora?',
-        texto: 'A peça sai na conta configurada assim que você confirmar. Seu nome fica na trilha de auditoria.',
-        botao: 'Aprovar e publicar',
-      });
-      if (!r.ok) return;
-    }
-    await executar(alvo, 'Publicando…', async () => {
-      const p = await acao(`/api/pecas/${ui.selecionada}/aprovar`);
-      if (p.status === 'publicada') {
+    const real = ui.estado?.config?.publicacao_modo === 'real';
+    const r = await escolherQuando({
+      titulo: 'Aprovar e publicar quando?',
+      texto: real
+        ? 'A peça sai no Instagram no momento escolhido. Seu nome fica na trilha de auditoria.'
+        : 'Em simulação, nada é enviado ao Instagram: o sistema só registra o que publicaria.',
+      botao: 'Aprovar',
+      sugestao: ui.detalhe?.sugestao_agendamento,
+    });
+    if (!r.ok) return;
+    await executar(alvo, r.quando === 'agora' ? 'Publicando…' : 'Agendando…', async () => {
+      const p = await acao(`/api/pecas/${ui.selecionada}/aprovar`, { quando: r.quando });
+      ui.programacao = null;
+      if (p.status === 'agendada') {
+        avisar(`Aprovada e agendada para ${dataHora(p.agendamento?.para, { diaSemana: true })}.`, 'sucesso');
+      } else if (p.status === 'publicada') {
         avisar(p.publicacao?.modo === 'real' ? 'Aprovada e publicada no Instagram.' : 'Aprovada. Publicação simulada registrada na auditoria.', 'sucesso');
       } else {
         avisar(`Aprovada. A publicação ficou pendente: ${p.publicacao?.motivo || 'aguardando'}.`);
@@ -1016,6 +1221,76 @@ const acoesPorNome = {
     await executar(alvo, 'Enviando…', async () => {
       await acao(`/api/pecas/${ui.selecionada}/regenerar-imagem`, { direcao: r.valor });
       avisar('Gerando nova imagem.');
+    });
+  },
+
+  'mudar-horario': async (alvo) => {
+    if (!exigirNome()) return;
+    const r = await escolherQuando({
+      titulo: 'Quando este post deve sair?',
+      texto: 'O novo horário fica registrado na trilha de auditoria.',
+      botao: 'Salvar horário',
+      sugestao: ui.detalhe?.sugestao_agendamento,
+    });
+    if (!r.ok) return;
+    await executar(alvo, 'Salvando…', async () => {
+      const p = await acao(`/api/pecas/${ui.selecionada}/reagendar`, { quando: r.quando });
+      ui.programacao = null;
+      if (p.status === 'agendada') avisar(`Agendada para ${dataHora(p.agendamento?.para, { diaSemana: true })}.`, 'sucesso');
+      else avisar(p.status === 'publicada' ? 'Peça publicada.' : `Ainda pendente: ${p.publicacao?.motivo || 'aguardando'}.`);
+    });
+  },
+
+  'cancelar-agendamento': async (alvo) => {
+    if (!exigirNome()) return;
+    const r = await confirmar({
+      titulo: 'Cancelar o agendamento?',
+      texto: 'O post não sai no horário marcado. A peça volta para a fila de revisão, e você pode aprovar de novo quando quiser.',
+      botao: 'Cancelar agendamento',
+      perigo: true,
+    });
+    if (!r.ok) return;
+    await executar(alvo, 'Cancelando…', async () => {
+      await acao(`/api/pecas/${ui.selecionada}/cancelar-agendamento`);
+      ui.programacao = null;
+      avisar('Agendamento cancelado. A peça voltou para a revisão.');
+    });
+  },
+
+  'abrir-da-programacao': async (alvo) => {
+    trocarAba('fila');
+    await selecionar(alvo.dataset.id);
+  },
+
+  'prog-adicionar': () => {
+    const dia = Number($('#prog-dia').value);
+    const hora = $('#prog-hora').value;
+    if (!hora) {
+      avisar('Escolha um horário antes de adicionar.', 'erro');
+      return;
+    }
+    const r = ui.progRascunho;
+    if (r.horarios.some((h) => h.dia === dia && h.hora === hora)) {
+      avisar('Esse horário já está na lista.');
+      return;
+    }
+    r.horarios = [...r.horarios, { dia, hora }].sort((a, b) => a.dia - b.dia || a.hora.localeCompare(b.hora));
+    renderProgramacao();
+  },
+
+  'prog-remover': (alvo) => {
+    const i = Number(alvo.dataset.indice);
+    ui.progRascunho.horarios = ui.progRascunho.horarios.filter((_, j) => j !== i);
+    renderProgramacao();
+  },
+
+  'prog-salvar': async (alvo) => {
+    if (!exigirNome()) return;
+    await executar(alvo, 'Salvando…', async () => {
+      ui.programacao = await api('/api/programacao', { metodo: 'PUT', corpo: rascunhoDaProgramacao() });
+      ui.progRascunho = null;
+      avisar('Programação salva.', 'sucesso');
+      renderProgramacao();
     });
   },
 
@@ -1078,6 +1353,12 @@ document.addEventListener('input', (evento) => {
 });
 
 document.addEventListener('change', (evento) => {
+  if (evento.target.id === 'prog-auto' || evento.target.id === 'prog-antecedencia') {
+    ui.progRascunho.gerar_automaticamente = $('#prog-auto').checked;
+    ui.progRascunho.antecedencia_horas = Number($('#prog-antecedencia').value);
+    renderProgramacao();
+    return;
+  }
   if (evento.target.id !== 'filtro-status') return;
   ui.filtro = evento.target.value;
   carregarLista().catch((erro) => avisar(erro.message, 'erro'));

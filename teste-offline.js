@@ -419,6 +419,73 @@ await caso('Limite diário de gerações', async () => {
   }
 });
 
+await caso('Programação: agenda no próximo horário, publica na hora marcada, respeita a pausa e gera antes do horário', async () => {
+  const dbProg = await criarArmazenamentoLocal({ diretorio: path.join(temporario, 'programacao'), urlPublica: '' });
+  let relogio = new Date('2026-09-29T18:30:00Z'); // terça, 15:30 em São Paulo
+  const m = criarMotor({ db: dbProg, ia: iaSimulada, imagem: imagemSimulada, canal: criarCanalInstagram(), sortear: () => 0.99, agora: () => relogio });
+  const gerarAqui = () => m.gerar({ origem: 'manual', usuario: 'teste', aguardar: true });
+
+  const p1 = await gerarAqui();
+  assert.equal(p1.status, 'em_revisao');
+  await assert.rejects(m.aprovar(p1.id, 'Diogo', { quando: 'proximo' }), /Não há horários/);
+
+  await assert.rejects(m.salvarProgramacao({ horarios: [{ dia: 3, hora: '27:00' }] }, 'Diogo'), /Horário inválido/);
+  const prog = await m.salvarProgramacao(
+    { horarios: [{ dia: 5, hora: '18:30' }, { dia: 3, hora: '09:00' }], gerar_automaticamente: true, antecedencia_horas: 12 },
+    'Diogo',
+  );
+  assert.equal(prog.proximos[0].para, '2026-09-30T12:00:00.000Z'); // quarta 09:00 em São Paulo
+  assert.equal((await m.detalhe(p1.id)).sugestao_agendamento, '2026-09-30T12:00:00.000Z');
+
+  const ag1 = await m.aprovar(p1.id, 'Diogo', { quando: 'proximo' });
+  assert.equal(ag1.status, 'agendada');
+  assert.equal(ag1.agendamento.para, '2026-09-30T12:00:00.000Z');
+
+  const p2 = await gerarAqui();
+  const ag2 = await m.aprovar(p2.id, 'Diogo', { quando: 'proximo' });
+  assert.equal(ag2.agendamento.para, '2026-10-02T21:30:00.000Z', 'segunda peça vai para o horário seguinte (sexta 18:30)');
+  const p3 = await gerarAqui();
+  await assert.rejects(m.aprovar(p3.id, 'Diogo', { quando: '2026-09-29T10:00:00Z' }), /futuro/);
+  assert.equal((await m.cancelarAgendamento(p2.id, 'Diogo')).status, 'em_revisao');
+
+  await m.tickProgramacao();
+  assert.equal((await m.detalhe(p1.id)).peca.status, 'agendada', 'antes da hora nada sai');
+
+  relogio = new Date('2026-09-30T12:00:30Z');
+  await m.pausar('Diogo', 'teste de pausa');
+  await m.tickProgramacao();
+  assert.equal((await m.detalhe(p1.id)).peca.status, 'agendada', 'pausa segura a publicação agendada');
+  await m.retomar('Diogo');
+  await m.tickProgramacao();
+  const publicada = (await m.detalhe(p1.id)).peca;
+  assert.equal(publicada.status, 'publicada');
+  assert.equal(publicada.publicacao.ator, 'sistema:programacao');
+
+  // Sexta 07:00 em São Paulo: faltam 11h30 para o horário das 18:30, dentro da antecedência de 12h.
+  relogio = new Date('2026-10-02T10:00:00Z');
+  await m.tickProgramacao();
+  for (let i = 0; i < 400 && (await m.estado()).em_geracao; i++) await new Promise((r) => setTimeout(r, 25));
+  const geradas = (await dbProg.listarPecas()).filter((p) => p.para_horario === '2026-10-02T21:30:00.000Z');
+  assert.equal(geradas.length, 1);
+  assert.equal(geradas[0].origem, 'programacao');
+  assert.equal(geradas[0].status, 'em_revisao');
+  await m.tickProgramacao();
+  assert.equal((await dbProg.listarPecas()).filter((p) => p.para_horario === '2026-10-02T21:30:00.000Z').length, 1, 'não gera duas vezes');
+
+  const ag3 = await m.aprovar(geradas[0].id, 'Diogo', { quando: 'proximo' });
+  assert.equal(ag3.agendamento.para, '2026-10-02T21:30:00.000Z', 'peça gerada para um horário fica nele');
+  const ag4 = await m.aprovar(p2.id, 'Diogo', { quando: 'proximo' });
+  assert.equal(ag4.agendamento.para, '2026-10-07T12:00:00.000Z');
+  assert.equal(
+    (await m.reagendar(p2.id, 'Diogo', '2026-10-03T12:00')).agendamento.para,
+    '2026-10-03T15:00:00.000Z',
+    'data sem fuso vale no fuso do sistema (12:00 em São Paulo)',
+  );
+  assert.equal((await m.publicarAgora(p2.id, 'Diogo')).status, 'publicada');
+  const visao = await m.programacao();
+  assert.ok(visao.agendadas.some((a) => a.id === geradas[0].id));
+});
+
 await caso('Estado do painel com métricas por categoria e configuração ativa', async () => {
   const e = await motor.estado();
   assert.equal(e.categorias.length, Object.keys(politica.categorias).length);

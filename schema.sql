@@ -53,10 +53,19 @@ create table if not exists public.controle (
 
 insert into public.controle (id, pausado) values (1, false) on conflict (id) do nothing;
 
+-- Programação de publicação (horários da semana e geração automática). Uma única linha, id = 1.
+create table if not exists public.programacao (
+  id              integer primary key check (id = 1),
+  dados           jsonb not null default '{}'::jsonb,
+  atualizado_em   timestamptz not null default now(),
+  atualizado_por  text
+);
+
 alter table public.pecas enable row level security;
 alter table public.auditoria enable row level security;
 alter table public.estado_categorias enable row level security;
 alter table public.controle enable row level security;
+alter table public.programacao enable row level security;
 
 -- Bucket das imagens. Precisa ser público: o Instagram baixa a arte pela URL no momento da
 -- publicação. Os nomes dos arquivos começam com o UUID da peça.

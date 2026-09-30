@@ -27,8 +27,9 @@
 
   <nav class="abas" aria-label="Seções do painel">
     <div class="abas__lista" role="tablist">
-      <button class="aba" role="tab" id="aba-fila" data-aba="fila" aria-selected="true">Fila de revisão <span class="aba__contador" id="contador-fila"></span></button>
-      <button class="aba" role="tab" id="aba-todas" data-aba="todas" aria-selected="false">Todas as peças</button>
+      <button class="aba" role="tab" id="aba-fila" data-aba="fila" aria-selected="true">Fila<span class="aba__extra"> de revisão</span> <span class="aba__contador" id="contador-fila"></span></button>
+      <button class="aba" role="tab" id="aba-programacao" data-aba="programacao" aria-selected="false">Programação</button>
+      <button class="aba" role="tab" id="aba-todas" data-aba="todas" aria-selected="false">Todas<span class="aba__extra"> as peças</span></button>
       <button class="aba" role="tab" id="aba-autonomia" data-aba="autonomia" aria-selected="false">Autonomia</button>
     </div>
   </nav>
@@ -41,6 +42,7 @@
       <section class="detalhe" id="detalhe" aria-live="polite"></section>
     </div>
     <div class="area-autonomia" id="area-autonomia" hidden></div>
+    <div class="area-autonomia" id="area-programacao" hidden></div>
   </main>
 
   <dialog class="dialogo" id="dlg-gerar" aria-labelledby="dlg-gerar-titulo">
@@ -59,6 +61,32 @@
       <div class="dialogo__acoes">
         <button class="botao botao--secundario" value="cancelar" formnovalidate>Cancelar</button>
         <button class="botao botao--primario" value="confirmar">Gerar peça</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="dialogo" id="dlg-quando" aria-labelledby="dlg-quando-titulo">
+    <form class="dialogo__form" id="form-quando" method="dialog">
+      <h2 class="dialogo__titulo" id="dlg-quando-titulo">Quando publicar?</h2>
+      <p class="dialogo__texto" id="dlg-quando-texto"></p>
+      <fieldset class="quando">
+        <legend class="campo__rotulo">Escolha quando o post sai</legend>
+        <label class="quando__opcao" id="quando-opcao-proximo">
+          <input type="radio" name="quando" value="proximo">
+          <span><strong>No próximo horário da programação</strong><span class="quando__detalhe" id="quando-proximo"></span></span>
+        </label>
+        <label class="quando__opcao">
+          <input type="radio" name="quando" value="agora">
+          <span><strong>Agora</strong><span class="quando__detalhe">Sai assim que você confirmar.</span></span>
+        </label>
+        <label class="quando__opcao">
+          <input type="radio" name="quando" value="data">
+          <span><strong>Em outra data e hora</strong><input class="quando__data" type="datetime-local" name="data" id="quando-data" step="300"></span>
+        </label>
+      </fieldset>
+      <div class="dialogo__acoes">
+        <button class="botao botao--secundario" value="cancelar" formnovalidate>Cancelar</button>
+        <button class="botao botao--primario" value="confirmar" id="dlg-quando-botao">Aprovar</button>
       </div>
     </form>
   </dialog>

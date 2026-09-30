@@ -13,6 +13,15 @@ import { renderizarArte } from './arte.js';
 import { avaliarRegras } from './regras.js';
 import { avaliarComVisao } from './juiz.js';
 import { consolidarGate, decidirRota, calcularMetricas } from './autonomia.js';
+import {
+  PROGRAMACAO_PADRAO,
+  DIAS_DA_SEMANA,
+  normalizarProgramacao,
+  proximosHorarios,
+  horariosOcupados,
+  proximoHorarioLivre,
+  instanteNoFuso,
+} from './programacao.js';
 
 export const VEREDITOS = {
   publicavel: 'Publicável sem humano',
@@ -31,12 +40,72 @@ const CAMPOS_EDITAVEIS = ['titulo', 'subtitulo', 'cta_arte', 'legenda', 'hashtag
 export function criarMotor({ db, ia, imagem, canal, sortear = Math.random, agora = () => new Date() }) {
   let emGeracao = null;
   const ocupadas = new Set();
+  /** Horários da programação cuja geração automática já falhou nesta execução (evita tentar a cada minuto). */
+  const tentativasFalhas = new Set();
 
   const hoje = () => hojeNoFuso(env.fuso, agora());
   const instante = () => agora().toISOString();
 
   const auditar = (peca_id, etapa, ator, resumo, detalhe = null) =>
     db.registrarAuditoria({ peca_id, etapa, ator, resumo, detalhe });
+
+  const descreverHorario = (iso) =>
+    new Intl.DateTimeFormat('pt-BR', {
+      timeZone: env.fuso,
+      weekday: 'short',
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(new Date(iso));
+
+  async function lerProgramacao() {
+    try {
+      const salvo = await db.obterProgramacao();
+      return {
+        ...PROGRAMACAO_PADRAO,
+        ...(salvo?.dados || {}),
+        atualizado_em: salvo?.atualizado_em || null,
+        atualizado_por: salvo?.atualizado_por || null,
+        indisponivel: null,
+      };
+    } catch {
+      return { ...PROGRAMACAO_PADRAO, indisponivel: 'Para usar a programação, rode de novo o arquivo schema.sql no SQL Editor do Supabase.' };
+    }
+  }
+
+  /** Horário sugerido para uma peça: o horário para o qual ela foi gerada, se ainda estiver livre, ou o próximo livre. */
+  async function horarioSugerido(peca) {
+    const prog = await lerProgramacao();
+    const pecas = await db.listarPecas({ limite: 500 });
+    const agoraDt = agora();
+    if (peca.para_horario && new Date(peca.para_horario) > agoraDt && !horariosOcupados(pecas, { ignorar: peca.id }).has(peca.para_horario)) {
+      return peca.para_horario;
+    }
+    return proximoHorarioLivre(prog, pecas, { agora: agoraDt, fuso: env.fuso, ignorar: peca.id });
+  }
+
+  /** Converte a escolha do painel ("agora", "proximo" ou uma data) em horário ISO, ou null para publicar já. */
+  async function resolverQuando(peca, quando) {
+    if (!quando || quando === 'agora') return null;
+    if (quando === 'proximo') {
+      const para = await horarioSugerido(peca);
+      if (!para) throw erroHttp(400, 'Não há horários na programação. Cadastre horários na aba Programação ou publique agora.');
+      return para;
+    }
+    // Data e hora sem fuso (vinda do painel) valem no fuso do sistema, o mesmo dos horários exibidos.
+    const semFuso = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})$/.exec(String(quando));
+    const data = semFuso ? instanteNoFuso(semFuso[1], semFuso[2], env.fuso) : new Date(quando);
+    if (Number.isNaN(data.getTime())) throw erroHttp(400, 'Data e hora inválidas.');
+    if (data.getTime() < agora().getTime() + 60_000) throw erroHttp(400, 'Escolha um horário no futuro.');
+    if (data.getTime() > agora().getTime() + 90 * 86_400_000) throw erroHttp(400, 'Escolha um horário nos próximos 90 dias.');
+    return data.toISOString();
+  }
+
+  async function agendarPeca(id, { para, ator, resumo }) {
+    await auditar(id, 'agendamento', ator, `${resumo} para ${descreverHorario(para)}`, { para });
+    return db.atualizarPeca(id, { status: 'agendada', agendamento: { para, definido_por: ator, em: instante() }, publicacao: null });
+  }
 
   async function modoDaCategoria(id) {
     const modos = await db.obterModosCategorias();
@@ -144,12 +213,15 @@ export function criarMotor({ db, ia, imagem, canal, sortear = Math.random, agora
     await auditar(id, 'decisao', 'governanca', decisao.motivo, decisao);
 
     if (decisao.rota === 'publicar') {
-      await db.atualizarPeca(id, {
+      peca = await db.atualizarPeca(id, {
         governanca,
         status: 'aprovada',
         etapa: null,
         decisao: { tipo: 'automatica', motivo: decisao.motivo, em: instante() },
       });
+      const prog = await lerProgramacao();
+      const para = prog.horarios.length ? await horarioSugerido(peca) : null;
+      if (para) return agendarPeca(id, { para, ator: 'sistema:autonomia', resumo: 'Aprovada pelas travas e agendada sozinha' });
       return publicarPeca(id, { ator: 'sistema:autonomia' });
     }
     peca = await db.atualizarPeca(id, {
@@ -301,7 +373,7 @@ export function criarMotor({ db, ia, imagem, canal, sortear = Math.random, agora
   /* ------------------------------------------------------- API pública */
 
   return {
-    async gerar({ origem = 'manual', orientacao = null, usuario = 'equipe', aguardar = false } = {}) {
+    async gerar({ origem = 'manual', orientacao = null, usuario = 'equipe', aguardar = false, paraHorario = null } = {}) {
       verificarChaves();
       if (emGeracao) throw erroHttp(409, 'Já existe uma peça sendo gerada. Aguarde terminar.');
       if (orientacao?.categoria && !politica.categorias[orientacao.categoria]) {
@@ -320,13 +392,18 @@ export function criarMotor({ db, ia, imagem, canal, sortear = Math.random, agora
         orientacao,
         criada_por: usuario,
         politica_versao: politica.versao,
+        para_horario: paraHorario,
       });
       emGeracao = peca.id;
       await auditar(
         peca.id,
         'inicio',
-        origem === 'agenda' ? 'sistema:agenda' : `humano:${usuario}`,
-        origem === 'agenda' ? 'Geração iniciada pela agenda automática' : 'Geração iniciada no painel',
+        origem === 'agenda' ? 'sistema:agenda' : origem === 'programacao' ? 'sistema:programacao' : `humano:${usuario}`,
+        origem === 'agenda'
+          ? 'Geração iniciada pela agenda automática'
+          : origem === 'programacao'
+            ? `Geração iniciada pela programação, para o horário de ${descreverHorario(paraHorario)}`
+            : 'Geração iniciada no painel',
         { orientacao, politica_versao: politica.versao },
       );
       const execucao = executarPipeline(peca.id, orientacao).finally(() => {
@@ -337,18 +414,21 @@ export function criarMotor({ db, ia, imagem, canal, sortear = Math.random, agora
       return peca;
     },
 
-    async aprovar(id, usuario) {
+    async aprovar(id, usuario, { quando = 'agora' } = {}) {
       const peca = await exigirEmRevisao(id);
       if (peca.governanca?.gate?.veredito === 'bloqueada') {
         throw erroHttp(409, 'Peça bloqueada pelas travas. Edite os textos ou gere nova imagem antes de aprovar.');
       }
+      const para = await resolverQuando(peca, quando);
       await db.atualizarPeca(id, {
         status: 'aprovada',
         revisao: { acao: 'aprovada', usuario, em: instante(), com_intervencao: Boolean(peca.intervencao_humana) },
         decisao: { ...peca.decisao, tipo: 'humana', aprovada_por: usuario },
       });
       await auditar(id, 'revisao', `humano:${usuario}`, peca.intervencao_humana ? 'Aprovada após ajustes' : 'Aprovada sem edição');
-      const resultado = await publicarPeca(id, { ator: `humano:${usuario}` });
+      const resultado = para
+        ? await agendarPeca(id, { para, ator: `humano:${usuario}`, resumo: 'Agendada' })
+        : await publicarPeca(id, { ator: `humano:${usuario}` });
       await revisarAutonomia(peca.categoria);
       return resultado;
     },
@@ -356,8 +436,138 @@ export function criarMotor({ db, ia, imagem, canal, sortear = Math.random, agora
     async publicarAgora(id, usuario) {
       const peca = await db.obterPeca(id);
       if (!peca) throw erroHttp(404, 'Peça não encontrada.');
-      if (peca.status !== 'aprovada') throw erroHttp(409, 'Só peças aprovadas aguardando publicação podem ser publicadas.');
+      if (!['aprovada', 'agendada'].includes(peca.status)) throw erroHttp(409, 'Só peças aprovadas ou agendadas podem ser publicadas.');
       return publicarPeca(id, { ator: `humano:${usuario}` });
+    },
+
+    async reagendar(id, usuario, quando) {
+      const peca = await db.obterPeca(id);
+      if (!peca) throw erroHttp(404, 'Peça não encontrada.');
+      if (!['aprovada', 'agendada'].includes(peca.status)) throw erroHttp(409, 'Só peças aprovadas ou agendadas podem mudar de horário.');
+      const para = await resolverQuando(peca, quando);
+      if (!para) return publicarPeca(id, { ator: `humano:${usuario}` });
+      return agendarPeca(id, { para, ator: `humano:${usuario}`, resumo: 'Horário alterado' });
+    },
+
+    async cancelarAgendamento(id, usuario) {
+      const peca = await db.obterPeca(id);
+      if (!peca) throw erroHttp(404, 'Peça não encontrada.');
+      if (peca.status !== 'agendada') throw erroHttp(409, 'Esta peça não está agendada.');
+      await auditar(id, 'agendamento', `humano:${usuario}`, 'Agendamento cancelado. A peça voltou para a fila de revisão.');
+      return db.atualizarPeca(id, {
+        status: 'em_revisao',
+        agendamento: null,
+        revisao: null,
+        decisao: { tipo: 'fila_humana', motivo: 'Agendamento cancelado; volta para revisão', em: instante() },
+      });
+    },
+
+    async programacao() {
+      const prog = await lerProgramacao();
+      const pecas = await db.listarPecas({ limite: 500 });
+      const ocupados = horariosOcupados(pecas);
+      const resumo = (p) => (p ? { id: p.id, status: p.status, titulo: p.textos?.titulo || p.oportunidade?.tema || null } : null);
+      const proximos = proximosHorarios(prog, { agora: agora(), fuso: env.fuso, dias: 14 })
+        .slice(0, 10)
+        .map((h) => ({
+          ...h,
+          peca: resumo(ocupados.get(h.para)),
+          gera_em: prog.gerar_automaticamente ? new Date(new Date(h.para).getTime() - prog.antecedencia_horas * 3_600_000).toISOString() : null,
+        }));
+      const agendadas = pecas
+        .filter((p) => p.status === 'agendada' && p.agendamento?.para)
+        .sort((a, b) => a.agendamento.para.localeCompare(b.agendamento.para))
+        .map((p) => ({ para: p.agendamento.para, ...resumo(p) }));
+      return { ...prog, dias_da_semana: DIAS_DA_SEMANA, fuso: env.fuso, proximos, agendadas };
+    },
+
+    async salvarProgramacao(dados, usuario) {
+      let prog;
+      try {
+        prog = normalizarProgramacao(dados);
+      } catch (erro) {
+        throw erroHttp(400, erro.message);
+      }
+      try {
+        await db.salvarProgramacao(prog, usuario);
+      } catch {
+        throw erroHttp(503, 'Para salvar a programação, rode de novo o arquivo schema.sql no SQL Editor do Supabase.');
+      }
+      tentativasFalhas.clear();
+      await auditar(
+        null,
+        'programacao',
+        `humano:${usuario}`,
+        `Programação atualizada: ${prog.horarios.length} ${prog.horarios.length === 1 ? 'horário' : 'horários'} por semana; geração automática ${
+          prog.gerar_automaticamente ? `ligada, ${prog.antecedencia_horas}h antes` : 'desligada'
+        }`,
+        prog,
+      );
+      return this.programacao();
+    },
+
+    /** Roda a cada minuto: publica as peças agendadas que chegaram na hora e gera peças para os próximos horários. */
+    async tickProgramacao() {
+      const controle = await db.obterControle();
+      if (controle.pausado) return;
+      const agoraDt = agora();
+      let pecas = await db.listarPecas({ limite: 500 });
+
+      const vencidas = pecas
+        .filter((p) => p.status === 'agendada' && p.agendamento?.para && new Date(p.agendamento.para) <= agoraDt)
+        .sort((a, b) => a.agendamento.para.localeCompare(b.agendamento.para));
+      if (vencidas.length) {
+        const prog = await lerProgramacao();
+        const dia = hoje();
+        let publicadasHoje = pecas.filter((p) => p.status === 'publicada' && ehDoDia(p.publicacao?.em, dia, env.fuso)).length;
+        for (const p of vencidas) {
+          if (ocupadas.has(p.id)) continue;
+          if (publicadasHoje >= politica.limites.publicacoes_por_dia) {
+            const para = proximoHorarioLivre(prog, await db.listarPecas({ limite: 500 }), {
+              agora: agoraDt,
+              fuso: env.fuso,
+              ignorar: p.id,
+              depoisDoDia: dia,
+            });
+            if (para) {
+              await agendarPeca(p.id, {
+                para,
+                ator: 'sistema:programacao',
+                resumo: `Limite de ${politica.limites.publicacoes_por_dia} publicações por dia atingido. Reagendada`,
+              });
+              continue;
+            }
+          }
+          ocupadas.add(p.id);
+          try {
+            const r = await publicarPeca(p.id, { ator: 'sistema:programacao' });
+            if (r.status === 'publicada') publicadasHoje++;
+          } finally {
+            ocupadas.delete(p.id);
+          }
+        }
+        pecas = await db.listarPecas({ limite: 500 });
+      }
+
+      const prog = await lerProgramacao();
+      if (!prog.gerar_automaticamente || !prog.horarios.length || emGeracao) return;
+      const janela = prog.antecedencia_horas * 3_600_000;
+      const tentados = new Set(pecas.map((p) => p.para_horario).filter(Boolean));
+      const ocupados = horariosOcupados(pecas);
+      const alvo = proximosHorarios(prog, { agora: agoraDt, fuso: env.fuso, dias: 3 }).find(
+        (h) =>
+          new Date(h.para).getTime() - agoraDt.getTime() <= janela &&
+          !tentados.has(h.para) &&
+          !ocupados.has(h.para) &&
+          !tentativasFalhas.has(h.para),
+      );
+      if (!alvo) return;
+      try {
+        await this.gerar({ origem: 'programacao', usuario: 'programacao', paraHorario: alvo.para });
+      } catch (erro) {
+        tentativasFalhas.add(alvo.para);
+        await auditar(null, 'programacao', 'sistema:programacao', `Não gerou a peça do horário de ${descreverHorario(alvo.para)}: ${erro.message}`);
+      }
     },
 
     async reprovar(id, usuario, motivo) {
@@ -465,6 +675,7 @@ export function criarMotor({ db, ia, imagem, canal, sortear = Math.random, agora
         oferta,
         legenda_final: peca.publicacao?.legenda_final || (peca.textos?.legenda ? montarLegendaFinal({ textos: peca.textos, oferta }) : null),
         processando: ocupadas.has(id) || emGeracao === id,
+        sugestao_agendamento: ['em_revisao', 'aprovada', 'agendada'].includes(peca.status) ? await horarioSugerido(peca).catch(() => null) : null,
       };
     },
 
@@ -485,6 +696,7 @@ export function criarMotor({ db, ia, imagem, canal, sortear = Math.random, agora
         amostra_auditoria: Boolean(p.decisao?.amostra_auditoria),
         publicacao: p.publicacao ? { modo: p.publicacao.modo, permalink: p.publicacao.permalink, pendente: p.publicacao.pendente, motivo: p.publicacao.motivo } : null,
         erro: p.erro || null,
+        agendamento_para: p.agendamento?.para || null,
       }));
     },
 
@@ -499,6 +711,7 @@ export function criarMotor({ db, ia, imagem, canal, sortear = Math.random, agora
         contagens: {
           em_revisao: pecas.filter((p) => p.status === 'em_revisao').length,
           aguardando_publicacao: pecas.filter((p) => p.status === 'aprovada').length,
+          agendadas: pecas.filter((p) => p.status === 'agendada').length,
           geradas_hoje: pecas.filter((p) => ehDoDia(p.criada_em, dia, env.fuso)).length,
           publicadas_hoje: pecas.filter((p) => p.status === 'publicada' && ehDoDia(p.publicacao?.em, dia, env.fuso)).length,
           total: pecas.length,

@@ -91,6 +91,22 @@ export async function criarArmazenamentoSupabase({ url, chave, bucket }) {
       return data;
     },
 
+    async obterProgramacao() {
+      const { data, error } = await sb.from('programacao').select('*').eq('id', 1).maybeSingle();
+      falha('ler programação; rode de novo o schema.sql no SQL Editor', error);
+      return data;
+    },
+
+    async salvarProgramacao(dados, por) {
+      const { data, error } = await sb
+        .from('programacao')
+        .upsert({ id: 1, dados, atualizado_em: new Date().toISOString(), atualizado_por: por })
+        .select()
+        .single();
+      falha('gravar programação; rode de novo o schema.sql no SQL Editor', error);
+      return data;
+    },
+
     async obterModosCategorias() {
       const { data, error } = await sb.from('estado_categorias').select('*');
       falha('ler categorias', error);
