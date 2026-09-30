@@ -225,7 +225,14 @@ async function carregarEstado() {
 async function carregarLista() {
   if (ui.aba === 'autonomia' || ui.aba === 'programacao') return;
   const status = ui.aba === 'fila' ? 'gerando,em_revisao,aprovada,agendada' : ui.filtro;
-  ui.pecas = await api(`/api/pecas${status ? `?status=${encodeURIComponent(status)}` : ''}`);
+  const [pecas, historico] = await Promise.all([
+    api(`/api/pecas${status ? `?status=${encodeURIComponent(status)}` : ''}`),
+    // Na tela inicial, o histórico recente fica sempre à vista, abaixo da fila.
+    ui.aba === 'fila' ? api(`/api/pecas?status=${encodeURIComponent('publicada,reprovada,erro')}`) : Promise.resolve([]),
+  ]);
+  ui.pecas = pecas;
+  const quando = (p) => p.publicacao?.em || p.criada_em || '';
+  ui.historico = historico.sort((a, b) => quando(b).localeCompare(quando(a))).slice(0, 8);
   renderLista();
 }
 
@@ -418,6 +425,10 @@ function renderLista() {
     }
   } else {
     html += ui.pecas.map(itemHtml).join('');
+  }
+  if (ui.aba === 'fila' && ui.historico?.length) {
+    html += `<h2 class="lista__grupo">Histórico recente</h2>${ui.historico.map(itemHtml).join('')}
+      <div class="lista__mais"><button type="button" class="botao botao--texto" data-acao="ver-todas">Ver todas as peças</button></div>`;
   }
   pintar($('#lista'), `lista:${ui.aba}`, html);
 }
@@ -1312,6 +1323,8 @@ const acoesPorNome = {
   },
 
   'abrir-gerar': () => abrirGerar(),
+
+  'ver-todas': () => trocarAba('todas'),
 
   'ver-arte': () => {
     ui.verFundo = false;

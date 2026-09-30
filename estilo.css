@@ -1963,3 +1963,8 @@ textarea:disabled {
     transition: none !important;
   }
 }
+
+/* Histórico recente na tela inicial */
+.lista__mais {
+  padding: 14px 16px 24px;
+}
