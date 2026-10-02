@@ -98,7 +98,7 @@
   },
   "visao": {
     "texto_no_fundo": "bloqueio",
-    "logos_ou_marcas": "bloqueio",
+    "logos_ou_marcas": "alerta",
     "dinheiro_ou_cartao": "bloqueio",
     "pessoas_deformadas": "bloqueio",
     "conteudo_sensivel": "bloqueio",

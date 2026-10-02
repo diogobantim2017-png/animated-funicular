@@ -12,6 +12,12 @@ export const CHECAGENS_VISUAIS = {
   criancas: 'Criança identificável',
 };
 
+/** Explicações extras para o revisor, nas checagens que costumam gerar alarme falso. */
+const DETALHE_DA_CHECAGEM = {
+  logos_ou_marcas:
+    'Só true quando há logotipo, nome, símbolo ou estampa de marca VISÍVEL na imagem. Celular, notebook, carro ou qualquer objeto com formato parecido com um produto conhecido, mas sem logo ou nome visível, é false.',
+};
+
 export const NOTAS = {
   aderencia_ao_brief: 'Aderência ao brief',
   tom_de_voz: 'Tom de voz da marca',
@@ -28,8 +34,11 @@ const ferramenta = {
     properties: {
       elementos_no_fundo: {
         type: 'object',
-        description: 'Marque true quando o elemento aparece na IMAGEM DE FUNDO. Na dúvida, marque true. Sem imagem de fundo, marque tudo false.',
-        properties: Object.fromEntries(Object.keys(CHECAGENS_VISUAIS).map((k) => [k, { type: 'boolean' }])),
+        description:
+          'Marque true quando o elemento aparece na IMAGEM DE FUNDO. Na dúvida, marque true (exceto em logos_ou_marcas, que exige marca visível). Sem imagem de fundo, marque tudo false.',
+        properties: Object.fromEntries(
+          Object.keys(CHECAGENS_VISUAIS).map((k) => [k, DETALHE_DA_CHECAGEM[k] ? { type: 'boolean', description: DETALHE_DA_CHECAGEM[k] } : { type: 'boolean' }]),
+        ),
         required: Object.keys(CHECAGENS_VISUAIS),
       },
       observacoes_visuais: { type: 'string', description: 'O que você viu que justifica as marcações acima.' },
