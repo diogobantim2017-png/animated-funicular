@@ -49,6 +49,9 @@ export const env = {
 
 export const marca = lerJson('marca.json');
 export const politica = lerJson('politica.json');
+
+// Modo demonstração: nada é publicado, mesmo que PUBLICACAO_MODO e o token do Instagram estejam configurados.
+if (politica.demonstracao === true) env.publicacaoModo = 'simulacao';
 export const calendario = lerJson('calendario.json');
 export const segmentos = lerJson('segmentos.json').segmentos;
 export const ofertas = lerJson('ofertas.json').ofertas;

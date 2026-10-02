@@ -1,0 +1,368 @@
+{
+  "observacao": "Perfil fixo usado só pelo teste offline, para verificar o motor independentemente do perfil ativo. Não é carregado pelo site.",
+  "marca": {
+    "observacao": "Marca do perfil de educação financeira Papo de Grana. O logo da arte fica no arquivo logo.png.",
+    "nome": "Papo de Grana",
+    "descricao": "Perfil de educação financeira para jovens que ainda não sabem investir. Explica do zero, sem enrolação, sem prometer ganhos e sem indicar produtos.",
+    "tom_de_voz": "Próximo e descontraído, como um amigo que entende de dinheiro e explica sem enrolar. Frases curtas. Quando usar um termo técnico, explica logo em seguida. Pode ter humor leve, nunca às custas de quem está endividado. Sem exageros, sem promessas e sem gírias forçadas. Trata o leitor por você.",
+    "valores": [
+      "clareza",
+      "honestidade",
+      "autonomia financeira"
+    ],
+    "objetivos_de_negocio": [
+      "Ensinar a base antes de investir: organizar o orçamento, sair das dívidas caras e montar a reserva de emergência.",
+      "Explicar como funcionam os investimentos mais comuns, como Tesouro Direto, CDB, fundos e ações, sem recomendar produto, instituição, valor ou momento de compra.",
+      "Proteger contra golpes e promessas de ganho rápido, como pirâmides, falsos gurus e apostas vendidas como investimento.",
+      "Mostrar que dá para começar com pouco e que a constância importa mais do que o valor.",
+      "Fazer o seguidor salvar e compartilhar os posts."
+    ],
+    "cores": {
+      "primaria": "#0B3B2E",
+      "secundaria": "#C8F169",
+      "texto_sobre_primaria": "#FFFFFF",
+      "texto_sobre_secundaria": "#0B3B2E"
+    },
+    "fontes": {
+      "titulo": "Poppins-Bold.ttf",
+      "destaque": "Poppins-Medium.ttf",
+      "texto": "Poppins-Regular.ttf"
+    },
+    "logo": "logo.png",
+    "estilos_visuais": {
+      "fotografia_lifestyle": "Editorial lifestyle photograph, natural daylight, warm and optimistic mood, authentic everyday Brazilian setting, realistic skin tones, shallow depth of field, clean uncluttered composition",
+      "ilustracao_flat": "Flat vector illustration, clean geometric shapes, solid colors, friendly and modern, generous negative space",
+      "render_3d_suave": "Soft 3D render, rounded clay-like shapes, gentle studio lighting, soft tones, minimal scene"
+    },
+    "restricoes_visuais_en": "Absolutely no text, letters, numbers, words, signage, readable screens, logos, brand marks, watermarks, banknotes or coins, credit cards with numbers, and no real public figures."
+  },
+  "politica": {
+    "versao": "2026-09-29.1",
+    "observacao": "Política de referência para um perfil de educação financeira. Conteúdo educativo não pode virar recomendação de investimento. Revise termos e limites com um especialista antes de publicar em conta real.",
+    "categorias": {
+      "educacao_financeira": {
+        "nome": "Primeiros passos: orçamento e reserva",
+        "risco": "baixo",
+        "autonomia_maxima": "auto"
+      },
+      "dividas_credito": {
+        "nome": "Dívidas, cartão e crédito",
+        "risco": "baixo",
+        "autonomia_maxima": "auto"
+      },
+      "como_investir": {
+        "nome": "Como funcionam os investimentos",
+        "risco": "medio",
+        "autonomia_maxima": "humano"
+      },
+      "seguranca_golpes": {
+        "nome": "Golpes e falsas promessas",
+        "risco": "baixo",
+        "autonomia_maxima": "auto"
+      },
+      "data_comemorativa": {
+        "nome": "Data comemorativa",
+        "risco": "baixo",
+        "autonomia_maxima": "auto"
+      }
+    },
+    "termos_proibidos": [
+      "garantido",
+      "garantida",
+      "sem risco",
+      "risco zero",
+      "sem consulta",
+      "sem análise",
+      "aprovação imediata",
+      "aprovação garantida",
+      "dinheiro fácil",
+      "fique rico",
+      "lucro certo",
+      "rendimento garantido",
+      "enriquecer rápido",
+      "ficar rico rápido",
+      "oportunidade única",
+      "imperdível",
+      "melhor investimento",
+      "invista agora"
+    ],
+    "concorrentes": [
+      "Itaú",
+      "Bradesco",
+      "Santander",
+      "Banco do Brasil",
+      "Caixa Econômica",
+      "Nubank",
+      "Banco Inter",
+      "C6 Bank",
+      "PicPay",
+      "Mercado Pago",
+      "XP Investimentos",
+      "BTG Pactual",
+      "Rico Investimentos",
+      "NuInvest",
+      "Binance"
+    ],
+    "padroes_estilo_ia": [
+      {
+        "regex": "n[aã]o [ée] (s[oó]|apenas)\\b",
+        "descricao": "Construção \"não é só X, é Y\""
+      },
+      {
+        "regex": "mais do que (um|uma|apenas|s[oó])\\b",
+        "descricao": "Construção \"mais do que um X\""
+      },
+      {
+        "regex": "—",
+        "descricao": "Travessão, marca comum de texto gerado por IA"
+      }
+    ],
+    "limites": {
+      "titulo_max": 48,
+      "subtitulo_max": 110,
+      "cta_max": 24,
+      "legenda_max": 1200,
+      "hashtags_max": 5,
+      "geracoes_por_dia": null,
+      "publicacoes_por_dia": null
+    },
+    "juiz": {
+      "nota_minima_media": 8,
+      "nota_minima_item": 6,
+      "riscos_aceitos_para_auto": [
+        "baixo"
+      ]
+    },
+    "visao": {
+      "texto_no_fundo": "bloqueio",
+      "logos_ou_marcas": "bloqueio",
+      "dinheiro_ou_cartao": "bloqueio",
+      "pessoas_deformadas": "bloqueio",
+      "conteudo_sensivel": "bloqueio",
+      "pessoa_publica": "bloqueio",
+      "criancas": "alerta"
+    },
+    "autonomia": {
+      "min_amostras": 20,
+      "meta_concordancia": 0.9,
+      "amostragem_auditoria": 0.1
+    },
+    "segmentacao": {
+      "credito_bloqueia_vulneraveis": true
+    },
+    "rotulo_ia": "Imagem ilustrativa criada com IA."
+  },
+  "segmentos": [
+    {
+      "id": "publico_geral",
+      "nome": "Seguidores em geral",
+      "descricao": "Jovens de 18 a 30 anos que acompanham o perfil e ainda não investem ou estão começando agora.",
+      "vulneravel": false
+    },
+    {
+      "id": "primeiro_salario",
+      "nome": "Primeiro salário ou estágio",
+      "descricao": "Começaram a ganhar o próprio dinheiro há pouco tempo e ainda não sabem para onde ele vai.",
+      "vulneravel": false
+    },
+    {
+      "id": "estudantes",
+      "nome": "Estudantes",
+      "descricao": "Universitários e estudantes com renda pequena ou irregular, como bolsa, mesada ou trabalhos avulsos.",
+      "vulneravel": false
+    },
+    {
+      "id": "querem_comecar",
+      "nome": "Querem começar a investir",
+      "descricao": "Já têm algum dinheiro guardado, geralmente parado na conta ou na poupança, e não sabem por onde começar.",
+      "vulneravel": false
+    },
+    {
+      "id": "jovens_endividados",
+      "nome": "Jovens com dívidas",
+      "descricao": "Estão com cartão, cheque especial ou empréstimo atrasado. Precisam de orientação acolhedora, sem culpa e sem julgamento.",
+      "vulneravel": true
+    }
+  ],
+  "ofertas": [],
+  "calendario": {
+    "observacao": "Datas que o radar considera. Inclua o calendário de marketing do banco. Tipos: fixa (dia/mês), n_dia_semana (n-ésimo dia da semana do mês; n = -1 é o último; 0 = domingo) e periodo (início e fim).",
+    "janela_dias": 35,
+    "eventos": [
+      {
+        "nome": "Planejamento financeiro do ano novo",
+        "tipo": "periodo",
+        "inicio": {
+          "dia": 1,
+          "mes": 1
+        },
+        "fim": {
+          "dia": 15,
+          "mes": 1
+        },
+        "temas": [
+          "educacao_financeira"
+        ]
+      },
+      {
+        "nome": "Contas de início de ano (IPVA, IPTU, material escolar)",
+        "tipo": "periodo",
+        "inicio": {
+          "dia": 5,
+          "mes": 1
+        },
+        "fim": {
+          "dia": 28,
+          "mes": 2
+        },
+        "temas": [
+          "educacao_financeira",
+          "dividas_credito"
+        ]
+      },
+      {
+        "nome": "Dia do Consumidor",
+        "tipo": "fixa",
+        "dia": 15,
+        "mes": 3,
+        "temas": [
+          "seguranca_golpes",
+          "dividas_credito"
+        ]
+      },
+      {
+        "nome": "Declaração do Imposto de Renda (confirmar datas oficiais da Receita a cada ano)",
+        "tipo": "periodo",
+        "inicio": {
+          "dia": 1,
+          "mes": 3
+        },
+        "fim": {
+          "dia": 31,
+          "mes": 5
+        },
+        "temas": [
+          "educacao_financeira",
+          "seguranca_golpes"
+        ]
+      },
+      {
+        "nome": "Dia das Mães",
+        "tipo": "n_dia_semana",
+        "mes": 5,
+        "dia_semana": 0,
+        "n": 2,
+        "temas": [
+          "data_comemorativa",
+          "seguranca_golpes"
+        ]
+      },
+      {
+        "nome": "Dia dos Namorados",
+        "tipo": "fixa",
+        "dia": 12,
+        "mes": 6,
+        "temas": [
+          "data_comemorativa",
+          "seguranca_golpes"
+        ]
+      },
+      {
+        "nome": "Dia dos Pais",
+        "tipo": "n_dia_semana",
+        "mes": 8,
+        "dia_semana": 0,
+        "n": 2,
+        "temas": [
+          "data_comemorativa"
+        ]
+      },
+      {
+        "nome": "Dia das Crianças",
+        "tipo": "fixa",
+        "dia": 12,
+        "mes": 10,
+        "temas": [
+          "data_comemorativa",
+          "educacao_financeira"
+        ]
+      },
+      {
+        "nome": "Dia Mundial da Poupança",
+        "tipo": "fixa",
+        "dia": 31,
+        "mes": 10,
+        "temas": [
+          "educacao_financeira",
+          "como_investir"
+        ]
+      },
+      {
+        "nome": "Black Friday",
+        "tipo": "n_dia_semana",
+        "mes": 11,
+        "dia_semana": 5,
+        "n": -1,
+        "temas": [
+          "seguranca_golpes",
+          "educacao_financeira",
+          "dividas_credito"
+        ]
+      },
+      {
+        "nome": "Prazo da 1ª parcela do 13º salário",
+        "tipo": "fixa",
+        "dia": 30,
+        "mes": 11,
+        "temas": [
+          "educacao_financeira",
+          "dividas_credito"
+        ]
+      },
+      {
+        "nome": "Prazo da 2ª parcela do 13º salário",
+        "tipo": "fixa",
+        "dia": 20,
+        "mes": 12,
+        "temas": [
+          "educacao_financeira",
+          "dividas_credito"
+        ]
+      },
+      {
+        "nome": "Natal",
+        "tipo": "fixa",
+        "dia": 25,
+        "mes": 12,
+        "temas": [
+          "data_comemorativa",
+          "seguranca_golpes"
+        ]
+      },
+      {
+        "nome": "Férias e viagens de fim de ano (golpes em reservas e compras online)",
+        "tipo": "periodo",
+        "inicio": {
+          "dia": 15,
+          "mes": 12
+        },
+        "fim": {
+          "dia": 31,
+          "mes": 1
+        },
+        "temas": [
+          "seguranca_golpes"
+        ]
+      },
+      {
+        "nome": "Dia do Estudante",
+        "tipo": "fixa",
+        "dia": 11,
+        "mes": 8,
+        "temas": [
+          "educacao_financeira"
+        ]
+      }
+    ]
+  }
+}

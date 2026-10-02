@@ -29,8 +29,7 @@
         "mes": 2
       },
       "temas": [
-        "educacao_financeira",
-        "dividas_credito"
+        "educacao_financeira"
       ]
     },
     {
@@ -39,8 +38,8 @@
       "dia": 15,
       "mes": 3,
       "temas": [
-        "seguranca_golpes",
-        "dividas_credito"
+        "institucional",
+        "seguranca_golpes"
       ]
     },
     {
@@ -91,6 +90,15 @@
       ]
     },
     {
+      "nome": "Dia do Cliente",
+      "tipo": "fixa",
+      "dia": 15,
+      "mes": 9,
+      "temas": [
+        "institucional"
+      ]
+    },
+    {
       "nome": "Dia das Crianças",
       "tipo": "fixa",
       "dia": 12,
@@ -106,8 +114,7 @@
       "dia": 31,
       "mes": 10,
       "temas": [
-        "educacao_financeira",
-        "como_investir"
+        "educacao_financeira"
       ]
     },
     {
@@ -118,8 +125,7 @@
       "n": -1,
       "temas": [
         "seguranca_golpes",
-        "educacao_financeira",
-        "dividas_credito"
+        "educacao_financeira"
       ]
     },
     {
@@ -128,8 +134,7 @@
       "dia": 30,
       "mes": 11,
       "temas": [
-        "educacao_financeira",
-        "dividas_credito"
+        "educacao_financeira"
       ]
     },
     {
@@ -138,8 +143,7 @@
       "dia": 20,
       "mes": 12,
       "temas": [
-        "educacao_financeira",
-        "dividas_credito"
+        "educacao_financeira"
       ]
     },
     {
@@ -165,15 +169,6 @@
       },
       "temas": [
         "seguranca_golpes"
-      ]
-    },
-    {
-      "nome": "Dia do Estudante",
-      "tipo": "fixa",
-      "dia": 11,
-      "mes": 8,
-      "temas": [
-        "educacao_financeira"
       ]
     }
   ]

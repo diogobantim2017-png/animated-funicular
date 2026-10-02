@@ -16,6 +16,58 @@ function linhas(itens, formatar) {
 
 /* ------------------------------------------------------------------ radar */
 
+const semProtocolo = (url = '') =>
+  String(url)
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/^www\./, '')
+    .replace(/[?#].*$/, '')
+    .replace(/\/+$/, '');
+
+/** Marca como verificada cada fonte cujo endereço apareceu de fato nos resultados da busca na web. */
+export function verificarFontes(fontes = [], buscas = []) {
+  const achados = new Set(buscas.map((b) => semProtocolo(b.url)));
+  return (fontes || [])
+    .filter((f) => f?.url)
+    .map((f) => ({
+      url: String(f.url).trim(),
+      veiculo: String(f.veiculo || '').trim(),
+      titulo: String(f.titulo || '').trim(),
+      data_publicacao: String(f.data_publicacao || '').trim(),
+      verificada: achados.has(semProtocolo(f.url)),
+    }));
+}
+
+/** Sites que recusaram a busca da Anthropic nesta execução: saem da lista de domínios. */
+const dominiosSemAcesso = new Set();
+
+/** Lê a recusa da API ("domains are not accessible to our user agent: [...]") e devolve os sites da lista. */
+function dominiosRecusados(erro) {
+  const achado = /not accessible to our user agent:\s*\[([^\]]*)\]/i.exec(String(erro?.message || ''));
+  return achado ? achado[1].split(',').map((d) => d.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean) : [];
+}
+
+/** Ferramenta de busca na web executada pela própria API da Anthropic. */
+function ferramentaDeBusca() {
+  const busca = {
+    type: 'web_search_20250305',
+    name: 'web_search',
+    max_uses: politica.radar?.max_buscas || 5,
+    user_location: { type: 'approximate', country: 'BR', timezone: env.fuso },
+  };
+  const dominios = (politica.radar?.dominios_confiaveis || []).filter((d) => !dominiosSemAcesso.has(d));
+  if (dominios.length) busca.allowed_domains = dominios;
+  return busca;
+}
+
+const CRITERIOS_PADRAO = [
+  'Proteger o seguidor: em períodos de compras, festas, viagens e impostos, os golpes costumam aumentar.',
+  'Datas próximas do calendário, com antecedência suficiente para o conteúdo ser útil.',
+  'Objetivos do perfil. Com público iniciante, prefira temas que ensinam a base antes dos avançados.',
+  'Variedade: evite repetir o tema ou a categoria que dominaram as últimas peças.',
+];
+
 export async function radar({ ia, hoje, historico, orientacao }) {
   const categorias = categoriasDisponiveis(hoje);
   const ativas = ofertasDisponiveis(hoje);
@@ -38,7 +90,7 @@ export async function radar({ ia, hoje, historico, orientacao }) {
         categoria: { type: 'string', enum: categorias.map((c) => c.id) },
         gatilho: {
           type: 'string',
-          enum: ['data_do_calendario', 'objetivo_do_perfil', 'lacuna_no_historico', 'orientacao_da_equipe'],
+          enum: ['noticia_recente', 'data_do_calendario', 'objetivo_do_perfil', 'lacuna_no_historico', 'orientacao_da_equipe'],
         },
         sinal: {
           type: 'string',
@@ -54,20 +106,52 @@ export async function radar({ ia, hoje, historico, orientacao }) {
           enum: ['', ...ativas.map((o) => o.id)],
           description: 'Id da oferta do catálogo. Obrigatório só em categorias de oferta; vazio nos demais casos.',
         },
+        fontes: {
+          type: 'array',
+          maxItems: 5,
+          description: 'Páginas encontradas na busca que sustentam o tema. Obrigatório em categorias que exigem fonte.',
+          items: {
+            type: 'object',
+            properties: {
+              url: { type: 'string', description: 'Endereço exato da página, como veio na busca.' },
+              veiculo: { type: 'string', description: 'Nome do site ou veículo.' },
+              titulo: { type: 'string' },
+              data_publicacao: { type: 'string', description: 'Data de publicação, no formato AAAA-MM-DD.' },
+            },
+            required: ['url', 'veiculo', 'titulo', 'data_publicacao'],
+          },
+        },
+        fatos: {
+          type: 'array',
+          maxItems: 8,
+          items: { type: 'string' },
+          description: 'Fatos confirmados nas fontes, em frases curtas, com nomes, números e datas exatamente como aparecem nelas.',
+        },
       },
       required: ['tema', 'categoria', 'gatilho', 'sinal', 'justificativa', 'urgencia', 'oferta_id'],
     },
   };
 
-  const sistema = `Você é o radar de conteúdo do perfil de educação financeira ${marca.nome}.\nPerfil: ${marca.descricao}\nSua função é perceber qual necessidade de comunicação é mais relevante agora, usando apenas os sinais fornecidos.
+  const buscaWeb = politica.radar?.busca_web === true;
+  const maxDias = politica.noticias?.max_dias || 3;
+  const comFonte = categorias.filter((c) => politica.categorias[c.id]?.exige_fonte).map((c) => c.id);
+  const criterios = politica.radar?.criterios?.length ? politica.radar.criterios : CRITERIOS_PADRAO;
+  const regrasDeBusca = buscaWeb
+    ? `Busca na web:
+- Pesquise antes de escolher o tema. Priorize o que aconteceu ou foi anunciado nos últimos ${maxDias} dias.
+- Em categorias que exigem fonte (${comFonte.join(', ') || 'nenhuma'}), preencha fontes com o endereço exato da página, o veículo, o título e a data, e fatos com o que as fontes confirmam. Sem fonte recente, escolha outra categoria.
+- Use só o que as fontes dizem. Rumor é rumor: diga quem publicou e não trate como fato.
+- Prefira veículos reconhecidos. Não use sites de apostas como fonte.`
+    : 'Não invente números, notícias, pesquisas ou tendências que não estejam nos sinais.';
+  const sistema = `Você é o radar de conteúdo do perfil ${marca.nome}.
+Perfil: ${marca.descricao}
+Sua função é perceber qual necessidade de comunicação é mais relevante agora${buscaWeb ? ', usando os sinais fornecidos e a busca na web' : ', usando apenas os sinais fornecidos'}.
 
 Critérios, nesta ordem:
-1. Proteger o seguidor: em períodos de compras, festas, viagens e impostos, os golpes costumam aumentar.
-2. Datas próximas do calendário, com antecedência suficiente para o conteúdo ser útil.
-3. Objetivos do perfil. Com público iniciante, prefira temas que ensinam a base antes dos avançados.
-4. Variedade: evite repetir o tema ou a categoria que dominaram as últimas peças.
+${criterios.map((c, i) => `${i + 1}. ${c}`).join('\n')}
 
-Não invente números, notícias, pesquisas ou tendências que não estejam nos sinais. Quando a equipe der uma orientação, ela tem prioridade.`;
+${regrasDeBusca}
+Quando a equipe der uma orientação, ela tem prioridade.`;
 
   const conteudo = `Hoje: ${hoje} (fuso ${env.fuso})
 
@@ -78,7 +162,7 @@ Objetivos do perfil:
 ${linhas(marca.objetivos_de_negocio || [], (o) => o)}
 
 Categorias disponíveis:
-${linhas(categorias, (c) => `${c.id}: ${c.nome} (risco ${c.risco})`)}
+${linhas(categorias, (c) => `${c.id}: ${c.nome} (risco ${c.risco}${politica.categorias[c.id]?.exige_fonte ? ', exige fonte recente' : ''})`)}
 
 Ofertas ativas no catálogo:
 ${linhas(ativas, (o) => `${o.id}: ${o.produto} (${o.tipo})`)}
@@ -88,15 +172,39 @@ ${linhas(historico, (p) => `${p.criada_em.slice(0, 10)} | ${p.categoria} | ${p.t
 
 Orientação da equipe: ${orientacao?.texto?.trim() || 'nenhuma'}${orientacao?.categoria ? `\nCategoria pedida pela equipe: ${orientacao.categoria}` : ''}${
     orientacao?.formato && orientacao.formato !== 'post'
-      ? `\nFormato pedido: ${orientacao.formato === 'flashcards' ? 'flashcards (cartões de estudo)' : 'carrossel'} com ${orientacao.num_slides} imagens. Escolha um tema que renda esse número de partes.`
+      ? `\nFormato pedido: ${{ flashcards: 'flashcards (cartões de estudo)', pista: 'carrossel em pista (uma volta contínua, trecho a trecho)' }[orientacao.formato] || 'carrossel'} com ${orientacao.num_slides} imagens. Escolha um tema que renda esse número de partes.`
       : ''
   }`;
 
-  const r = await ia({ modelo: env.modeloIa, sistema, conteudo, ferramenta, maxTokens: 1200 });
+  const chamar = () =>
+    ia({
+      modelo: env.modeloIa,
+      sistema,
+      conteudo,
+      ferramenta,
+      maxTokens: buscaWeb ? 3000 : 1200,
+      ferramentasServidor: buscaWeb ? [ferramentaDeBusca()] : [],
+    });
+  let r;
+  try {
+    r = await chamar();
+  } catch (erro) {
+    // Alguns sites bloqueiam a busca da Anthropic e a API recusa a lista inteira: tira esses sites e tenta de novo.
+    const recusados = buscaWeb ? dominiosRecusados(erro) : [];
+    if (!recusados.length) throw erro;
+    recusados.forEach((d) => dominiosSemAcesso.add(d));
+    r = await chamar();
+  }
   const dados = { ...r.dados };
   if (orientacao?.categoria) dados.categoria = orientacao.categoria;
   if (!politica.categorias[dados.categoria]?.exige_oferta) dados.oferta_id = '';
-  return { dados, modelo: r.modelo, contexto: { eventos, categorias: categorias.map((c) => c.id) } };
+  dados.fontes = verificarFontes(dados.fontes, r.buscas || []);
+  dados.fatos = (dados.fatos || []).map((f) => String(f).trim()).filter(Boolean);
+  return {
+    dados,
+    modelo: r.modelo,
+    contexto: { eventos, categorias: categorias.map((c) => c.id), buscas: (r.buscas || []).length, sites_sem_acesso: [...dominiosSemAcesso] },
+  };
 }
 
 /* ------------------------------------------------------------------ brief */
@@ -143,7 +251,9 @@ export async function criarBrief({ ia, oportunidade, oferta, formato = 'post', n
       ? `um carrossel de ${numSlides} imagens (capa, ${numSlides - 2} slides de conteúdo e um slide final)`
       : formato === 'flashcards'
         ? `flashcards em carrossel: capa, ${numSlides - 2} cartões de estudo (termo ou pergunta e a explicação) e um slide final`
-        : 'um post de imagem única';
+        : formato === 'pista'
+          ? `um carrossel em pista de ${numSlides} imagens: uma volta contínua que atravessa todas elas, com a largada na capa, ${numSlides - 2} trechos com conteúdo e a bandeirada no slide final`
+          : 'um post de imagem única';
   const descricaoVisual =
     visual === 'foto'
       ? 'A capa usa uma foto real de banco de imagens, buscada com busca_foto_en.'
@@ -158,18 +268,25 @@ Valores: ${(marca.valores || []).join(', ')}
 
 Regras:
 - Escolha exatamente um segmento da lista.
-- A cena precisa funcionar sem nenhum texto: nada de letreiros, telas com texto legível, documentos, logotipos, cédulas, moedas ou cartões.
-- Use pessoas e lugares brasileiros reais, com diversidade e sem estereótipos. Prefira cenas simples, com um foco claro.
+${(marca.diretrizes_de_cena?.length
+    ? marca.diretrizes_de_cena
+    : [
+        'A cena precisa funcionar sem nenhum texto: nada de letreiros, telas com texto legível, documentos, logotipos, cédulas, moedas ou cartões.',
+        'Use pessoas e lugares brasileiros reais, com diversidade e sem estereótipos. Prefira cenas simples, com um foco claro.',
+      ]
+  )
+    .map((d) => `- ${d}`)
+    .join('\n')}
 - A metade de baixo da imagem recebe um painel de texto. Coloque o assunto principal na metade de cima.
 - Em prompt_imagem_en, descreva só a cena. O sistema acrescenta estilo, paleta e restrições.
-- Em busca_foto_en, use palavras simples de banco de imagens (ex.: "young woman budget notebook"), sem marcas e sem texto.`;
+- Em busca_foto_en, ${politica.fotos?.orientacao_busca || 'use palavras simples de banco de imagens (ex.: "young woman budget notebook"), sem marcas e sem texto.'}`;
 
   const conteudo = `Oportunidade escolhida pelo radar:
 - Tema: ${oportunidade.tema}
 - Categoria: ${politica.categorias[oportunidade.categoria].nome}
 - Sinal: ${oportunidade.sinal}
 - Justificativa: ${oportunidade.justificativa}
-${oferta ? `- Produto em oferta: ${oferta.produto} (números e texto legal entram pelo template, não pelo brief)\n` : ''}
+${oportunidade.fatos?.length ? `- Fatos confirmados nas fontes:\n${oportunidade.fatos.map((f) => `  - ${f}`).join('\n')}\n` : ''}${oferta ? `- Produto em oferta: ${oferta.produto} (números e texto legal entram pelo template, não pelo brief)\n` : ''}
 Segmentos permitidos:
 ${linhas(permitidos, (s) => `${s.id}: ${s.nome}. ${s.descricao}`)}
 
@@ -222,7 +339,7 @@ export async function escreverTextos({
       required: ['titulo', 'subtitulo', 'cta_arte', 'legenda', 'hashtags'],
     },
   };
-  const emSlides = formato === 'carrossel' || formato === 'flashcards';
+  const emSlides = formato === 'carrossel' || formato === 'flashcards' || formato === 'pista';
   const miolo = Math.max(1, numSlides - 2);
   if (emSlides) {
     const ehCard = formato === 'flashcards';
@@ -257,6 +374,10 @@ export async function escreverTextos({
     ferramenta.input_schema.properties.legenda.description = `Legenda do post, até ${LIMITES_SLIDE.legenda} caracteres, sem hashtags.`;
     ferramenta.input_schema.required.push('slides', 'fechamento');
   }
+  const regrasDaPista =
+    formato === 'pista'
+      ? `\n- Carrossel em pista: a metade de baixo de cada imagem é a pista, então o texto é mais curto. Títulos com até 40 caracteres e textos com até 150. Cada slide é um trecho da volta, em ordem: pense em curvas, setores, etapas de um fim de semana ou momentos de uma corrida.`
+      : '';
   const regrasDoFormato = !emSlides
     ? `O título e o subtítulo vão na arte e trazem a ideia principal. A legenda aprofunda, com 2 a 4 parágrafos curtos, sem repetir a arte.`
     : formato === 'flashcards'
@@ -269,7 +390,7 @@ export async function escreverTextos({
 - Capa: título e subtítulo que despertam curiosidade para deslizar. A chamada da arte fica no slide final.
 - ${miolo} slides de conteúdo: um título curto (até ${LIMITES_SLIDE.titulo} caracteres) e um texto de até ${LIMITES_SLIDE.texto} caracteres cada. Uma ideia por slide, em sequência lógica, como passos ou tópicos. Não numere os títulos ("Passo 1", "2."): a arte já mostra a posição de cada slide.
 - Slide final: "fechamento" com uma frase curta de conclusão e a chamada da arte no botão.
-- O conteúdo principal fica nos slides. A legenda complementa: 1 ou 2 parágrafos curtos com contexto e a chamada para ação, até ${LIMITES_SLIDE.legenda} caracteres, sem repetir os slides.`;
+- O conteúdo principal fica nos slides. A legenda complementa: 1 ou 2 parágrafos curtos com contexto e a chamada para ação, até ${LIMITES_SLIDE.legenda} caracteres, sem repetir os slides.${regrasDaPista}`;
 
   const sistema = `Você é redator do perfil ${marca.nome}. Escreva em português do Brasil, com acentuação completa.
 Tom de voz: ${marca.tom_de_voz}
@@ -278,10 +399,17 @@ ${regrasDoFormato}
 
 Regras verificadas automaticamente. Se você descumprir, a peça é bloqueada:
 - Título até ${l.titulo_max} caracteres, subtítulo até ${l.subtitulo_max}, chamada da arte até ${l.cta_max}, legenda até ${l.legenda_max}, no máximo ${l.hashtags_max} hashtags.
-- Não escreva percentuais, valores em reais, taxas, prazos de pagamento ou rendimentos. Quando há oferta, o sistema insere os dados oficiais e o texto legal.
+${(politica.regras_de_redacao?.length
+    ? politica.regras_de_redacao
+    : [
+        'Não escreva percentuais, valores em reais, taxas, prazos de pagamento ou rendimentos. Quando há oferta, o sistema insere os dados oficiais e o texto legal.',
+        'Não prometa ganho, retorno ou ausência de risco. Não cite bancos, corretoras, plataformas ou marcas.',
+        'Explique, não recomende: nunca diga qual produto comprar, quanto colocar em cada coisa nem qual é a hora certa de investir.',
+      ]
+  )
+    .map((r) => `- ${r}`)
+    .join('\n')}
 - Não use estes termos: ${politica.termos_proibidos.join(', ')}.
-- Não prometa ganho, retorno ou ausência de risco. Não cite bancos, corretoras, plataformas ou marcas.
-- Explique, não recomende: nunca diga qual produto comprar, quanto colocar em cada coisa nem qual é a hora certa de investir.
 - Evite construções típicas de texto gerado por IA: "não é só X, é Y", "mais do que um X", travessões, perguntas retóricas em sequência e trios de adjetivos.
 - A legenda termina com a chamada para ação. Sem hashtags no corpo da legenda.
 - Hashtags sem espaços, começando com #.`;
@@ -310,7 +438,13 @@ Revisão: a equipe leu a peça e pediu ajustes nos textos.
 - Insight: ${brief.insight}
 - Mensagem-chave: ${brief.mensagem_chave}
 - Chamada para ação: ${brief.cta}
-${oferta ? `- Produto em oferta: ${oferta.produto}. Não escreva números: o destaque oficial e o texto legal entram pelo template.\n` : ''}`;
+${
+    oportunidade.fatos?.length
+      ? `- Fatos confirmados nas fontes. Resultados, números, nomes e declarações só podem vir daqui:\n${oportunidade.fatos
+          .map((f) => `  - ${f}`)
+          .join('\n')}\n- Fontes: ${[...new Set((oportunidade.fontes || []).map((f) => f.veiculo).filter(Boolean))].join(', ')}\n`
+      : ''
+  }${oferta ? `- Produto em oferta: ${oferta.produto}. Não escreva números: o destaque oficial e o texto legal entram pelo template.\n` : ''}`;
 
   if (pedido) {
     conteudo += `\nTextos atuais:\n${textosNumerados(textosAtuais || {}, numSlides)}\n\nPedido da equipe: "${pedido}"`;
@@ -345,11 +479,17 @@ export function montarPromptImagem(brief) {
 }
 
 /** Legenda final: texto da IA + texto legal oficial + rótulo de IA (só com imagem de IA) + crédito da foto + hashtags. */
-export function montarLegendaFinal({ textos, oferta, visual = 'ia', credito = null }) {
+export function montarLegendaFinal({ textos, oferta, visual = 'ia', credito = null, fontes = [] }) {
   const partes = [textos.legenda.trim()];
   if (oferta?.texto_legal) partes.push(oferta.texto_legal.trim());
+  const veiculos = [...new Set((fontes || []).filter((f) => f.verificada).map((f) => f.veiculo).filter(Boolean))];
+  if (veiculos.length) partes.push(`Fonte: ${veiculos.join(', ')}`);
   if (visual === 'ia' && politica.rotulo_ia) partes.push(politica.rotulo_ia);
-  if (visual === 'foto' && credito?.autor) partes.push(`Foto: ${credito.autor} / ${credito.fonte || 'Pexels'}`);
+  if (visual === 'foto' && credito?.autor) {
+    const licenca = credito.licenca ? ` (${credito.licenca}${credito.url_licenca ? `, ${credito.url_licenca}` : ''})` : '';
+    const mesmaLicenca = credito.compartilha_igual ? ` Esta arte usa a foto adaptada e é compartilhada sob a mesma licença.` : '';
+    partes.push(`Foto: ${credito.autor} / ${credito.fonte || 'Pexels'}${licenca}.${mesmaLicenca}`);
+  }
   if (textos.hashtags?.length) partes.push(textos.hashtags.join(' '));
   return partes.join('\n\n');
 }

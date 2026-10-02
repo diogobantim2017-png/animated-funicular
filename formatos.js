@@ -1,6 +1,6 @@
 /** Formatos de post, tipos de imagem e limites de texto dos slides. */
 
-export const FORMATOS = { post: 'Post único', carrossel: 'Carrossel', flashcards: 'Flashcards' };
+export const FORMATOS = { post: 'Post único', carrossel: 'Carrossel', flashcards: 'Flashcards', pista: 'Carrossel em pista' };
 export const VISUAIS = { ia: 'Imagem criada por IA', foto: 'Foto real de banco de imagens', design: 'Só design, sem imagem' };
 
 export const SLIDES_MIN = 3;
@@ -13,7 +13,8 @@ export const LIMITES_SLIDE = { titulo: 60, texto: 240, fechamento: 90, legenda: 
 /** Valida as escolhas feitas no painel e devolve valores seguros. */
 export function normalizarFormato({ formato, visual, num_slides } = {}) {
   const f = Object.hasOwn(FORMATOS, formato) ? formato : 'post';
-  const v = Object.hasOwn(VISUAIS, visual) ? visual : 'ia';
+  // O carrossel em pista é todo desenhado pelo sistema: a pista é a imagem.
+  const v = f === 'pista' ? 'design' : Object.hasOwn(VISUAIS, visual) ? visual : 'ia';
   const n = Math.round(Number(num_slides));
   return {
     formato: f,

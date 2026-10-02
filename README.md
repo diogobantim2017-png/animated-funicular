@@ -1,6 +1,6 @@
 # Motor de campanhas com IA e autonomia governada
 
-> **Configuração atual:** perfil de educação financeira para jovens que ainda não sabem investir, com a marca "Papo de Grana" (nome, cores e tom em `marca.json`, logo em `logo.png`). O catálogo de ofertas está desligado e a categoria "Como funcionam os investimentos" é sempre revisada por uma pessoa. O funcionamento descrito abaixo vale para qualquer marca: onde o texto fala em banco, leia "perfil".
+> **Configuração atual: case Bradesco.** Categorias, públicos, calendário e travas de um banco: segurança e golpes, educação financeira, datas comemorativas, institucional, e ofertas de crédito e investimento (desligadas até o banco enviar condições oficiais). O visual usa `"layout": "corporativo"` em `marca.json`: degradê vermelho, logos oficiais enviados pelo banco (`logo-bradesco-*.png`), o símbolo como marca d'água e nenhuma forma decorativa. A publicação segue `PUBLICACAO_MODO` no Render: use `simulacao` para não publicar. O degradê e as cores de apoio são aproximações da identidade atual e devem ser validados com o time de marca do banco; a fonte proprietária Bradesco Sans é substituída pela Poppins.
 
 MVP de um motor que percebe a necessidade de um post, define público e objetivo, escreve os textos, gera a imagem com IA, monta a arte no template da marca, passa a peça pelas travas de governança e então publica no Instagram ou manda para revisão humana.
 
@@ -47,7 +47,7 @@ npm run teste           # pipeline completo com IA simulada: sem chaves e sem cu
 npm start               # painel em http://localhost:3000
 ```
 
-O teste offline roda 22 cenários: pipeline completo, cada tipo de trava, aprovação, edição humana, novo visual e ajuste de texto com IA, escada de autonomia, limites diários, pausa, programação e formatos. Ele também grava uma prévia da arte em `teste-saida/previa-arte.jpg`, com fundo sintético.
+O teste offline roda 27 cenários: pipeline completo, cada tipo de trava, aprovação, edição humana, novo visual e ajuste de texto com IA, escada de autonomia, limites diários, pausa, programação, formatos, carrossel em pista, notícias com fonte, busca na web e fotos do Wikimedia Commons. Ele usa um perfil fixo (`teste-perfil.json`) para verificar o motor da mesma forma em qualquer perfil, e confere se os arquivos do perfil ativo são válidos. Ele também grava uma prévia da arte em `teste-saida/previa-arte.jpg`, com fundo sintético.
 
 **Painel sem chaves, para demonstração de layout:**
 
@@ -69,6 +69,25 @@ O painel abre com as peças do teste. Os fundos são sintéticos e o botão de g
 
 O campo "Seu nome" identifica quem aprovou, editou ou liberou cada coisa.
 
+## Notícias reais, com fonte
+
+Quando `politica.radar.busca_web` está ligado, o radar pesquisa na web antes de escolher o tema. A busca usa a ferramenta da própria API da Anthropic, com a mesma `ANTHROPIC_API_KEY`.
+
+1. **Busca.** O radar faz até `max_buscas` pesquisas e prioriza o que aconteceu nos últimos dias. Com `dominios_confiaveis` preenchido, ele só pesquisa nesses sites.
+2. **Fontes e fatos.** Ele registra as fontes (endereço, veículo, título e data) e os fatos confirmados nelas, em frases curtas.
+3. **Conferência.** O sistema confere se cada fonte citada apareceu de fato nos resultados da busca. A que não apareceu fica marcada como "não conferida".
+4. **Texto.** O redator e o revisor recebem os fatos. Resultados, números, nomes e declarações só podem vir deles. O revisor aponta risco alto quando o texto afirma algo que não está nos fatos.
+5. **Trava.** Nas categorias com `exige_fonte`, a peça é bloqueada sem pelo menos uma fonte conferida e recente, de até `noticias.max_dias` dias. A trava roda de novo no momento da publicação, então notícia velha não sai.
+6. **Legenda.** A legenda publicada termina com "Fonte:" e os veículos conferidos. No painel, cada peça mostra as fontes com link e os fatos confirmados.
+
+Cada busca custa 10 dólares a cada 1.000 pesquisas, segundo a tabela da Anthropic. Com `max_buscas` em 5, uma peça faz no máximo 5 buscas.
+
+**Imagens em perfil de esporte.** Fotos oficiais de corrida têm direitos de agência e não entram no sistema. Há três caminhos:
+
+1. **Foto real, do Wikimedia Commons.** Fotos com licença livre (domínio público, CC0, CC BY e CC BY-SA) de pilotos, carros e circuitos, buscadas pelo nome como aparece na Wikipédia. Autor, fonte e licença vão na arte e na legenda. Em CC BY-SA, a legenda avisa que a arte é compartilhada sob a mesma licença. Por mostrar pessoas e marcas reais, a peça sempre passa por revisão humana: pessoa pública, logotipo e texto na foto viram alerta, não bloqueio. O Pexels, com fotos genéricas, fica como reserva quando há `PEXELS_API_KEY`. A ordem está em `politica.fotos.provedores`.
+2. **Imagem criada por IA.** Carros de corrida genéricos em ação e pilotos anônimos, de capacete fechado e sem rosto. A IA nunca cria imagem de piloto real: pessoa pública reconhecível numa imagem de IA é bloqueada.
+3. **Só design e carrossel em pista.** Tudo desenhado pelo sistema, sem imagem externa.
+
 ## Formatos e imagens
 
 Na hora de gerar, a equipe escolhe o formato e o tipo de imagem.
@@ -78,6 +97,7 @@ Na hora de gerar, a equipe escolhe o formato e o tipo de imagem.
 | Post único | Uma imagem com título, subtítulo e botão. A legenda aprofunda o assunto. |
 | Carrossel | De 3 a 10 imagens: capa, slides de conteúdo e um slide final com a chamada. |
 | Flashcards | Carrossel de estudo: capa, cartões com um termo ou pergunta e a explicação, e um slide final. |
+| Carrossel em pista | Uma pista contínua atravessa todas as imagens: largada e carro na capa, uma curva numerada por slide e a bandeirada no final. Ao deslizar, parece que se percorre a volta. É sempre só design. |
 
 Nos formatos com slides, o conteúdo principal fica nas imagens e a legenda complementa, com até 700 caracteres.
 
@@ -91,6 +111,23 @@ Nos formatos com slides, o conteúdo principal fica nas imagens e a legenda comp
 - **Novo visual.** Sem pedido, gera outra imagem de IA, busca outra foto ou troca a composição do design. Com pedido ("fundo escuro", "tirar os números grandes", "uma jovem num parque"), um agente diretor de arte transforma o texto em ajustes concretos. Ele pode mexer no layout (formas, fundo claro ou escuro, números grandes, contador, pontinhos, tamanho do texto), escrever uma nova cena para a IA de imagem ou fazer uma nova busca de foto. Quando o pedido é só de layout, a imagem atual é mantida. O que for mudança de texto volta como aviso na trilha de auditoria, para a equipe editar nos campos.
 - Nos carrosséis, os números grandes decorativos só aparecem quando nenhum título tem numeração própria, para não confundir.
 - No Instagram, o carrossel conta como uma única publicação, com até 10 imagens.
+
+## Configurar o perfil
+
+Além dos campos abaixo, o perfil pode ajustar o sistema sem mexer no código:
+
+- **`marca.json`:**
+  - `diretrizes_de_cena`: regras para a cena da imagem.
+  - `design_padrao`: por exemplo, fundo escuro como padrão.
+  - `cores.fundo_claro`: a cor dos fundos claros.
+- **`politica.json`:**
+  - `regras_de_redacao`: regras que o redator segue.
+  - `travas.numeros_financeiros`: `false` desliga a trava de números, feita para perfis de finanças.
+  - `travas.rotulo_marcas`: o nome da trava de marcas proibidas.
+  - `juiz.risco_alto_quando`: o que conta como risco alto para o revisor.
+  - `radar`: busca na web, domínios confiáveis e critérios do radar.
+  - `noticias.max_dias`: quantos dias a fonte de uma notícia pode ter.
+  - `exige_fonte`: marca, em cada categoria, as que precisam de fonte.
 
 ## Configurar para um banco
 
@@ -124,8 +161,9 @@ Toda peça recebe um de três vereditos:
 | Textos obrigatórios preenchidos | Bloqueio |
 | Tamanhos dentro do limite | Alerta |
 | Sem termos proibidos | Bloqueio |
-| Sem taxas, valores ou rendimentos escritos pela IA | Bloqueio |
-| Sem citar bancos, corretoras ou marcas | Bloqueio |
+| Sem taxas, valores ou rendimentos escritos pela IA (desligada neste perfil) | Bloqueio |
+| Sem citar bancos, corretoras ou marcas (neste perfil: casas de apostas) | Bloqueio |
+| Notícia com fonte recente conferida na busca (só nas categorias com `exige_fonte`) | Bloqueio |
 | Sem vícios de texto gerado por IA | Alerta |
 | Segmento permitido para a categoria | Bloqueio |
 | Oferta vinculada ao catálogo oficial | Bloqueio |

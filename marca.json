@@ -1,36 +1,48 @@
 {
-  "observacao": "Marca do perfil de educação financeira Papo de Grana. O logo da arte fica no arquivo logo.png.",
-  "nome": "Papo de Grana",
-  "descricao": "Perfil de educação financeira para jovens que ainda não sabem investir. Explica do zero, sem enrolação, sem prometer ganhos e sem indicar produtos.",
-  "tom_de_voz": "Próximo e descontraído, como um amigo que entende de dinheiro e explica sem enrolar. Frases curtas. Quando usar um termo técnico, explica logo em seguida. Pode ter humor leve, nunca às custas de quem está endividado. Sem exageros, sem promessas e sem gírias forçadas. Trata o leitor por você.",
+  "observacao": "Configuração para a demonstração do case Bradesco, com os logos oficiais enviados pelo banco. O degradê e as cores de apoio são aproximações da identidade atual e devem ser validados com o time de marca. A fonte proprietária Bradesco Sans é substituída pela Poppins, também geométrica.",
+  "nome": "Bradesco",
+  "descricao": "Banco brasileiro com clientes pessoa física, empreendedores e empresas. Nas redes, fala de segurança, educação financeira e uso consciente do crédito.",
+  "tom_de_voz": "Próximo, claro e confiável. Frases curtas, sem jargão financeiro, sem exageros e sem promessas. Trata o cliente por você.",
   "valores": [
-    "clareza",
-    "honestidade",
-    "autonomia financeira"
+    "transparência",
+    "segurança",
+    "inclusão financeira"
   ],
   "objetivos_de_negocio": [
-    "Ensinar a base antes de investir: organizar o orçamento, sair das dívidas caras e montar a reserva de emergência.",
-    "Explicar como funcionam os investimentos mais comuns, como Tesouro Direto, CDB, fundos e ações, sem recomendar produto, instituição, valor ou momento de compra.",
-    "Proteger contra golpes e promessas de ganho rápido, como pirâmides, falsos gurus e apostas vendidas como investimento.",
-    "Mostrar que dá para começar com pouco e que a constância importa mais do que o valor.",
-    "Fazer o seguidor salvar e compartilhar os posts."
+    "Reduzir golpes contra clientes com conteúdo educativo sobre Pix, WhatsApp e falsa central.",
+    "Aumentar o uso do app e dos canais digitais.",
+    "Promover educação financeira e uso consciente do crédito.",
+    "Fortalecer a imagem de banco próximo e transparente."
   ],
   "cores": {
-    "primaria": "#0B3B2E",
-    "secundaria": "#C8F169",
+    "primaria": "#CC092F",
+    "secundaria": "#FFFFFF",
     "texto_sobre_primaria": "#FFFFFF",
-    "texto_sobre_secundaria": "#0B3B2E"
+    "texto_sobre_secundaria": "#CC092F",
+    "gradiente": [
+      "#A30724",
+      "#E1173F"
+    ],
+    "texto_corpo": "#3C3C3C",
+    "fundo_claro": "#F4F4F4"
   },
   "fontes": {
-    "titulo": "Poppins-Bold.ttf",
+    "titulo": "Poppins-SemiBold.ttf",
     "destaque": "Poppins-Medium.ttf",
     "texto": "Poppins-Regular.ttf"
   },
-  "logo": "logo.png",
+  "logo": "logo-bradesco-horizontal-vermelho.png",
   "estilos_visuais": {
     "fotografia_lifestyle": "Editorial lifestyle photograph, natural daylight, warm and optimistic mood, authentic everyday Brazilian setting, realistic skin tones, shallow depth of field, clean uncluttered composition",
     "ilustracao_flat": "Flat vector illustration, clean geometric shapes, solid colors, friendly and modern, generous negative space",
     "render_3d_suave": "Soft 3D render, rounded clay-like shapes, gentle studio lighting, soft tones, minimal scene"
   },
-  "restricoes_visuais_en": "Absolutely no text, letters, numbers, words, signage, readable screens, logos, brand marks, watermarks, banknotes or coins, credit cards with numbers, and no real public figures."
+  "restricoes_visuais_en": "Absolutely no text, letters, numbers, words, signage, readable screens, logos, brand marks, watermarks, banknotes or coins, credit cards with numbers, and no real public figures.",
+  "layout": "corporativo",
+  "logos": {
+    "horizontal_claro": "logo-bradesco-horizontal-vermelho.png",
+    "horizontal_escuro": "logo-bradesco-horizontal-branco.png",
+    "simbolo_claro": "logo-bradesco-simbolo-vermelho.png",
+    "simbolo_escuro": "logo-bradesco-simbolo-branco.png"
+  }
 }

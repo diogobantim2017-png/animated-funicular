@@ -131,7 +131,7 @@ export function criarMotor({ db, ia, imagem, fotos = null, canal, sortear = Math
     const visual = visualDaPeca(peca);
     const credito = peca.imagem?.credito || null;
     const semente = peca.design_semente || 1;
-    const design = normalizarDesign(peca.design);
+    const design = normalizarDesign({ ...marca.design_padrao, ...peca.design });
     if (formato === 'post') {
       const r = await renderizarArte({ fundo, textos, oferta, visual, credito, semente, design });
       const salvo = await db.salvarMidia(`${id}-arte-${versao}.jpg`, r.buffer, 'image/jpeg');
@@ -152,7 +152,7 @@ export function criarMotor({ db, ia, imagem, fotos = null, canal, sortear = Math
       id,
       'arte',
       'template',
-      `${formato === 'flashcards' ? 'Flashcards' : 'Carrossel'} com ${slides.length} imagens montado com o template da marca`,
+      `${{ flashcards: 'Flashcards', pista: 'Carrossel em pista' }[formato] || 'Carrossel'} com ${slides.length} imagens montado com o template da marca`,
       { ...registro, slides },
     );
     return { arte: r.slides[0], slides: r.slides };
@@ -191,15 +191,22 @@ export function criarMotor({ db, ia, imagem, fotos = null, canal, sortear = Math
       const salvo = await db.salvarMidia(`${id}-foto-${Date.now()}.jpg`, foto.buffer, foto.mime);
       registro = {
         origem: 'foto',
-        provedor: fotos.provedor,
+        provedor: foto.provedor || fotos.provedor,
         consulta: foto.consulta,
         foto_id: foto.id,
+        editorial: Boolean(foto.editorial),
         credito: foto.credito,
         chave: salvo.chave,
         url: salvo.url,
         segundos: Math.round((Date.now() - inicio) / 1000),
       };
-      await auditar(id, 'imagem', `banco:${fotos.provedor}`, `Foto real de ${foto.credito.autor} (${foto.credito.fonte})`, registro);
+      await auditar(
+        id,
+        'imagem',
+        `banco:${foto.provedor || fotos.provedor}`,
+        `Foto real de ${foto.credito.autor} (${foto.credito.fonte}${foto.credito.licenca ? `, ${foto.credito.licenca}` : ''})`,
+        registro,
+      );
       fundo = foto.buffer;
     } else {
       await auditar(id, 'imagem', 'template', 'Sem imagem: peça feita só com o design da marca');
@@ -228,6 +235,7 @@ export function criarMotor({ db, ia, imagem, fotos = null, canal, sortear = Math
       arte: peca.arte,
       hoje: hoje(),
       modoPublicacao: canal.modo,
+      oportunidade: peca.oportunidade,
     });
     const apontamentos = regras.filter((r) => !r.ok).length;
     await auditar(id, 'regras', 'regras', `${regras.length - apontamentos} de ${regras.length} travas sem apontamento`, regras);
@@ -239,6 +247,7 @@ export function criarMotor({ db, ia, imagem, fotos = null, canal, sortear = Math
       slides,
       visual: visualDaPeca(peca),
       formato: formatoDaPeca(peca),
+      editorial: Boolean(peca.imagem?.editorial),
       textos: peca.textos,
       brief: peca.brief,
       oportunidade: peca.oportunidade,
@@ -246,7 +255,7 @@ export function criarMotor({ db, ia, imagem, fotos = null, canal, sortear = Math
     });
     await auditar(id, 'revisor_ia', 'ia:revisor', `Risco ${juiz.risco_reputacional}; ${juiz.aprovaria_sem_edicao ? 'publicaria como está' : 'editaria antes'}`, juiz);
 
-    const gate = consolidarGate({ regras, juiz });
+    const gate = consolidarGate({ regras, juiz, editorial: Boolean(peca.imagem?.editorial) });
     const governanca = {
       regras,
       juiz,
@@ -309,7 +318,17 @@ export function criarMotor({ db, ia, imagem, fotos = null, canal, sortear = Math
       const oferta = oportunidade.oferta_id ? ofertaPorId(oportunidade.oferta_id) : null;
       etapa = 'brief';
       await db.atualizarPeca(id, { etapa, categoria: oportunidade.categoria, oportunidade, oferta_id: oportunidade.oferta_id || null });
-      await auditar(id, 'radar', 'ia:radar', oportunidade.tema, { oportunidade, sinais: rRadar.contexto, modelo: rRadar.modelo });
+      await auditar(
+        id,
+        'radar',
+        'ia:radar',
+        `${oportunidade.tema}${
+          oportunidade.fontes?.length
+            ? ` (${oportunidade.fontes.filter((f) => f.verificada).length} de ${oportunidade.fontes.length} fontes conferidas na busca)`
+            : ''
+        }`,
+        { oportunidade, sinais: rRadar.contexto, modelo: rRadar.modelo },
+      );
 
       const escolha = await db.obterPeca(id);
       const formato = formatoDaPeca(escolha);
@@ -355,6 +374,7 @@ export function criarMotor({ db, ia, imagem, fotos = null, canal, sortear = Math
       arte: peca.arte,
       hoje: hoje(),
       modoPublicacao: canal.modo,
+      oportunidade: peca.oportunidade,
     });
     const bloqueios = regras.filter((r) => !r.ok && r.severidade === 'bloqueio');
     if (bloqueios.length) {
@@ -374,7 +394,7 @@ export function criarMotor({ db, ia, imagem, fotos = null, canal, sortear = Math
     }
 
     const oferta = peca.oferta_id ? ofertaPorId(peca.oferta_id) : null;
-    const legenda = montarLegendaFinal({ textos: peca.textos, oferta, visual: visualDaPeca(peca), credito: peca.imagem?.credito });
+    const legenda = montarLegendaFinal({ textos: peca.textos, oferta, visual: visualDaPeca(peca), credito: peca.imagem?.credito, fontes: peca.oportunidade?.fontes });
     try {
       const r = await canal.publicar({ urlImagem: peca.arte.url, urlsImagens: peca.slides_arte?.map((sl) => sl.url) || null, legenda });
       const publicacao = { ...r, canal: canal.nome, em: instante(), legenda_final: legenda, ator };
@@ -750,7 +770,7 @@ export function criarMotor({ db, ia, imagem, fotos = null, canal, sortear = Math
         if (direcao) {
           // Um agente lê o pedido e o transforma em ajustes: layout, nova cena ou nova busca de foto.
           await db.atualizarPeca(id, { etapa: 'ajuste' });
-          const designAtual = normalizarDesign(peca.design);
+          const designAtual = normalizarDesign({ ...marca.design_padrao, ...peca.design });
           const r = await interpretarAjusteVisual({ ia, peca, direcao, designAtual });
           const ajuste = r.dados;
           mudancas.design = normalizarDesign(ajuste.design);
@@ -845,7 +865,7 @@ export function criarMotor({ db, ia, imagem, fotos = null, canal, sortear = Math
         legenda_final:
           peca.publicacao?.legenda_final ||
           (peca.textos?.legenda
-            ? montarLegendaFinal({ textos: peca.textos, oferta, visual: visualDaPeca(peca), credito: peca.imagem?.credito })
+            ? montarLegendaFinal({ textos: peca.textos, oferta, visual: visualDaPeca(peca), credito: peca.imagem?.credito, fontes: peca.oportunidade?.fontes })
             : null),
         processando: ocupadas.has(id) || emGeracao === id,
         sugestao_agendamento: ['em_revisao', 'aprovada', 'agendada'].includes(peca.status) ? await horarioSugerido(peca).catch(() => null) : null,
@@ -910,6 +930,8 @@ export function criarMotor({ db, ia, imagem, fotos = null, canal, sortear = Math
           provedor_imagem: imagem.provedor,
           modelo_imagem: imagem.modelo,
           fotos_disponiveis: Boolean(fotos?.disponivel),
+          fontes_de_fotos: fotos?.fontes || [],
+          demonstracao: politica.demonstracao === true,
           modelo_ia: env.modeloIa,
           modelo_revisor: env.modeloJuiz,
           armazenamento: db.tipo,

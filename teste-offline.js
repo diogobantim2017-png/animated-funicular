@@ -23,7 +23,29 @@ Object.assign(process.env, {
   FUSO_HORARIO: 'America/Sao_Paulo',
 });
 
-const { raiz, marca, politica, ofertas, MARCADOR_PENDENTE, temPendencia } = await import('./config.js');
+const { raiz, marca, politica, ofertas, segmentos, calendario, MARCADOR_PENDENTE, temPendencia } = await import('./config.js');
+
+/*
+ * O teste verifica o motor com um perfil fixo (teste-perfil.json), para funcionar igual em qualquer perfil ativo.
+ * Fontes e logo continuam os do perfil ativo, porque os arquivos são do repositório.
+ */
+const perfilAtivo = {
+  marca: structuredClone(marca),
+  politica: structuredClone(politica),
+  segmentos: structuredClone(segmentos),
+};
+{
+  const fixo = JSON.parse(await fs.readFile(path.join(raiz, 'teste-perfil.json'), 'utf8'));
+  const trocar = (alvo, novo) => {
+    for (const chave of Object.keys(alvo)) delete alvo[chave];
+    Object.assign(alvo, novo);
+  };
+  trocar(marca, { ...fixo.marca, fontes: perfilAtivo.marca.fontes, logo: perfilAtivo.marca.logo, design_padrao: undefined });
+  trocar(politica, fixo.politica);
+  trocar(calendario, fixo.calendario);
+  segmentos.splice(0, segmentos.length, ...fixo.segmentos);
+  ofertas.splice(0, ofertas.length, ...fixo.ofertas);
+}
 
 /* Só no teste: o perfil atual não usa ofertas, mas as travas de oferta continuam no código e seguem testadas. */
 politica.categorias.produto_credito = { nome: 'Oferta de crédito (só no teste)', risco: 'alto', autonomia_maxima: 'humano', exige_oferta: 'credito', avisos_obrigatorios: ['CET'] };
@@ -132,8 +154,16 @@ function validarSchema(schema, valor, caminho = 'raiz') {
 }
 
 const chamadas = [];
-async function iaSimulada({ ferramenta, conteudo }) {
-  chamadas.push({ ferramenta: ferramenta.name, schema: ferramenta.input_schema, conteudo });
+async function iaSimulada({ ferramenta, conteudo, sistema, ferramentasServidor = [] }) {
+  chamadas.push({ ferramenta: ferramenta.name, schema: ferramenta.input_schema, conteudo, sistema, servidor: ferramentasServidor });
+  if (ferramenta.name === 'propor_oportunidade' && roteiro.recusarSites) {
+    const lista = roteiro.recusarSites;
+    roteiro.recusarSites = null;
+    throw Object.assign(
+      new Error(`400 {"type":"error","error":{"type":"invalid_request_error","message":"The following domains are not accessible to our user agent: ['${lista.join("', '")}']."}}`),
+      { status: 400 },
+    );
+  }
   const respostas = {
     propor_oportunidade: () => ({ ...OPORTUNIDADE, ...roteiro.oportunidade }),
     criar_brief: () => ({ ...BRIEF, ...roteiro.brief }),
@@ -165,7 +195,8 @@ async function iaSimulada({ ferramenta, conteudo }) {
   };
   const dados = structuredClone(respostas[ferramenta.name]());
   validarSchema(ferramenta.input_schema, dados);
-  return { dados, modelo: 'modelo-simulado' };
+  const buscas = ferramenta.name === 'propor_oportunidade' ? roteiro.buscas || [] : [];
+  return { dados, modelo: 'modelo-simulado', buscas };
 }
 
 const promptsImagem = [];
@@ -701,6 +732,262 @@ await caso('Ajuste de texto com IA: reescreve a partir do pedido, refaz a arte e
   assert.equal((await aguardarProcessamento(post.id)).textos.titulo, 'Senha pelo telefone? É golpe');
   roteiro = {};
   await assert.rejects(motor.ajustarTextosComIa(post.id, 'Diogo', '   '), /Escreva o que/);
+});
+
+await caso('Perfil ativo: marca, política e públicos válidos', async () => {
+  const { marca: m, politica: p, segmentos: seg } = perfilAtivo;
+  const { contraste } = await import('./util.js');
+  assert.ok(m.nome && m.descricao && m.tom_de_voz);
+  assert.ok(contraste(m.cores.texto_sobre_primaria, m.cores.primaria) >= 4.5, 'texto sobre a cor principal legível');
+  assert.ok(contraste(m.cores.texto_sobre_secundaria, m.cores.secundaria) >= 4.5, 'texto sobre a cor de destaque legível');
+  for (const arquivo of [...Object.values(m.fontes), m.logo, ...Object.values(m.logos || {})].filter(Boolean)) await fs.access(path.join(raiz, arquivo));
+  for (const [id, c] of Object.entries(p.categorias)) {
+    assert.ok(c.nome && ['baixo', 'medio', 'alto'].includes(c.risco) && ['auto', 'humano'].includes(c.autonomia_maxima), `categoria ${id}`);
+  }
+  assert.equal(new Set(seg.map((s) => s.id)).size, seg.length, 'públicos sem id repetido');
+  if (p.radar?.busca_web) assert.ok(Object.values(p.categorias).some((c) => c.exige_fonte), 'busca ligada com categorias de notícia');
+});
+
+await caso('Notícia com busca na web: fonte conferida, trava de fonte, fatos no texto e fonte na legenda', async () => {
+  const guardado = structuredClone({ radar: politica.radar, noticias: politica.noticias, travas: politica.travas, categorias: politica.categorias });
+  politica.radar = { busca_web: true, max_buscas: 4, dominios_confiaveis: ['motorsport.com'], criterios: ['Notícias quentes do automobilismo.'] };
+  politica.noticias = { max_dias: 3 };
+  politica.travas = { numeros_financeiros: false };
+  politica.categorias.noticia = { nome: 'Notícia do dia', risco: 'medio', autonomia_maxima: 'auto', exige_fonte: true };
+  const hoje = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+  const antigo = new Date(Date.now() - 10 * 86_400_000).toISOString().slice(0, 10);
+  const fonte = (url, data = hoje) => ({ url, veiculo: 'Motorsport.com', titulo: 'Piloto X vence o GP Y', data_publicacao: data });
+  try {
+    roteiro = {
+      oportunidade: { categoria: 'noticia', gatilho: 'noticia_recente', fontes: [fonte('https://www.motorsport.com/f1/news/x/')], fatos: ['Piloto X venceu o GP Y.'] },
+      buscas: [{ url: 'https://motorsport.com/f1/news/x', titulo: 'Piloto X vence o GP Y' }],
+      textos: { legenda: 'Ele somou 25 pontos e liderou 60% das voltas. Salve este post.' },
+    };
+    const boa = await gerarPeca({ orientacao: { categoria: 'noticia' } });
+    const pedidoRadar = chamadas.filter((c) => c.ferramenta === 'propor_oportunidade').at(-1);
+    assert.equal(pedidoRadar.servidor[0].type, 'web_search_20250305', 'o radar pesquisa na web');
+    assert.deepEqual(pedidoRadar.servidor[0].allowed_domains, ['motorsport.com']);
+    assert.ok(pedidoRadar.sistema.includes('Busca na web'));
+    assert.equal(boa.oportunidade.fontes[0].verificada, true, 'endereço igual ao da busca, com ou sem www e barra final');
+    const regras = boa.governanca.regras;
+    assert.ok(regras.find((r) => r.id === 'fonte_da_noticia').ok);
+    assert.ok(!regras.some((r) => r.id === 'numeros_so_do_catalogo'), 'perfil sem trava de números financeiros');
+    const pedidoTextos = chamadas.filter((c) => c.ferramenta === 'escrever_textos').at(-1);
+    assert.ok(pedidoTextos.conteudo.includes('Piloto X venceu o GP Y.'), 'o redator recebe os fatos confirmados');
+    const pedidoRevisor = chamadas.filter((c) => c.ferramenta === 'avaliar_peca').at(-1);
+    assert.ok(pedidoRevisor.conteudo.some((b) => b.type === 'text' && b.text.includes('Fatos confirmados nas fontes')));
+    assert.ok((await motor.detalhe(boa.id)).legenda_final.includes('Fonte: Motorsport.com'));
+
+    // Fonte que não apareceu na busca: bloqueada.
+    roteiro = { ...roteiro, oportunidade: { ...roteiro.oportunidade, fontes: [fonte('https://site-inventado.com/noticia')] } };
+    const inventada = await gerarPeca({ orientacao: { categoria: 'noticia' } });
+    assert.equal(inventada.oportunidade.fontes[0].verificada, false);
+    assert.equal(inventada.governanca.gate.veredito, 'bloqueada');
+    assert.ok(!(await motor.detalhe(inventada.id)).legenda_final.includes('Fonte:'), 'fonte não conferida não vai para a legenda');
+
+    // Fonte conferida, mas antiga: bloqueada.
+    roteiro = { ...roteiro, oportunidade: { ...roteiro.oportunidade, fontes: [fonte('https://www.motorsport.com/f1/news/x/', antigo)] } };
+    const velha = await gerarPeca({ orientacao: { categoria: 'noticia' } });
+    assert.equal(velha.governanca.gate.veredito, 'bloqueada');
+    assert.match(velha.governanca.regras.find((r) => r.id === 'fonte_da_noticia').detalhe, /mais de 3 dias/);
+
+    // Site que bloqueia a busca da Anthropic: sai da lista e a busca é refeita, sem parar a geração.
+    politica.radar.dominios_confiaveis = ['motorsport.com', 'bbc.com', 'reuters.com'];
+    roteiro = { ...roteiro, recusarSites: ['bbc.com', 'reuters.com'], oportunidade: { ...roteiro.oportunidade, fontes: [fonte('https://www.motorsport.com/f1/news/x/')] } };
+    const refeita = await gerarPeca({ orientacao: { categoria: 'noticia' } });
+    const tentativas = chamadas.filter((c) => c.ferramenta === 'propor_oportunidade').slice(-2);
+    assert.deepEqual(tentativas[0].servidor[0].allowed_domains, ['motorsport.com', 'bbc.com', 'reuters.com']);
+    assert.deepEqual(tentativas[1].servidor[0].allowed_domains, ['motorsport.com'], 'refaz a busca sem os sites que bloquearam');
+    assert.equal(refeita.status, 'em_revisao');
+  } finally {
+    roteiro = {};
+    Object.assign(politica, guardado);
+    for (const chave of ['radar', 'noticias', 'travas']) if (guardado[chave] === undefined) delete politica[chave];
+  }
+});
+
+await caso('Busca na web na chamada à IA: continua depois da pausa e devolve os resultados', async () => {
+  const fetchOriginal = globalThis.fetch;
+  const pedidos = [];
+  const resposta = (corpo) => new Response(JSON.stringify({ id: 'm', type: 'message', role: 'assistant', model: 'modelo-teste', usage: { input_tokens: 1, output_tokens: 1 }, ...corpo }), {
+    status: 200,
+    headers: { 'content-type': 'application/json', 'request-id': 'req_teste' },
+  });
+  globalThis.fetch = async (url, op) => {
+    const corpo = JSON.parse(op.body);
+    pedidos.push(corpo);
+    if (pedidos.length === 1) {
+      return resposta({
+        stop_reason: 'pause_turn',
+        content: [
+          { type: 'server_tool_use', id: 'srv1', name: 'web_search', input: { query: 'f1 hoje' } },
+          { type: 'web_search_tool_result', tool_use_id: 'srv1', content: [{ type: 'web_search_result', url: 'https://www.formula1.com/en/latest/a', title: 'A', page_age: '1 day ago', encrypted_content: 'x' }] },
+        ],
+      });
+    }
+    return resposta({ stop_reason: 'tool_use', content: [{ type: 'tool_use', id: 't1', name: 'propor_oportunidade', input: { tema: 'Tema' } }] });
+  };
+  try {
+    const { chamarFerramenta } = await import('./claude.js');
+    const r = await chamarFerramenta({
+      modelo: 'modelo-teste',
+      sistema: 'Sistema.',
+      conteudo: 'Conteúdo.',
+      ferramenta: { name: 'propor_oportunidade', description: 'x', input_schema: { type: 'object', properties: { tema: { type: 'string' } } } },
+      ferramentasServidor: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }],
+    });
+    assert.deepEqual(r.dados, { tema: 'Tema' });
+    assert.equal(r.buscas[0].url, 'https://www.formula1.com/en/latest/a');
+    assert.equal(pedidos[0].tool_choice.type, 'auto', 'com busca, o modelo tem liberdade para pesquisar');
+    assert.equal(pedidos[0].tools[0].type, 'web_search_20250305');
+    assert.equal(pedidos[1].messages.at(-1).role, 'assistant', 'a continuação devolve o turno pausado');
+  } finally {
+    globalThis.fetch = fetchOriginal;
+  }
+});
+
+await caso('Foto real do Wikimedia Commons: licença livre, crédito completo e revisão humana obrigatória', async () => {
+  const { criarBancoDeFotos } = await import('./fotos.js');
+  const { consolidarGate } = await import('./autonomia.js');
+  const { NOTAS } = await import('./juiz.js');
+  const { montarLegendaFinal } = await import('./agentes.js');
+  const { createCanvas } = await import('@napi-rs/canvas');
+  const quadro = createCanvas(1200, 900);
+  quadro.getContext('2d').fillRect(0, 0, 1200, 900);
+  const jpeg = await quadro.encode('jpeg');
+  const info = (extra) => ({ mime: 'image/jpeg', width: 3000, height: 2000, url: 'https://upload.wikimedia.org/x.jpg', ...extra });
+  const api = {
+    query: {
+      pages: [
+        { pageid: 1, index: 1, imageinfo: [info({ extmetadata: { LicenseShortName: { value: 'GFDL' } } })] },
+        { pageid: 2, index: 2, imageinfo: [info({ width: 400, height: 300, extmetadata: { LicenseShortName: { value: 'CC BY-SA 4.0' } } })] },
+        {
+          pageid: 3,
+          index: 3,
+          imageinfo: [
+            info({
+              thumburl: 'https://upload.wikimedia.org/thumb/x.jpg',
+              descriptionurl: 'https://commons.wikimedia.org/wiki/File:Piloto.jpg',
+              extmetadata: {
+                LicenseShortName: { value: 'CC BY-SA 4.0' },
+                LicenseUrl: { value: 'https://creativecommons.org/licenses/by-sa/4.0' },
+                Artist: { value: '<a href="//commons.wikimedia.org/wiki/User:F">Fotógrafo Exemplo</a>' },
+              },
+            }),
+          ],
+        },
+      ],
+    },
+  };
+  const pedidos = [];
+  const buscarNaRede = async (url, op = {}) => {
+    pedidos.push({ url, op });
+    return url.includes('api.php')
+      ? new Response(JSON.stringify(api), { status: 200, headers: { 'content-type': 'application/json' } })
+      : new Response(jpeg, { status: 200, headers: { 'content-type': 'image/jpeg' } });
+  };
+  const banco = criarBancoDeFotos({ provedores: ['wikimedia'], buscarNaRede, chave: '' });
+  assert.equal(banco.disponivel, true, 'Wikimedia Commons não precisa de chave');
+  const foto = await banco.buscar('Gabriel Bortoleto 2025');
+  assert.equal(foto.id, 'wikimedia:3', 'descarta licença que não é livre e foto pequena');
+  assert.equal(foto.editorial, true);
+  assert.deepEqual(
+    { autor: foto.credito.autor, licenca: foto.credito.licenca, mesma: foto.credito.compartilha_igual },
+    { autor: 'Fotógrafo Exemplo', licenca: 'CC BY-SA 4.0', mesma: true },
+  );
+  assert.ok(pedidos[0].op.headers['User-Agent'], 'identifica o sistema, como o Wikimedia pede');
+  assert.ok(pedidos[0].url.includes('gsrnamespace=6'));
+  const legenda = montarLegendaFinal({ textos: { legenda: 'Texto.', hashtags: [] }, visual: 'foto', credito: foto.credito });
+  assert.ok(legenda.includes('Fotógrafo Exemplo / Wikimedia Commons (CC BY-SA 4.0'));
+  assert.ok(legenda.includes('mesma licença'));
+
+  const guardado = politica.visao_foto_editorial;
+  politica.visao_foto_editorial = { pessoa_publica: 'alerta', logos_ou_marcas: 'alerta', texto_no_fundo: 'alerta' };
+  try {
+    const notas = Object.fromEntries(Object.keys(NOTAS).map((k) => [k, 9]));
+    const juiz = { notas, risco_reputacional: 'baixo', aprovaria_sem_edicao: true, elementos_no_fundo: { pessoa_publica: true, logos_ou_marcas: true } };
+    assert.equal(consolidarGate({ regras: [], juiz, editorial: true }).veredito, 'precisa_humano', 'piloto real em foto licenciada: uma pessoa confere');
+    assert.equal(consolidarGate({ regras: [], juiz, editorial: false }).veredito, 'bloqueada', 'pessoa pública em imagem de IA continua bloqueada');
+    const vazia = consolidarGate({ regras: [], juiz: { ...juiz, elementos_no_fundo: {} }, editorial: true });
+    assert.equal(vazia.veredito, 'precisa_humano', 'foto editorial nunca sai sem revisão humana');
+    assert.ok(vazia.motivos.some((m) => m.id === 'foto_editorial'));
+  } finally {
+    politica.visao_foto_editorial = guardado;
+  }
+});
+
+await caso('Carrossel em pista: só design e pista contínua de uma imagem para a outra', async () => {
+  const antes = promptsImagem.length;
+  const peca = await gerarPeca({ orientacao: { formato: 'pista', visual: 'ia', num_slides: 5 } });
+  assert.equal(peca.formato, 'pista');
+  assert.equal(peca.visual, 'design', 'a pista é a imagem: não chama IA de imagem');
+  assert.equal(promptsImagem.length, antes);
+  assert.equal(peca.slides_arte.length, 5);
+  const pedido = chamadas.filter((c) => c.ferramenta === 'escrever_textos').at(-1);
+  assert.ok(pedido.sistema.includes('Carrossel em pista'));
+  const { loadImage, createCanvas } = await import('@napi-rs/canvas');
+  const coluna = async (chave, x) => {
+    const img = await loadImage(await db.lerMidia(chave));
+    const c = createCanvas(img.width, img.height);
+    const ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    return ctx.getImageData(x, 760, 1, 560).data;
+  };
+  for (let k = 0; k < 4; k++) {
+    const direita = await coluna(peca.slides_arte[k].chave, 1079);
+    const esquerda = await coluna(peca.slides_arte[k + 1].chave, 0);
+    let diferenca = 0;
+    let claros = 0;
+    for (let i = 0; i < direita.length; i += 4) {
+      diferenca += Math.abs(direita[i] - esquerda[i]) + Math.abs(direita[i + 1] - esquerda[i + 1]) + Math.abs(direita[i + 2] - esquerda[i + 2]);
+      if (direita[i] > 150) claros++;
+    }
+    assert.ok(diferenca / (direita.length / 4) < 45, `pista contínua entre as imagens ${k + 1} e ${k + 2}`);
+    assert.ok(claros > 5, `a zebra da pista aparece na borda da imagem ${k + 1}`);
+  }
+});
+
+await caso('Modo demonstração: nunca publica de verdade, mesmo com o Instagram configurado', async () => {
+  if (perfilAtivo.politica.demonstracao !== true) return;
+  const { execFileSync } = await import('node:child_process');
+  const saida = execFileSync(
+    process.execPath,
+    ['-e', "import('./config.js').then((c) => console.log(c.env.publicacaoModo))"],
+    { cwd: raiz, env: { ...process.env, PUBLICACAO_MODO: 'real', IG_ACCESS_TOKEN: 'token-de-teste' }, encoding: 'utf8' },
+  ).trim();
+  assert.equal(saida, 'simulacao');
+});
+
+await caso('Layout corporativo: post, carrossel e flashcards com os logos da marca', async () => {
+  if (perfilAtivo.marca.layout !== 'corporativo') return;
+  const { renderizarArte, renderizarCarrossel } = await import('./arte.js');
+  const { loadImage } = await import('@napi-rs/canvas');
+  const guardado = { layout: marca.layout, logos: marca.logos, cores: marca.cores };
+  Object.assign(marca, { layout: 'corporativo', logos: perfilAtivo.marca.logos, cores: perfilAtivo.marca.cores });
+  try {
+    const textos = {
+      titulo: 'Ligação pedindo senha é golpe',
+      subtitulo: 'O banco nunca pede senha por telefone.',
+      cta_arte: 'Salve e compartilhe',
+      fechamento: 'Na dúvida, desligue e ligue você.',
+      slides: [
+        { titulo: 'Desconfie da pressa', texto: 'Golpista cria urgência para você agir sem pensar.' },
+        { titulo: 'Confira o número', texto: 'Ligue você para o número que está no verso do cartão.' },
+        { titulo: 'Nunca passe códigos', texto: 'Código recebido por SMS é só seu.' },
+      ],
+    };
+    const post = await renderizarArte({ fundo: null, textos, oferta: null, visual: 'design' });
+    const img = await loadImage(post.buffer);
+    assert.deepEqual([img.width, img.height], [1080, 1350]);
+    assert.equal(post.ajustes.transbordou, false);
+    for (const formato of ['carrossel', 'flashcards']) {
+      const r = await renderizarCarrossel({ fundo: null, textos, oferta: null, formato, visual: 'design', design: {} });
+      assert.equal(r.slides.length, 5, formato);
+      assert.equal(r.ajustes.transbordou, false, formato);
+    }
+  } finally {
+    Object.assign(marca, guardado);
+  }
 });
 
 await caso('Estado do painel com métricas por categoria e configuração ativa', async () => {

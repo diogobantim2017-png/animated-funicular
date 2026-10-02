@@ -6,7 +6,7 @@ import { CHECAGENS_VISUAIS, NOTAS } from './juiz.js';
  * Junta travas determinísticas e revisão de IA em um veredito:
  * publicavel | precisa_humano | bloqueada.
  */
-export function consolidarGate({ regras, juiz }) {
+export function consolidarGate({ regras, juiz, editorial = false }) {
   const motivos = [];
 
   for (const r of regras) {
@@ -15,8 +15,19 @@ export function consolidarGate({ regras, juiz }) {
 
   for (const [chave, presente] of Object.entries(juiz.elementos_no_fundo || {})) {
     if (!presente) continue;
-    const severidade = politica.visao[chave] || 'alerta';
+    // Foto editorial real (ex.: piloto e patrocinadores numa foto licenciada): severidade própria, em geral revisão humana.
+    const severidade = (editorial && politica.visao_foto_editorial?.[chave]) || politica.visao[chave] || 'alerta';
+    if (severidade === 'ignorar') continue;
     motivos.push({ origem: 'visao', id: chave, severidade, texto: CHECAGENS_VISUAIS[chave] || chave });
+  }
+
+  if (editorial) {
+    motivos.push({
+      origem: 'visao',
+      id: 'foto_editorial',
+      severidade: 'alerta',
+      texto: 'Foto real de banco livre: confira se mostra quem o texto diz, se combina com o assunto e se o crédito está certo',
+    });
   }
 
   const notas = Object.keys(NOTAS).map((k) => Number(juiz.notas?.[k] ?? 0));

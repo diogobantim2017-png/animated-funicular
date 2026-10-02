@@ -1,24 +1,14 @@
 {
-  "versao": "2026-09-29.1",
-  "observacao": "Política de referência para um perfil de educação financeira. Conteúdo educativo não pode virar recomendação de investimento. Revise termos e limites com um especialista antes de publicar em conta real.",
+  "versao": "2026-10-01.demo",
+  "observacao": "Política do case Bradesco: categorias, termos e travas de um banco. A publicação segue PUBLICACAO_MODO no Render. Para não publicar, use simulacao.",
   "categorias": {
-    "educacao_financeira": {
-      "nome": "Primeiros passos: orçamento e reserva",
-      "risco": "baixo",
-      "autonomia_maxima": "auto"
-    },
-    "dividas_credito": {
-      "nome": "Dívidas, cartão e crédito",
-      "risco": "baixo",
-      "autonomia_maxima": "auto"
-    },
-    "como_investir": {
-      "nome": "Como funcionam os investimentos",
-      "risco": "medio",
-      "autonomia_maxima": "humano"
-    },
     "seguranca_golpes": {
-      "nome": "Golpes e falsas promessas",
+      "nome": "Segurança e prevenção a golpes",
+      "risco": "baixo",
+      "autonomia_maxima": "auto"
+    },
+    "educacao_financeira": {
+      "nome": "Educação financeira",
       "risco": "baixo",
       "autonomia_maxima": "auto"
     },
@@ -26,6 +16,29 @@
       "nome": "Data comemorativa",
       "risco": "baixo",
       "autonomia_maxima": "auto"
+    },
+    "institucional": {
+      "nome": "Institucional",
+      "risco": "medio",
+      "autonomia_maxima": "auto"
+    },
+    "produto_credito": {
+      "nome": "Oferta de crédito",
+      "risco": "alto",
+      "autonomia_maxima": "humano",
+      "exige_oferta": "credito",
+      "avisos_obrigatorios": [
+        "CET"
+      ]
+    },
+    "produto_investimento": {
+      "nome": "Oferta de investimento",
+      "risco": "alto",
+      "autonomia_maxima": "humano",
+      "exige_oferta": "investimento",
+      "avisos_obrigatorios": [
+        "não representa garantia de rentabilidade futura"
+      ]
     }
   },
   "termos_proibidos": [
@@ -40,17 +53,10 @@
     "dinheiro fácil",
     "fique rico",
     "lucro certo",
-    "rendimento garantido",
-    "enriquecer rápido",
-    "ficar rico rápido",
-    "oportunidade única",
-    "imperdível",
-    "melhor investimento",
-    "invista agora"
+    "rendimento garantido"
   ],
   "concorrentes": [
     "Itaú",
-    "Bradesco",
     "Santander",
     "Banco do Brasil",
     "Caixa Econômica",
@@ -58,12 +64,7 @@
     "Banco Inter",
     "C6 Bank",
     "PicPay",
-    "Mercado Pago",
-    "XP Investimentos",
-    "BTG Pactual",
-    "Rico Investimentos",
-    "NuInvest",
-    "Binance"
+    "Mercado Pago"
   ],
   "padroes_estilo_ia": [
     {
@@ -112,5 +113,6 @@
   "segmentacao": {
     "credito_bloqueia_vulneraveis": true
   },
-  "rotulo_ia": "Imagem ilustrativa criada com IA."
+  "rotulo_ia": "Imagem ilustrativa criada com IA.",
+  "demonstracao": false
 }

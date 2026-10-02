@@ -58,20 +58,33 @@ function tipoMime(buffer) {
   return 'image/png';
 }
 
-export async function avaliarComVisao({ ia, fundo, arte, slides = null, visual = 'ia', formato = 'post', textos, brief, oportunidade, segmento }) {
-  const origemFundo = visual === 'foto' ? 'foto real de banco de imagens' : 'imagem gerada por IA';
-  const sistema = `Você é o revisor de conteúdo e marca do perfil de educação financeira ${marca.nome}. Avalie com rigor. Na dúvida, aponte o problema: um falso alarme custa uma revisão humana, um erro publicado custa a reputação do perfil.
+export async function avaliarComVisao({ ia, fundo, arte, slides = null, visual = 'ia', formato = 'post', editorial = false, textos, brief, oportunidade, segmento }) {
+  const origemFundo = editorial
+    ? 'foto editorial real, com licença livre'
+    : visual === 'foto'
+      ? 'foto real de banco de imagens'
+      : 'imagem gerada por IA';
+  const sistema = `Você é o revisor de conteúdo e marca do perfil ${marca.nome}. ${marca.descricao} Avalie com rigor. Na dúvida, aponte o problema: um falso alarme custa uma revisão humana, um erro publicado custa a reputação do perfil.
 
 Tom de voz esperado: ${marca.tom_de_voz}
 
 ${
     fundo
-      ? `A IMAGEM DE FUNDO é uma ${origemFundo} e não deve conter nenhum texto, logotipo, dinheiro ou cartão.`
+      ? editorial
+        ? `A IMAGEM DE FUNDO é uma ${origemFundo} (ex.: Wikimedia Commons). Ela pode mostrar pilotos, carros, números e marcas reais, porque é uma foto de verdade. Marque com honestidade o que aparece em elementos_no_fundo: a equipe revisa essas peças. Confira se a foto combina com o assunto do post e se não é constrangedora para quem aparece nela.`
+        : `A IMAGEM DE FUNDO é uma ${origemFundo} e não deve conter nenhum texto, logotipo, dinheiro ou cartão.`
       : 'Esta peça não tem imagem de fundo: foi feita só com o design da marca. Marque todos os itens de elementos_no_fundo como false.'
   }
-${slides?.length ? `As imagens seguintes são os ${slides.length} slides de um ${formato === 'flashcards' ? 'carrossel de flashcards' : 'carrossel'}, na ordem. Avalie a legibilidade e a sequência de todos.` : 'A ARTE FINAL é a imagem publicada.'} O texto das artes foi inserido pelo template oficial da marca e é esperado.
+${slides?.length ? `As imagens seguintes são os ${slides.length} slides de um ${{ flashcards: 'carrossel de flashcards', pista: 'carrossel em pista, em que a pista desenhada continua de uma imagem para a outra' }[formato] || 'carrossel'}, na ordem. Avalie a legibilidade e a sequência de todos.` : 'A ARTE FINAL é a imagem publicada.'} O texto das artes foi inserido pelo template oficial da marca e é esperado.
 
-Risco reputacional alto quando há recomendação de investimento (indicar produto, instituição, valor ou momento de compra), promessa implícita, leitura enganosa, tema sensível (política, religião, tragédias), estereótipo, insensibilidade com o público ou cena que possa constranger os seguidores.`;
+Risco reputacional alto quando ${
+    politica.juiz?.risco_alto_quando ||
+    'há recomendação de investimento (indicar produto, instituição, valor ou momento de compra), promessa implícita, leitura enganosa, tema sensível (política, religião, tragédias), estereótipo, insensibilidade com o público ou cena que possa constranger os seguidores.'
+  }${
+    oportunidade?.fatos?.length
+      ? '\n\nEsta peça traz fatos de notícias. Se os textos afirmarem resultado, número, nome, data ou declaração que não está nos fatos confirmados, o risco reputacional é alto e aprovaria_sem_edicao é false.'
+      : ''
+  }`;
 
   const conteudo = [];
   if (fundo) conteudo.push({ type: 'text', text: `IMAGEM DE FUNDO: ${origemFundo}.` }, imagem(fundo, tipoMime(fundo)));
@@ -97,6 +110,10 @@ Textos:
 - Legenda: ${textos.legenda}
 - Hashtags: ${(textos.hashtags || []).join(' ')}${(textos.slides || []).map((s, i) => `\n- Slide ${i + 2}: ${s.titulo}. ${s.texto}`).join('')}${
         textos.fechamento ? `\n- Fechamento: ${textos.fechamento}` : ''
+      }${
+        oportunidade?.fatos?.length
+          ? `\n\nFatos confirmados nas fontes (${[...new Set((oportunidade.fontes || []).filter((f) => f.verificada).map((f) => f.veiculo))].join(', ') || 'sem fonte conferida'}):\n${oportunidade.fatos.map((f) => `- ${f}`).join('\n')}`
+          : ''
       }`,
     },
   );

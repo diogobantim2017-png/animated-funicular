@@ -1964,6 +1964,21 @@ textarea:disabled {
   }
 }
 
+/* Fontes e fatos das notícias */
+.lista-simples {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.lista-simples li + li {
+  margin-top: 4px;
+}
+
+.aviso-fonte {
+  color: var(--vermelho);
+  font-size: var(--t-1);
+}
+
 /* Histórico recente na tela inicial */
 .lista__mais {
   padding: 14px 16px 24px;

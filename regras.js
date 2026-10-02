@@ -37,7 +37,12 @@ function textosDaIa(textos) {
  * Avalia a peça contra a política. Cada resultado traz ok, severidade (bloqueio | alerta) e detalhe.
  * bloqueio: nem humano publica sem corrigir. alerta: exige revisão humana.
  */
-export function avaliarRegras({ textos, categoriaId, segmentoId, ofertaId, arte, hoje, modoPublicacao }) {
+function somarDias(dia, n) {
+  const [a, m, d] = String(dia).split('-').map(Number);
+  return new Date(Date.UTC(a, m - 1, d + n)).toISOString().slice(0, 10);
+}
+
+export function avaliarRegras({ textos, categoriaId, segmentoId, ofertaId, arte, hoje, modoPublicacao, oportunidade = null }) {
   const r = [];
   const l = politica.limites;
   const categoria = politica.categorias[categoriaId];
@@ -73,16 +78,37 @@ export function avaliarRegras({ textos, categoriaId, segmentoId, ofertaId, arte,
   r.push(resultado('termos_proibidos', 'Sem termos proibidos', proibidos.length === 0, 'bloqueio',
     proibidos.length ? `Encontrado: ${proibidos.join(', ')}.` : 'Nenhum termo da lista apareceu.'));
 
-  const numeros = [];
-  for (const [campo, texto] of Object.entries(campos)) {
-    for (const p of NUMEROS_FINANCEIROS) if (p.regex.test(texto)) numeros.push(`${p.descricao} em ${campo}`);
+  // Trava de números financeiros: faz sentido em perfis de finanças; outros perfis podem desligar.
+  if (politica.travas?.numeros_financeiros !== false) {
+    const numeros = [];
+    for (const [campo, texto] of Object.entries(campos)) {
+      for (const p of NUMEROS_FINANCEIROS) if (p.regex.test(texto)) numeros.push(`${p.descricao} em ${campo}`);
+    }
+    r.push(resultado('numeros_so_do_catalogo', 'Sem taxas, valores ou rendimentos escritos pela IA', numeros.length === 0, 'bloqueio',
+      numeros.length ? `A IA escreveu ${numeros.join('; ')}.` : 'A IA não escreveu taxas, valores nem condições.'));
   }
-  r.push(resultado('numeros_so_do_catalogo', 'Sem taxas, valores ou rendimentos escritos pela IA', numeros.length === 0, 'bloqueio',
-    numeros.length ? `A IA escreveu ${numeros.join('; ')}.` : 'A IA não escreveu taxas, valores nem condições.'));
+
+  // Notícia só sai com fonte recente que apareceu de fato nos resultados da busca na web.
+  if (categoria?.exige_fonte) {
+    const maxDias = politica.noticias?.max_dias || 3;
+    const fontes = oportunidade?.fontes || [];
+    const conferidas = fontes.filter((f) => f.verificada);
+    const recentes = conferidas.filter(
+      (f) => /^\d{4}-\d{2}-\d{2}$/.test(f.data_publicacao || '') && f.data_publicacao >= somarDias(hoje, -maxDias) && f.data_publicacao <= somarDias(hoje, 1),
+    );
+    const detalhe = !fontes.length
+      ? 'A notícia não tem fonte.'
+      : !conferidas.length
+        ? 'Nenhuma fonte citada apareceu nos resultados da busca na web.'
+        : !recentes.length
+          ? `As fontes conferidas têm mais de ${maxDias} dias ou estão sem data.`
+          : `${recentes.length === 1 ? '1 fonte recente conferida' : `${recentes.length} fontes recentes conferidas`}: ${[...new Set(recentes.map((f) => f.veiculo))].join(', ')}.`;
+    r.push(resultado('fonte_da_noticia', `Notícia com fonte de até ${maxDias} dias, conferida na busca`, recentes.length > 0, 'bloqueio', detalhe));
+  }
 
   const nomeProprio = normalizar(marca.nome);
   const citados = politica.concorrentes.filter((c) => normalizar(c) !== nomeProprio && contemTermo(tudo, c));
-  r.push(resultado('sem_concorrentes', 'Sem citar bancos, corretoras ou marcas', citados.length === 0, 'bloqueio',
+  r.push(resultado('sem_concorrentes', politica.travas?.rotulo_marcas || 'Sem citar bancos, corretoras ou marcas', citados.length === 0, 'bloqueio',
     citados.length ? `Citado: ${citados.join(', ')}.` : 'Nenhuma marca da lista citada.'));
 
   const estilo = (politica.padroes_estilo_ia || []).filter((p) => new RegExp(p.regex, 'i').test(tudo)).map((p) => p.descricao);

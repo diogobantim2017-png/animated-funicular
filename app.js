@@ -26,6 +26,7 @@ const ETAPAS = [
 const NOME_ETAPA = { ...Object.fromEntries(ETAPAS), ajuste: 'Lendo o seu pedido' };
 
 const GATILHOS = {
+  noticia_recente: 'Notícia recente',
   data_do_calendario: 'Data do calendário',
   objetivo_do_perfil: 'Objetivo do perfil',
   objetivo_do_banco: 'Objetivo do perfil',
@@ -55,7 +56,7 @@ const CAMPOS = [
   { id: 'hashtags', rotulo: 'Hashtags, separadas por espaço', limite: 'hashtags_max' },
 ];
 
-const FORMATOS = { post: 'Post único', carrossel: 'Carrossel', flashcards: 'Flashcards' };
+const FORMATOS = { post: 'Post único', carrossel: 'Carrossel', flashcards: 'Flashcards', pista: 'Carrossel em pista' };
 const VISUAIS = { ia: 'imagem criada por IA', foto: 'foto real', design: 'só design' };
 const LIMITES_SLIDE = { titulo: 60, texto: 240, fechamento: 90, legenda: 700 };
 
@@ -324,7 +325,7 @@ function renderTopo() {
     : 'Agenda automática desligada';
   const html = `
     <span class="estado-chip ${pausado ? 'estado-chip--pausado' : ''}">${pausado ? 'Pausado' : 'Operando'}</span>
-    <span class="modo-chip ${real ? 'modo-chip--real' : ''}">${real ? `Publicação real no Instagram${ui.estado?.instagram?.usuario ? `: @${esc(ui.estado.instagram.usuario)}` : ''}` : 'Simulação: nada é publicado'}</span>
+    <span class="modo-chip ${real ? 'modo-chip--real' : ''}">${real ? `Publicação real no Instagram${ui.estado?.instagram?.usuario ? `: @${esc(ui.estado.instagram.usuario)}` : ''}` : ui.estado?.config?.demonstracao ? 'Demonstração: nada é publicado' : 'Simulação: nada é publicado'}</span>
     <span>${pausado ? `Pausado por ${esc(e.controle.atualizado_por || 'equipe')}${e.controle.motivo ? `: ${esc(e.controle.motivo)}` : ''}` : esc(agenda)}</span>
     <span>Hoje: ${e.contagens.geradas_hoje}${e.limites.geracoes_por_dia ? ` de ${e.limites.geracoes_por_dia}` : ''} ${
       e.contagens.geradas_hoje === 1 ? 'geração' : 'gerações'
@@ -613,8 +614,23 @@ function porQue(d) {
       ['Justificativa', o.justificativa],
       ['Urgência', NIVEIS[o.urgencia] || o.urgencia],
       d.peca.orientacao?.texto ? ['Orientação da equipe', d.peca.orientacao.texto] : null,
+      o.fatos?.length ? ['Fatos confirmados', { html: `<ul class="lista-simples">${o.fatos.map((f) => `<li>${esc(f)}</li>`).join('')}</ul>` }] : null,
+      o.fontes?.length ? ['Fontes', { html: fontesHtml(o.fontes) }] : null,
     ]),
   );
+}
+
+/** Fontes da notícia, com link. As que não apareceram nos resultados da busca ficam marcadas. */
+function fontesHtml(fontes) {
+  return `<ul class="lista-simples">${fontes
+    .map((f) => {
+      const seguro = /^https?:\/\//i.test(f.url || '');
+      const nome = `${esc(f.veiculo || 'Fonte')}${f.titulo ? `: ${esc(f.titulo)}` : ''}`;
+      const data = f.data_publicacao ? ` (${esc(f.data_publicacao.split('-').reverse().join('/'))})` : '';
+      const link = seguro ? `<a href="${esc(f.url)}" target="_blank" rel="noopener noreferrer">${nome}</a>` : nome;
+      return `<li>${link}${data}${f.verificada ? '' : ' <strong class="aviso-fonte">não conferida na busca</strong>'}</li>`;
+    })
+    .join('')}</ul>`;
 }
 
 function publico(d) {
@@ -1000,7 +1016,8 @@ function abrirGerar() {
   const opcaoFoto = $('#gerar-visual option[value="foto"]');
   const temFotos = Boolean(ui.estado?.config?.fotos_disponiveis);
   opcaoFoto.disabled = !temFotos;
-  opcaoFoto.textContent = temFotos ? 'Foto real de banco de imagens (Pexels)' : 'Foto real de banco de imagens (falta a chave PEXELS_API_KEY)';
+  const fontesDeFotos = ui.estado?.config?.fontes_de_fotos || [];
+  opcaoFoto.textContent = temFotos ? `Foto real (${fontesDeFotos.join(' e ') || 'banco de imagens'})` : 'Foto real (falta a chave PEXELS_API_KEY)';
   atualizarDialogoGerar();
   dialogo.returnValue = '';
   dialogo.showModal();
@@ -1014,8 +1031,20 @@ function atualizarDialogoGerar() {
     post: 'Uma imagem com título, subtítulo e botão. A legenda aprofunda o assunto.',
     carrossel: `Capa, ${n - 2} slides de conteúdo e um slide final com a chamada. O conteúdo principal vai nos slides, e a legenda fica mais curta.`,
     flashcards: `Capa, ${n - 2} cartões de estudo (termo e explicação) e um slide final. Bom para ensinar conceitos.`,
+    pista: `Uma volta contínua que atravessa as ${n} imagens: largada na capa, ${n - 2} trechos com conteúdo e a bandeirada no final. A pista é desenhada pelo sistema.`,
   };
   $('#gerar-nota-formato').textContent = notas[formato];
+  // No carrossel em pista, a imagem é a própria pista desenhada.
+  const visual = $('#gerar-visual');
+  if (formato === 'pista') {
+    visual.dataset.antes ??= visual.value;
+    visual.value = 'design';
+    visual.disabled = true;
+  } else if (visual.disabled) {
+    visual.disabled = false;
+    visual.value = visual.dataset.antes || 'ia';
+    delete visual.dataset.antes;
+  }
 }
 
 $('#dlg-gerar').addEventListener('close', async () => {
