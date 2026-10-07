@@ -1,23 +1,4 @@
 {
-  "observacao": "Fonte única de números e textos legais. A IA nunca escreve taxas, valores ou condições: o template insere o que está aqui. Ofertas com ativa = false não são usadas pelo radar. Preencha com dados oficiais do banco e ative só depois da validação do jurídico.",
-  "ofertas": [
-    {
-      "id": "credito_pessoal",
-      "ativa": false,
-      "tipo": "credito",
-      "produto": "Crédito pessoal",
-      "destaque": "Taxas a partir de [DADO A SER VALIDADO] ao mês",
-      "texto_legal": "Crédito sujeito a análise. CET a partir de [DADO A SER VALIDADO] ao ano. [DADO A SER VALIDADO]",
-      "validade": "2026-12-31"
-    },
-    {
-      "id": "cdb_liquidez_diaria",
-      "ativa": false,
-      "tipo": "investimento",
-      "produto": "CDB com liquidez diária",
-      "destaque": "Rende [DADO A SER VALIDADO] do CDI",
-      "texto_legal": "A rentabilidade obtida no passado não representa garantia de rentabilidade futura. [DADO A SER VALIDADO]",
-      "validade": "2026-12-31"
-    }
-  ]
+  "observacao": "Sem catálogo de ofertas comerciais neste perfil: as ofertas da área estão em conhecimento.json, sem preços.",
+  "ofertas": []
 }

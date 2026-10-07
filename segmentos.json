@@ -1,35 +1,35 @@
 {
-  "observacao": "Segmentos de referência para conteúdo orgânico. Substitua pelos segmentos oficiais do banco [DADO A SER VALIDADO]. Segmentos marcados como vulneráveis nunca recebem oferta de crédito.",
+  "observacao": "Públicos dos posts: os executivos que a área quer atrair.",
   "segmentos": [
     {
-      "id": "publico_geral",
-      "nome": "Público geral",
-      "descricao": "Clientes e não clientes de todas as idades que acompanham o perfil do banco.",
+      "id": "cmo",
+      "nome": "CMOs e líderes de marketing",
+      "descricao": "Respondem por crescimento, marca e eficiência de campanhas. Querem provar o retorno do investimento em marketing.",
       "vulneravel": false
     },
     {
-      "id": "jovens_inicio_vida_financeira",
-      "nome": "Jovens no início da vida financeira",
-      "descricao": "De 18 a 25 anos, primeiro emprego ou estágio, usam o app para quase tudo.",
+      "id": "cdo_cio",
+      "nome": "CDOs, CIOs e CTOs",
+      "descricao": "Respondem por dados e tecnologia. Lidam com ferramentas sobrepostas, integrações e o retorno do investimento em plataformas.",
       "vulneravel": false
     },
     {
-      "id": "familias",
-      "nome": "Famílias com filhos",
-      "descricao": "Adultos que organizam o orçamento da casa e planejam gastos com filhos e escola.",
+      "id": "crm_cx",
+      "nome": "Líderes de CRM e experiência do cliente",
+      "descricao": "Respondem por jornadas, personalização e relacionamento. Querem orquestrar canais e escalar personalização.",
       "vulneravel": false
     },
     {
-      "id": "empreendedores",
-      "nome": "Pequenos empreendedores e MEIs",
-      "descricao": "Donos de pequenos negócios que misturam finanças pessoais e da empresa.",
+      "id": "coo_chro",
+      "nome": "COOs e CHROs",
+      "descricao": "Respondem por modelo operacional e pessoas. Buscam clareza de papéis, governança e agilidade de execução.",
       "vulneravel": false
     },
     {
-      "id": "aposentados",
-      "nome": "Aposentados e pensionistas",
-      "descricao": "Pessoas com 60 anos ou mais, alvo frequente de golpes. Público protegido para ofertas de crédito.",
-      "vulneravel": true
+      "id": "cfo",
+      "nome": "CFOs",
+      "descricao": "Respondem pela alocação de capital. Querem ligar o investimento em marketing a resultado de negócio.",
+      "vulneravel": false
     }
   ]
 }

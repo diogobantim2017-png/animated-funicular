@@ -1983,3 +1983,12 @@ textarea:disabled {
 .lista__mais {
   padding: 14px 16px 24px;
 }
+
+/* Copiar texto e baixar o post (canal de publicação manual) */
+.baixar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0 4px;
+}

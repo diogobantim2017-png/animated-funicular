@@ -1,4 +1,4 @@
-import { env, marca, politica, segmentos } from './config.js';
+import { env, marca, politica, segmentos, conhecimento } from './config.js';
 import { LIMITES_SLIDE, FORMATOS, VISUAIS, OPCOES_DESIGN } from './formatos.js';
 import { proximosEventos, ofertasDisponiveis } from './sinais.js';
 
@@ -46,6 +46,12 @@ const dominiosSemAcesso = new Set();
 function dominiosRecusados(erro) {
   const achado = /not accessible to our user agent:\s*\[([^\]]*)\]/i.exec(String(erro?.message || ''));
   return achado ? achado[1].split(',').map((d) => d.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean) : [];
+}
+
+/** Base de conhecimento sem o campo de observação (que é instrução para a equipe, não fato). */
+function baseSemObservacao() {
+  const { observacao, ...base } = conhecimento || {};
+  return base;
 }
 
 /** Ferramenta de busca na web executada pela própria API da Anthropic. */
@@ -123,7 +129,7 @@ export async function radar({ ia, hoje, historico, orientacao }) {
         },
         fatos: {
           type: 'array',
-          maxItems: 8,
+          maxItems: 14,
           items: { type: 'string' },
           description: 'Fatos confirmados nas fontes, em frases curtas, com nomes, números e datas exatamente como aparecem nelas.',
         },
@@ -150,7 +156,12 @@ Sua função é perceber qual necessidade de comunicação é mais relevante ago
 Critérios, nesta ordem:
 ${criterios.map((c, i) => `${i + 1}. ${c}`).join('\n')}
 
-${regrasDeBusca}
+${regrasDeBusca}${
+    conhecimento
+      ? `
+Base de conhecimento: o tema sai de uma oferta, método, capacidade ou caso da base. Em fatos, copie da base, palavra por palavra, tudo o que o post vai afirmar: números, resultados, etapas do método, itens de escopo e a descrição anônima do cliente. Nunca cite o nome de clientes.`
+      : ''
+  }
 Quando a equipe der uma orientação, ela tem prioridade.`;
 
   const conteudo = `Hoje: ${hoje} (fuso ${env.fuso})
@@ -174,7 +185,7 @@ Orientação da equipe: ${orientacao?.texto?.trim() || 'nenhuma'}${orientacao?.c
     orientacao?.formato && orientacao.formato !== 'post'
       ? `\nFormato pedido: ${{ flashcards: 'flashcards (cartões de estudo)', pista: 'carrossel em pista (uma volta contínua, trecho a trecho)' }[orientacao.formato] || 'carrossel'} com ${orientacao.num_slides} imagens. Escolha um tema que renda esse número de partes.`
       : ''
-  }`;
+  }${conhecimento ? `\n\nBase de conhecimento (a única fonte de fatos para os posts):\n${JSON.stringify(baseSemObservacao(), null, 1)}` : ''}`;
 
   const chamar = () =>
     ia({
@@ -371,7 +382,7 @@ export async function escreverTextos({
       type: 'string',
       description: `Frase do slide final, até ${LIMITES_SLIDE.fechamento} caracteres.`,
     };
-    ferramenta.input_schema.properties.legenda.description = `Legenda do post, até ${LIMITES_SLIDE.legenda} caracteres, sem hashtags.`;
+    ferramenta.input_schema.properties.legenda.description = `Legenda do post, até ${(politica.limites.legenda_slides_max || LIMITES_SLIDE.legenda)} caracteres, sem hashtags.`;
     ferramenta.input_schema.required.push('slides', 'fechamento');
   }
   const regrasDaPista =
@@ -385,14 +396,14 @@ export async function escreverTextos({
 - Capa: título e subtítulo que anunciam o que a pessoa vai aprender. A chamada da arte fica no slide final.
 - ${miolo} cartões de estudo: em "titulo", um termo ou pergunta curta; em "texto", a explicação ou resposta em linguagem simples, até ${LIMITES_SLIDE.texto} caracteres. Um conceito por cartão, do mais básico ao mais avançado.
 - Slide final: "fechamento" com uma frase curta de conclusão e a chamada da arte no botão.
-- O conteúdo principal fica nos cartões. A legenda complementa: 1 ou 2 parágrafos curtos com contexto e a chamada para ação, até ${LIMITES_SLIDE.legenda} caracteres, sem repetir os cartões.`
+- O conteúdo principal fica nos cartões. A legenda complementa: 1 ou 2 parágrafos curtos com contexto e a chamada para ação, até ${(politica.limites.legenda_slides_max || LIMITES_SLIDE.legenda)} caracteres, sem repetir os cartões.`
       : `Formato: carrossel de ${numSlides} imagens.
 - Capa: título e subtítulo que despertam curiosidade para deslizar. A chamada da arte fica no slide final.
 - ${miolo} slides de conteúdo: um título curto (até ${LIMITES_SLIDE.titulo} caracteres) e um texto de até ${LIMITES_SLIDE.texto} caracteres cada. Uma ideia por slide, em sequência lógica, como passos ou tópicos. Não numere os títulos ("Passo 1", "2."): a arte já mostra a posição de cada slide.
 - Slide final: "fechamento" com uma frase curta de conclusão e a chamada da arte no botão.
-- O conteúdo principal fica nos slides. A legenda complementa: 1 ou 2 parágrafos curtos com contexto e a chamada para ação, até ${LIMITES_SLIDE.legenda} caracteres, sem repetir os slides.${regrasDaPista}`;
+- O conteúdo principal fica nos slides. A legenda complementa: 1 ou 2 parágrafos curtos com contexto e a chamada para ação, até ${(politica.limites.legenda_slides_max || LIMITES_SLIDE.legenda)} caracteres, sem repetir os slides.${regrasDaPista}`;
 
-  const sistema = `Você é redator do perfil ${marca.nome}. Escreva em português do Brasil, com acentuação completa.
+  const sistema = `${politica.canal?.orientacao ? `${politica.canal.orientacao}\n\n` : ''}Você é redator do perfil ${marca.nome}. Escreva em português do Brasil, com acentuação completa.
 Tom de voz: ${marca.tom_de_voz}
 
 ${regrasDoFormato}

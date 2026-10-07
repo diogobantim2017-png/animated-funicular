@@ -325,7 +325,7 @@ function renderTopo() {
     : 'Agenda automática desligada';
   const html = `
     <span class="estado-chip ${pausado ? 'estado-chip--pausado' : ''}">${pausado ? 'Pausado' : 'Operando'}</span>
-    <span class="modo-chip ${real ? 'modo-chip--real' : ''}">${real ? `Publicação real no Instagram${ui.estado?.instagram?.usuario ? `: @${esc(ui.estado.instagram.usuario)}` : ''}` : ui.estado?.config?.demonstracao ? 'Demonstração: nada é publicado' : 'Simulação: nada é publicado'}</span>
+    <span class="modo-chip ${real ? 'modo-chip--real' : ''}">${real ? `Publicação real no Instagram${ui.estado?.instagram?.usuario ? `: @${esc(ui.estado.instagram.usuario)}` : ''}` : canalManual() ? `${esc(canalManual().nome)}: o executivo publica` : ui.estado?.config?.demonstracao ? 'Demonstração: nada é publicado' : 'Simulação: nada é publicado'}</span>
     <span>${pausado ? `Pausado por ${esc(e.controle.atualizado_por || 'equipe')}${e.controle.motivo ? `: ${esc(e.controle.motivo)}` : ''}` : esc(agenda)}</span>
     <span>Hoje: ${e.contagens.geradas_hoje}${e.limites.geracoes_por_dia ? ` de ${e.limites.geracoes_por_dia}` : ''} ${
       e.contagens.geradas_hoje === 1 ? 'geração' : 'gerações'
@@ -343,6 +343,9 @@ function renderTopo() {
 }
 
 const telaEstreita = () => matchMedia('(max-width: 760px)').matches;
+
+/** Canal em que o executivo publica à mão (ex.: LinkedIn), quando configurado na política. */
+const canalManual = () => (ui.estado?.config?.canal?.tipo === 'manual' ? ui.estado.config.canal : null);
 
 function renderPendencias() {
   const lista = ui.estado?.pendencias || [];
@@ -366,6 +369,8 @@ function seloDoItem(p) {
   if (p.status === 'aprovada') return { classe: 'aguardando', texto: 'Aprovada, aguardando publicação' };
   if (p.status === 'agendada') return { classe: 'aguardando', texto: `Agendada: ${dataHora(p.agendamento_para, { diaSemana: true })}` };
   if (p.status === 'publicada') {
+    const canal = canalManual();
+    if (canal) return { classe: 'publicada', texto: `Pronta para o ${canal.nome}` };
     const simulacao = p.publicacao?.modo === 'simulacao' ? ' (simulação)' : '';
     return { classe: 'publicada', texto: `${p.decisao === 'automatica' ? 'Publicada sozinha' : 'Publicada'}${simulacao}` };
   }
@@ -509,6 +514,10 @@ function situacao(p) {
       p.decisao?.tipo === 'automatica'
         ? `Publicada sozinha em ${dataHora(p.publicacao?.em)}, sem revisão humana.`
         : `Aprovada por ${esc(r?.usuario || 'equipe')} e publicada em ${dataHora(p.publicacao?.em)}.`;
+    const canal = canalManual();
+    if (canal) {
+      return `Aprovada por ${esc(r?.usuario || 'equipe')} em ${dataHora(p.publicacao?.em)}. Pronta para o executivo publicar no ${esc(canal.nome)}: copie o texto e baixe o PDF ou a imagem abaixo.`;
+    }
     return `${base}${modoSimulacao ? ' Simulação: nada foi enviado ao Instagram.' : ''}`;
   }
   if (p.status === 'reprovada') return `Reprovada por ${esc(r?.usuario || 'equipe')} em ${dataHora(r?.em)}${r?.motivo ? `. Motivo: ${esc(r.motivo)}` : ''}.`;
@@ -656,8 +665,17 @@ function textos(d) {
   const p = d.peca;
   if (!p.textos) return '';
   const editavel = p.status === 'em_revisao' && !d.processando;
+  const manual = canalManual();
+  const baixar =
+    d.legenda_final && p.arte
+      ? `<div class="baixar">
+          <button type="button" class="botao botao--secundario" data-acao="copiar-texto">Copiar texto do post</button>
+          <a class="botao botao--secundario" href="/api/pecas/${esc(p.id)}/pdf" download>Baixar PDF${p.slides_arte?.length ? ' (carrossel)' : ''}</a>
+          ${p.arte?.url ? `<a class="botao botao--texto" href="${esc(p.arte.url)}" target="_blank" rel="noopener">Abrir imagem</a>` : ''}
+        </div>`
+      : '';
   const legendaFinal = d.legenda_final
-    ? `<h4 class="bloco__subtitulo">Legenda como será publicada</h4><p class="legenda-final">${esc(d.legenda_final)}</p><p class="dica">Texto legal da oferta, rótulo de imagem criada com IA (só quando a imagem é de IA), crédito da foto e hashtags entram automaticamente.${editavel ? ' Atualiza quando você salvar.' : ''}</p>`
+    ? `<h4 class="bloco__subtitulo">${manual ? `Texto do post para o ${esc(manual.nome)}` : 'Legenda como será publicada'}</h4><p class="legenda-final">${esc(d.legenda_final)}</p>${baixar}<p class="dica">Rótulo de imagem criada com IA (só quando a imagem é de IA), crédito da foto e hashtags entram automaticamente.${editavel ? ' Atualiza quando você salvar.' : ''}</p>`
     : '';
 
   if (!editavel) {
@@ -757,7 +775,9 @@ function acoesHtml(d) {
   if (p.status === 'em_revisao') {
     const bloqueada = p.governanca?.gate?.veredito === 'bloqueada';
     const alterado = rascunhoAlterado();
-    let nota = `Seu nome fica na trilha de auditoria. Ao aprovar, você escolhe se publica agora ou num horário da programação.${real ? '' : ' Em simulação, nada é enviado ao Instagram.'}`;
+    let nota = canalManual()
+      ? `Seu nome fica na trilha de auditoria. Ao aprovar, a peça fica pronta para o executivo publicar no ${canalManual().nome}.`
+      : `Seu nome fica na trilha de auditoria. Ao aprovar, você escolhe se publica agora ou num horário da programação.${real ? '' : ' Em simulação, nada é enviado ao Instagram.'}`;
     if (pausado) nota = 'Sistema pausado: você pode aprovar, mas a publicação fica aguardando até a retomada.';
     if (bloqueada) nota = 'Peça bloqueada: corrija os textos ou gere nova imagem. Toda alteração passa pelas travas de novo.';
     if (alterado) nota = 'Salve os textos para refazer a arte e passar pelas travas antes de aprovar.';
@@ -935,7 +955,7 @@ function renderAutonomia() {
     <p>Depois da liberação, ${pct(a.amostragem_auditoria)} das peças continuam indo para conferência humana por sorteio. Se a concordância cair abaixo da meta, a categoria volta sozinha para aprovação humana.</p>`;
   const config = fatos([
     ['Marca', c.marca],
-    ['Publicação', c.publicacao_modo === 'real' ? 'Real, no Instagram' : 'Simulação: o sistema registra o que publicaria, sem enviar nada'],
+    ['Publicação', c.canal?.tipo === 'manual' ? `Manual: o executivo publica no ${c.canal.nome}` : c.publicacao_modo === 'real' ? 'Real, no Instagram' : 'Simulação: o sistema registra o que publicaria, sem enviar nada'],
     ['Radar, brief e textos', c.modelo_ia],
     ['Revisor de IA', c.modelo_revisor],
     ['Imagem', `${c.modelo_imagem} (${PROVEDORES[c.provedor_imagem] || c.provedor_imagem})`],
@@ -1295,7 +1315,9 @@ function escolherQuando({ titulo, texto, botao, sugestao }) {
   $('#quando-proximo').textContent = sugestao
     ? dataHora(sugestao, { diaSemana: true })
     : 'Sem horários cadastrados. Crie na aba Programação.';
-  $('#quando-data').value = paraCampoDeData(sugestao || new Date(Date.now() + 3_600_000).toISOString());
+  // Sem sugestão, propõe daqui a uma hora, arredondado para os próximos 5 minutos (o campo anda de 5 em 5).
+  const daquiAUmaHora = Math.ceil((Date.now() + 3_600_000) / 300_000) * 300_000;
+  $('#quando-data').value = paraCampoDeData(sugestao || new Date(daquiAUmaHora).toISOString());
   const escolha = sugestao ? 'proximo' : 'agora';
   for (const radio of $$('#form-quando input[name="quando"]')) radio.checked = radio.value === escolha;
   dialogo.returnValue = '';
@@ -1372,7 +1394,9 @@ const acoesPorNome = {
       titulo: 'Aprovar e publicar quando?',
       texto: real
         ? 'A peça sai no Instagram no momento escolhido. Seu nome fica na trilha de auditoria.'
-        : 'Em simulação, nada é enviado ao Instagram: o sistema só registra o que publicaria.',
+        : canalManual()
+          ? `A peça fica marcada como pronta para o executivo publicar no ${canalManual().nome}, no momento escolhido.`
+          : 'Em simulação, nada é enviado ao Instagram: o sistema só registra o que publicaria.',
       botao: 'Aprovar',
       sugestao: ui.detalhe?.sugestao_agendamento,
     });
@@ -1419,6 +1443,15 @@ const acoesPorNome = {
   descartar: () => {
     ui.rascunho = null;
     renderDetalhe();
+  },
+
+  'copiar-texto': async () => {
+    try {
+      await navigator.clipboard.writeText(ui.detalhe?.legenda_final || '');
+      avisar('Texto do post copiado. É só colar no LinkedIn.', 'sucesso');
+    } catch {
+      avisar('Não consegui copiar. Selecione o texto e use Ctrl+C.', 'erro');
+    }
   },
 
   'ajustar-textos-ia': async (alvo) => {

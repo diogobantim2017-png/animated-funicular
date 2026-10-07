@@ -1,0 +1,788 @@
+{
+  "observacao": "Base de conhecimento aprovada para os posts, montada a partir do portfólio de Martech & CRM da Capgemini. Tudo o que um post afirmar (números, resultados, métodos e casos) precisa estar aqui. Não inclua preços, valores de investimento, prazos comerciais nem nomes de clientes: os slides indicam que o uso de logos e nomes de clientes exige aprovação prévia.",
+  "area": "Martech & CRM (Connected Marketing) da Capgemini",
+  "capacidades": [
+    {
+      "nome": "Marketing Strategy & CoE",
+      "itens": [
+        "Definir estratégia de crescimento, segmentação e personalização alinhada a valor de negócio",
+        "Estabelecer arquitetura de KPIs e governança de Voz do Cliente",
+        "Desenhar o modelo de Marketing CoE para eficiência e performance"
+      ]
+    },
+    {
+      "nome": "Martech Strategy",
+      "itens": [
+        "Avaliar o ecossistema de Martech atual e definir a arquitetura-alvo",
+        "Estruturar framework de decisão de tecnologia e estratégia de fornecedores",
+        "Estruturar roadmap de realização de valor e evolução de capacidades",
+        "Estruturar governança de fornecedores (apoio em RFP e critérios de seleção)"
+      ]
+    },
+    {
+      "nome": "Marketing Operating Model",
+      "itens": [
+        "Diagnosticar e redesenhar o modelo operacional de marketing",
+        "Definir governança, papéis e colaboração entre áreas",
+        "Construir o roadmap de transição para a performance-alvo"
+      ]
+    },
+    {
+      "nome": "Data & Customer 360 Strategy",
+      "itens": [
+        "Definir Customer 360 e estratégia de audiências alinhada à criação de valor",
+        "Estabelecer framework de personalização e decisão",
+        "Estruturar roadmap de ativação de dados e maturidade analítica"
+      ]
+    },
+    {
+      "nome": "Content Strategy",
+      "itens": [
+        "Desenhar taxonomia e hierarquia de conteúdo entre canais",
+        "Desenhar arquitetura de conteúdo escalável alinhada às jornadas",
+        "Definir governança editorial e framework de conteúdo modular",
+        "Estruturar roadmap de escala de conteúdo e habilitação de IA"
+      ]
+    },
+    {
+      "nome": "Marketing Measurement & Analytics",
+      "itens": [
+        "Definir framework de mensuração ponta a ponta ligado a resultados de negócio",
+        "Estabelecer modelo de atribuição, otimização e reporting executivo",
+        "Estruturar maturidade analítica e roadmap de Test & Learn"
+      ]
+    },
+    {
+      "nome": "Marketing Technology",
+      "itens": [
+        "Marketing Automation: templates de campanha por canal, configuração, integrações, execução, mensuração e reporting",
+        "Suporte e operação de plataforma: modelo de suporte por tickets, MRM com fluxos e SLAs",
+        "Customer Data Platforms: perfis unificados, gestão de jornadas, integração de fontes e MDM",
+        "Content Operations: CMS, implementações headless e headful, sites e microsites, conteúdo para todos os canais",
+        "Mensuração: otimização de pontos de contato, test & learn, analytics e reporting"
+      ]
+    }
+  ],
+  "ofertas": [
+    {
+      "nome": "Marketing & CRM Value Transformation Assessment",
+      "promessa": "Diagnóstico executivo para avaliar a maturidade de Marketing & CRM e definir um roadmap de transformação orientado a valor. Alinhamos estratégia, dados, tecnologia e governança num caminho de transformação orientado ao negócio.",
+      "desafios": [
+        "Ambição de crescimento sem prontidão estrutural",
+        "Investimentos em CRM fragmentados",
+        "Estratégia, dados e tecnologia em silos",
+        "Visibilidade limitada de ROI"
+      ],
+      "metodo": [
+        "Estratégia e alinhamento de portfólio",
+        "Modelo operacional e governança",
+        "Capacidades e skills",
+        "Ecossistema de dados e Martech",
+        "Mensuração e realização de valor"
+      ],
+      "escopo": [
+        "Até 8 entrevistas executivas",
+        "Avaliação em 6 dimensões de maturidade",
+        "Revisão de 6 canais e 5 jornadas",
+        "Análise de 15 iniciativas",
+        "Identificação de gaps e riscos-chave",
+        "Priorização de 20 iniciativas"
+      ],
+      "diferenciais": [
+        "Framework executivo de maturidade (estratégia, dados, tecnologia, operações e governança)",
+        "Análise quantificada de gaps e riscos",
+        "Priorização guiada por impacto e ligada a KPIs de negócio",
+        "Roadmap de transformação de 12 a 24 meses com modelo de governança e execução"
+      ],
+      "beneficios": [
+        "Ambição de marketing e capacidade operacional aceleradas",
+        "Risco de transformação reduzido",
+        "Prioridades de investimento claras",
+        "Decisão executiva mais rápida",
+        "Caminho estruturado para crescimento escalável"
+      ],
+      "publico": [
+        "CMO",
+        "CDO",
+        "CIO",
+        "CGO",
+        "COO"
+      ]
+    },
+    {
+      "nome": "Omnichannel Journey Strategy",
+      "promessa": "Framework estratégico de orquestração de jornadas que alinha valor, dados e governança para experiências omnichannel consistentes e escaláveis. Desenhamos jornadas orientadas a valor que transformam campanhas fragmentadas em experiências orquestradas.",
+      "desafios": [
+        "Campanhas guiadas por canal, sem lógica de jornada",
+        "Experiência do cliente inconsistente",
+        "Priorização e orquestração fracas",
+        "Quick wins desconectados"
+      ],
+      "metodo": [
+        "Diagnóstico de jornadas e mapeamento de gaps",
+        "Priorização de jornadas por valor",
+        "Blueprint de decisão e gatilhos",
+        "Modelo de governança e orquestração",
+        "Roadmap de implementação e evolução de maturidade"
+      ],
+      "escopo": [
+        "Revisão de até 5 jornadas existentes, com análise de gaps em 6 canais",
+        "Desenho de até 5 jornadas estratégicas",
+        "Definição de até 10 momentos de decisão e 8 KPIs",
+        "Blueprint de até 5 macrofluxos com lógica de entrada e saída",
+        "Priorização de até 15 iniciativas",
+        "Roadmap de 12 a 18 meses e 5 quick wins"
+      ],
+      "diferenciais": [
+        "Matriz de priorização impacto x viabilidade",
+        "Blueprint da lógica de gatilhos e decisões",
+        "Modelo de governança para disciplina de orquestração",
+        "Roadmap de evolução de maturidade"
+      ],
+      "beneficios": [
+        "Mais engajamento do cliente",
+        "Consistência entre canais",
+        "Priorização clara de jornadas",
+        "Personalização estruturada em escala",
+        "Tempo até o impacto mais rápido"
+      ],
+      "publico": [
+        "CMO",
+        "CGO",
+        "CCO"
+      ]
+    },
+    {
+      "nome": "Martech Stack Strategy",
+      "promessa": "Blueprint estratégico para racionalizar, otimizar e preparar o ecossistema de Martech para o futuro, alinhando investimentos em tecnologia a personalização, escalabilidade e valor de negócio mensurável. Simplificamos a complexidade do Martech numa arquitetura clara e orientada a valor.",
+      "desafios": [
+        "Ferramentas sobrepostas e baixa visibilidade de ROI",
+        "Dados fragmentados e integração limitada",
+        "Decisões guiadas por fornecedor, não por valor de negócio",
+        "Pressão de orçamento por impacto mensurável"
+      ],
+      "metodo": [
+        "Diagnóstico do ecossistema e análise de gaps",
+        "Mapeamento de valor e capacidades",
+        "Racionalização e pontuação de tecnologia",
+        "Desenho da arquitetura-alvo",
+        "Modelo de governança e realização de valor"
+      ],
+      "escopo": [
+        "Análise de 5 a 8 plataformas e integrações-chave",
+        "Avaliação em 4 dimensões de arquitetura (dados, tecnologia, governança e operações)",
+        "Avaliação de até 6 fornecedores (custo, risco e escalabilidade)",
+        "Identificação de até 15 gaps e 10 riscos-chave",
+        "Priorização de até 15 iniciativas",
+        "Arquitetura-alvo e roadmap de 12 a 24 meses"
+      ],
+      "diferenciais": [
+        "Modelo de avaliação de plataformas independente de fornecedor",
+        "Mapeamento de capacidades de negócio para tecnologia",
+        "Avaliação quantificada de redundância e risco",
+        "Blueprint de arquitetura preparada para o futuro, com modelo de governança"
+      ],
+      "beneficios": [
+        "Mais adoção de plataforma e ROI",
+        "Critérios claros de seleção de fornecedores",
+        "Investimento em Martech otimizado",
+        "Base escalável para personalização",
+        "Menos redundância tecnológica"
+      ],
+      "publico": [
+        "CMO",
+        "CDO",
+        "CIO",
+        "CTO"
+      ]
+    },
+    {
+      "nome": "Marketing Operating Model Transformation",
+      "promessa": "Redesenho estrutural da governança, dos papéis e dos modelos de colaboração de marketing para personalização escalável, agilidade e excelência de execução. Conectamos estratégia e execução.",
+      "desafios": [
+        "Papéis, processos e direitos de decisão pouco claros",
+        "Marketing e tecnologia operando em silos",
+        "Pouca visibilidade de capacidade e performance",
+        "Modelo de produção de campanhas ineficiente",
+        "Personalização escalando sem estrutura"
+      ],
+      "metodo": [
+        "Diagnóstico do modelo operacional",
+        "Redesenho de governança e direitos de decisão",
+        "Mapeamento de papéis e capacidades",
+        "Estruturas por squads e jornadas",
+        "Roadmap de transição e gestão da mudança"
+      ],
+      "escopo": [
+        "Revisão de 20 papéis, 10 workflows e 5 ferramentas",
+        "Redesenho de colaboração e governança",
+        "Avaliação de maturidade com 25 stakeholders",
+        "Definição do modelo operacional-alvo",
+        "Até 12 KPIs e dimensionamento de capacidade para 50 campanhas por mês",
+        "Roadmap priorizado de 12 a 24 meses"
+      ],
+      "diferenciais": [
+        "Desenho organizacional centrado em jornadas",
+        "Blueprint de governança ligado a KPIs de execução",
+        "Mapa de calor de capacidades e plano de evolução de skills",
+        "Roadmap de transição estruturado"
+      ],
+      "beneficios": [
+        "Colaboração entre áreas",
+        "Donos e responsabilidades claros",
+        "Modelo de personalização escalável",
+        "Execução de campanhas mais rápida",
+        "Menos atrito operacional"
+      ],
+      "publico": [
+        "CMO",
+        "COO",
+        "CHRO"
+      ]
+    },
+    {
+      "nome": "Data & Customer 360 Strategy (NBO/NBA)",
+      "promessa": "Estratégia de Customer 360 orientada a valor, que transforma dados fragmentados em inteligência acionável para segmentação, personalização e aceleração do crescimento.",
+      "desafios": [
+        "Dados de clientes desconectados",
+        "Modelos de segmentação estáticos",
+        "Baixa maturidade de personalização",
+        "Pouca visibilidade do valor do cliente",
+        "Investimentos em CDP e Data Cloud subutilizados"
+      ],
+      "metodo": [
+        "Diagnóstico de dados e segmentação",
+        "Definição de clusters por valor",
+        "Modelo de personalização e decisão",
+        "Estratégia de ativação entre canais",
+        "Roadmap de maturidade de dados e realização de valor"
+      ],
+      "escopo": [
+        "Avaliação de 5 segmentos e 3 critérios de valor",
+        "Desenho de 6 clusters estratégicos",
+        "Modelagem de segmentação em 3 dimensões",
+        "Priorização de 5 jornadas",
+        "Até 12 KPIs e diretrizes de ativação em 5 canais",
+        "Roadmap de 12 a 24 meses"
+      ],
+      "diferenciais": [
+        "Metodologia de clusterização por valor",
+        "Mapeamento de dados para ativação em jornadas",
+        "Modelo de maturidade de personalização",
+        "Estratégia integrada de habilitação de CDP"
+      ],
+      "beneficios": [
+        "Campanhas mais relevantes",
+        "Mais valor do cliente ao longo do tempo",
+        "Melhor conversão e retenção",
+        "Cross-sell e expansão mais fortes",
+        "Clareza estratégica na ativação de dados"
+      ],
+      "publico": [
+        "CMO",
+        "CDO",
+        "CIO"
+      ]
+    },
+    {
+      "nome": "Content Strategy & Scalability",
+      "promessa": "Arquitetura de conteúdo escalável e alinhada às jornadas do cliente, com modularidade, governança e aceleração por IA. Transformamos conteúdo num motor de crescimento escalável.",
+      "desafios": [
+        "Gargalos na produção de conteúdo",
+        "Ativos redundantes entre regiões ou unidades de negócio",
+        "Governança e fluxos de aprovação fracos",
+        "Personalização limitada em escala",
+        "Iniciativas de IA sem base de conteúdo"
+      ],
+      "metodo": [
+        "Diagnóstico de conteúdo e mapeamento de jornadas",
+        "Modelo de governança editorial",
+        "Arquitetura de conteúdo modular e escalável",
+        "Estruturação de DAM e fluxos",
+        "Roadmap de habilitação de IA e automação"
+      ],
+      "escopo": [
+        "Revisão de 5 jornadas e 50 ativos",
+        "Análise de até 20 gaps",
+        "Modelo de governança e fluxos com 15 papéis",
+        "Framework de conteúdo modular com 10 pilares",
+        "Até 15 KPIs",
+        "Roadmap priorizado de 12 a 24 meses"
+      ],
+      "diferenciais": [
+        "Modelo de design de conteúdo modular",
+        "Blueprint de governança distribuída",
+        "Estruturação de DAM e ciclo de vida",
+        "Estratégia de aceleração de conteúdo com IA"
+      ],
+      "beneficios": [
+        "Ciclos de produção mais rápidos",
+        "Base de conteúdo pronta para IA",
+        "Menos duplicidade e custo",
+        "Consistência de marca mais forte",
+        "Personalização omnichannel escalável"
+      ],
+      "publico": [
+        "CMO",
+        "CDO",
+        "CIO",
+        "CGO",
+        "COO"
+      ]
+    },
+    {
+      "nome": "Marketing Measurement & Analytics Strategy",
+      "promessa": "Framework de mensuração e analytics centrado em valor, que liga investimentos de marketing à performance do negócio e à decisão executiva. Tornamos a performance de marketing mensurável, defensável e otimizável.",
+      "desafios": [
+        "Excesso de KPIs sem clareza estratégica",
+        "Mensuração isolada por canal",
+        "Confusão de atribuição",
+        "Reporting executivo fraco",
+        "Maturidade limitada de Test & Learn"
+      ],
+      "metodo": [
+        "Diagnóstico de maturidade de mensuração",
+        "Arquitetura de KPIs de funil e jornada",
+        "Modelo de atribuição e otimização",
+        "Desenho de reporting executivo",
+        "Roadmap de capacidade analítica e Test & Learn"
+      ],
+      "escopo": [
+        "Revisão de 6 canais, 12 KPIs e 10 relatórios",
+        "Definição de maturidade e de 3 modelos de atribuição",
+        "Framework de reporting e governança com 15 KPIs",
+        "Modelo de otimização de 8 pontos de contato prioritários",
+        "Roadmap priorizado de 12 a 24 meses"
+      ],
+      "diferenciais": [
+        "Arquitetura de KPIs ponta a ponta",
+        "Modelagem de ROI, LTV e CAC",
+        "Blueprint de dashboard executivo",
+        "Framework de governança de Test & Learn"
+      ],
+      "beneficios": [
+        "Decisões de alocação de capital mais fortes",
+        "Reporting executivo de performance",
+        "Visibilidade clara de ROI",
+        "Menos incerteza de performance",
+        "Ciclos de otimização mais rápidos"
+      ],
+      "publico": [
+        "CMO",
+        "CFO",
+        "CDO"
+      ]
+    },
+    {
+      "nome": "Creative Digital Growth Hub (Digital Agency)",
+      "promessa": "Desenhamos, construímos e escalamos experiências digitais de alto impacto, do conceito à conversão, conectadas ao ecossistema de Martech. Da ideia ao impacto: criamos, lançamos e otimizamos ativos digitais feitos para performar.",
+      "desafios": [
+        "Execução criativa e de mídia desconectadas",
+        "Custo de aquisição alto com baixa eficiência de conversão",
+        "Falta de visibilidade do funil ponta a ponta",
+        "Dificuldade de escalar personalização"
+      ],
+      "metodo": [
+        "Estratégia e comunicação: posicionamento, lógica de segmentação e mensagens de conversão",
+        "Estúdio de criação e conteúdo: sistemas de design de campanha e produção criativa escalável",
+        "Experiência digital (UI/UX e web): UX orientada a conversão, landing pages e performance web",
+        "Aquisição e crescimento: SEO, mídia paga e aceleração de funil"
+      ],
+      "escopo": [
+        "Time com estrategista digital, consultor de negócios e copywriter",
+        "Diretor de arte, motion designer e criador de conteúdo",
+        "Especialista em UX/UI, desenvolvedor web e líder técnico de Martech",
+        "Especialista em SEO, especialista em performance e mídia, e analista de growth"
+      ],
+      "diferenciais": [
+        "Criação, UX e performance dentro de casa",
+        "Mentalidade criativa orientada a performance",
+        "Motor ágil de produção de conteúdo",
+        "Responsabilidade pelo funil ponta a ponta"
+      ],
+      "beneficios": [
+        "Da ideia ao impacto, com ativos digitais feitos para performar"
+      ],
+      "publico": [
+        "CMO",
+        "CDO",
+        "CIO",
+        "CGO",
+        "COO"
+      ]
+    },
+    {
+      "nome": "Agentforce for Marketing",
+      "promessa": "Criação de jornadas com humano e IA trabalhando juntos: jornadas em poucos cliques, alinhadas aos padrões da empresa, com mais experimentação e escala sem aumentar o time.",
+      "desafios": [
+        "Processo criativo lento",
+        "Muitos cliques para montar uma jornada",
+        "Risco de jornadas fora do padrão",
+        "Experimentação A/B limitada",
+        "Escala dependente de mais pessoas"
+      ],
+      "metodo": [
+        "Criação mais rápida, com humano e IA",
+        "Jornadas montadas em poucos cliques",
+        "Jornadas alinhadas aos padrões da empresa",
+        "Experimentação mais fácil, com tempo de construção menor",
+        "Campanhas personalizadas em escala sem aumentar o time"
+      ],
+      "escopo": [],
+      "diferenciais": [],
+      "beneficios": [
+        "73% de redução no tempo de criação de jornadas",
+        "Ganho de produtividade de 3,7x"
+      ],
+      "publico": [
+        "CMO",
+        "CDO",
+        "CIO"
+      ]
+    }
+  ],
+  "provas": [
+    "5x mais rápido no time to market",
+    "+500% na taxa de conversão",
+    "+65% de efetividade na recuperação de crédito",
+    "-79% no time to market de campanhas",
+    "+400% em vendas digitais",
+    "+48% em GMV (Gross Merchandise Value)",
+    "-73% no time to market de campanhas com IA",
+    "+60% de taxa de abertura na etapa de consideração",
+    "+180% de CTR (taxa de cliques)",
+    "+12 milhões de comunicações personalizadas",
+    "+44% de taxa de abertura em awareness, ampliando o alcance",
+    "73% de redução no tempo de criação de jornadas com Agentforce",
+    "Ganho de produtividade de 3,7x com Agentforce"
+  ],
+  "casos": [
+    {
+      "titulo": "Customer 360 com Salesforce Data Cloud",
+      "cliente": "uma das maiores instituições financeiras públicas do Brasil",
+      "desafios": [
+        "Dados de clientes fragmentados em várias plataformas bancárias e sistemas legados",
+        "Dificuldade de unificar dados comportamentais, transacionais e de engajamento",
+        "Dificuldade de ativar audiências de forma consistente entre canais",
+        "Necessidade de segmentação quase em tempo real e personalização escalável",
+        "Governança e exigências regulatórias complexas"
+      ],
+      "solucao": [
+        "Salesforce Data Cloud como plataforma central de dados do cliente",
+        "Integração de 6 fontes de dados corporativas, incluindo Salesforce CRM, Marketing Cloud, Personalization, Databricks e sistemas legados",
+        "143 fluxos de dados ativos para ingestão de dados transacionais e comportamentais",
+        "Resolução de identidade e perfis unificados para a visão Customer 360",
+        "Data Cloud conectado às plataformas de ativação, incluindo Marketing Cloud Engagement e Personalization",
+        "Framework de segmentação corporativa e ativação de audiências quase em tempo real"
+      ],
+      "resultados": [
+        "+13,8 bilhões de registros processados",
+        "+2,6 bilhões de registros processados por dia",
+        "+94 milhões de perfis de clientes unificados",
+        "+143 fluxos de dados ativos",
+        "+150 segmentos de audiência publicados",
+        "+50 segmentos ativados por mês"
+      ]
+    },
+    {
+      "titulo": "Implementação de Salesforce Marketing Cloud",
+      "cliente": "uma das maiores instituições financeiras públicas do Brasil",
+      "desafios": [
+        "Comunicação fragmentada entre canais (e-mail, SMS, push e mídia paga)",
+        "Pouca orquestração de jornadas e campanhas entre marketing e produto",
+        "Dificuldade de personalizar com base em dados comportamentais e transacionais",
+        "Criação e execução de campanhas manuais",
+        "Falta de visibilidade da jornada ponta a ponta"
+      ],
+      "solucao": [
+        "Marketing Cloud como plataforma central de engajamento",
+        "Journey Builder configurado para orquestração omnichannel",
+        "Integração com CRM, Data Cloud e sistemas bancários legados",
+        "Framework de governança e templates de campanha reutilizáveis",
+        "Comunicações personalizadas em e-mail, SMS e push",
+        "Dashboards e camada de reporting com Intelligence Reports e Tableau"
+      ],
+      "resultados": [
+        "27 milhões de contatos",
+        "+850 jornadas personalizadas",
+        "-77% no tempo de execução de campanhas",
+        "+50 campanhas recorrentes por mês",
+        "100% de governança",
+        "+4 mil ativos gerenciados"
+      ]
+    },
+    {
+      "titulo": "Personalização com Salesforce Personalization",
+      "cliente": "uma das maiores instituições financeiras públicas do Brasil",
+      "desafios": [
+        "Baixa personalização digital no site e no app",
+        "Ofertas genéricas, sem contexto comportamental em tempo real",
+        "Dificuldade de identificar intenção e interesses durante a navegação",
+        "Baixa conversão em produtos e serviços digitais"
+      ],
+      "solucao": [
+        "Personalização em tempo real da experiência",
+        "Captura e análise de dados comportamentais na web e no mobile",
+        "Segmentos comportamentais dinâmicos",
+        "Recomendações de produtos e conteúdos com IA (Einstein)",
+        "Banners, ofertas e jornadas digitais personalizados",
+        "Integração com Marketing Cloud e Data Cloud"
+      ],
+      "resultados": [
+        "302 mil interações por mês",
+        "4,9 mil visualizações do catálogo de produtos",
+        "91 mil clientes identificados",
+        "9,8 mil visitantes únicos por mês",
+        "28,3 mil engajamentos por clique",
+        "+95 campanhas personalizadas"
+      ]
+    },
+    {
+      "titulo": "Transformação digital da jornada de recuperação de crédito",
+      "cliente": "uma das maiores instituições financeiras públicas do Brasil",
+      "desafios": [
+        "Inadimplência alta e dificuldade de engajar clientes pelos canais tradicionais",
+        "Falta de visibilidade ponta a ponta das jornadas e resultados",
+        "Abordagens genéricas com baixa efetividade na recuperação"
+      ],
+      "solucao": [
+        "Dados e governança com integração ao Data Cloud, para rastreabilidade, controle e compliance",
+        "Jornadas padronizadas e multicanal (e-mail, push e SMS)",
+        "Hiperpersonalização com IA por perfil e comportamento",
+        "Mensuração ponta a ponta unificada"
+      ],
+      "resultados": [
+        "3 milhões de clientes únicos engajados",
+        "+19% renegociaram depois de receber as comunicações",
+        "+65% das renegociações vieram das comunicações de jornada"
+      ]
+    },
+    {
+      "titulo": "Jornadas hiperpersonalizadas",
+      "cliente": "uma das maiores instituições financeiras públicas do Brasil",
+      "desafios": [
+        "Pouca visão de jornada e entendimento do cliente",
+        "Falta de personalização e de métricas de performance",
+        "Integração fraca entre pontos de contato digitais e físicos"
+      ],
+      "solucao": [
+        "Perfil unificado do cliente como fonte única de verdade",
+        "Desenho de jornadas e KPIs ao longo do funil",
+        "Orquestração automatizada e em tempo real com IA",
+        "Visão 360 do cliente com dashboards de performance"
+      ],
+      "resultados": [
+        "5 milhões de clientes únicos engajados",
+        "+500% em aquisições no período da campanha",
+        "+180% de CTR em relação ao benchmark de mercado"
+      ]
+    },
+    {
+      "titulo": "Orquestração de campanha de varejo premium",
+      "cliente": "uma das maiores instituições financeiras públicas do Brasil, em campanha com uma marca de varejo premium",
+      "desafios": [
+        "Ativar clientes de alto valor numa campanha com janela curta",
+        "Personalizar ofertas pelo histórico de compras e cashback",
+        "Concentrar vendas digitais no período promocional"
+      ],
+      "solucao": [
+        "Dados comportamentais e transacionais unificados no Data Cloud",
+        "Jornada em tempo real com Journey Builder, Content Builder e Personalization",
+        "Push e e-mails personalizados e dinâmicos",
+        "Rastreamento de funil completo (abertura, cliques e conversão)",
+        "Ciclo de retenção para reengajar clientes depois da campanha"
+      ],
+      "resultados": [
+        "+400% em vendas digitais",
+        "47% de taxa de abertura (benchmark de 18% a 28%)",
+        "34% de taxa de cliques (benchmark de 1,5% a 3%)",
+        "Retenção e recompra mais fortes"
+      ]
+    },
+    {
+      "titulo": "Experiência de retrospectiva do ano",
+      "cliente": "uma das maiores instituições financeiras públicas do Brasil",
+      "desafios": [
+        "Entregar uma experiência de fim de ano altamente personalizada em escala",
+        "Consolidar dados comportamentais e de relacionamento numa narrativa única",
+        "Aumentar o engajamento além dos formatos tradicionais de campanha"
+      ],
+      "solucao": [
+        "Jornada dinâmica de retrospectiva com variáveis comportamentais e de relacionamento",
+        "Data Cloud e Marketing Cloud para personalizar o conteúdo por cliente",
+        "Landing pages individuais com resumos financeiros personalizados",
+        "Entrega omnichannel por e-mail, WhatsApp e portal"
+      ],
+      "resultados": [
+        "+11 milhões de comunicações personalizadas entregues",
+        "+120 mil visitas únicas a landing pages, sendo 80 mil pelo celular",
+        "Mais engajamento, lealdade e conexão emocional"
+      ]
+    },
+    {
+      "titulo": "Visão 360 do cliente em seguros",
+      "cliente": "uma grande seguradora brasileira",
+      "desafios": [
+        "Dados de clientes fragmentados entre sistemas",
+        "Pouca visibilidade da experiência do cliente ponta a ponta",
+        "Necessidade de decisão centralizada e apoiada em analytics"
+      ],
+      "solucao": [
+        "Plataforma de visão 360 do cliente integrando dados de seguros",
+        "Portais de serviços financeiros corporativos baseados em comunidades",
+        "Estrutura de dados alimentando o Marketing Cloud com KPIs e dashboards",
+        "Monitoramento de performance de campanhas alinhado aos objetivos de negócio"
+      ],
+      "resultados": [
+        "Jornadas do cliente automatizadas",
+        "Insights em tempo real para marketing e vendas",
+        "Decisões de equipe apoiadas por dashboards"
+      ]
+    },
+    {
+      "titulo": "Ativação digital em larga escala em data promocional",
+      "cliente": "uma das maiores instituições financeiras públicas do Brasil",
+      "desafios": [
+        "Janela promocional curta, exigindo ativação rápida",
+        "Necessidade de concentrar vendas digitais",
+        "Pouca personalização em campanhas de massa anteriores"
+      ],
+      "solucao": [
+        "Jornada omnichannel em tempo real (push, web e e-mail)",
+        "Dados comportamentais para segmentação e direcionamento dinâmicos",
+        "Gatilhos de urgência para engajamento imediato",
+        "Personalização integrada entre pontos de contato com Data Cloud e orquestração de jornadas"
+      ],
+      "resultados": [
+        "+48% de crescimento de GMV em relação ao ano anterior",
+        "43% de taxa de abertura (benchmark de 18% a 28%)",
+        "15% de taxa de cliques (benchmark de 1,5% a 3%)",
+        "Mais defesa da marca e recompra"
+      ]
+    },
+    {
+      "titulo": "Transformação global de CRM (One CRM)",
+      "cliente": "uma marca automotiva premium",
+      "desafios": [
+        "Dados de clientes fragmentados entre sistemas internos e de concessionárias",
+        "Baixa qualidade de dados e adoção limitada do CRM na rede",
+        "Falta de uma visão 360 integrada do cliente"
+      ],
+      "solucao": [
+        "Ecossistema de CRM centralizado (Sales, Service, Marketing e Experience Cloud)",
+        "Governança de dados e gestão aderente à LGPD",
+        "Portal de concessionárias para ativação e monitoramento de campanhas locais",
+        "Framework de jornada omnichannel ponta a ponta"
+      ],
+      "resultados": [
+        "Visão 360 unificada entre marca e concessionárias",
+        "Melhor qualidade de dados, segmentação e campanhas",
+        "Processos globais de campanha padronizados"
+      ]
+    },
+    {
+      "titulo": "Transformação de CX em multicloud",
+      "cliente": "uma empresa de turismo",
+      "desafios": [
+        "Atendimento e vendas fragmentados",
+        "Falta de uma visão unificada da experiência do cliente",
+        "Gestão de SLA ineficiente"
+      ],
+      "solucao": [
+        "Programa de transformação digital ponta a ponta",
+        "Visão 360 do cliente e central de atendimento unificada",
+        "Capacidades de Sales Cloud e Service Cloud",
+        "Gestão de SLA padronizada (5 mil casos em 6 meses)",
+        "Performance de engajamento de campanhas otimizada"
+      ],
+      "resultados": [
+        "Experiência integrada entre canais",
+        "Performance de vendas e gestão de funil mais fortes",
+        "Métricas de engajamento de campanhas melhores"
+      ]
+    },
+    {
+      "titulo": "Construção estratégica de jornadas",
+      "cliente": "um banco digital de um grande grupo financeiro",
+      "desafios": [
+        "Falta de orquestração estruturada das jornadas do cliente",
+        "Dados e segmentação de campanhas fragmentados",
+        "Pouca visibilidade de performance de marketing entre canais"
+      ],
+      "solucao": [
+        "Estrutura de segmentação de campanhas no Marketing Cloud",
+        "Squads de campanha ponta a ponta e modelo de governança",
+        "Dashboards de performance dos canais de CRM",
+        "Testes A/B e grupos de controle",
+        "Experimentação em nuvem e soluções sob demanda"
+      ],
+      "resultados": [
+        "Operação de Marketing Cloud escalável",
+        "Arquitetura de segmentação mais robusta",
+        "Personalização mais forte com base no comportamento do cliente",
+        "Melhor rastreamento de performance das campanhas"
+      ]
+    },
+    {
+      "titulo": "Transformação do modelo operacional de CRM",
+      "cliente": "uma das principais farmacêuticas do Brasil",
+      "desafios": [
+        "Processos de CRM fragmentados entre áreas comercial, médica e de pacientes",
+        "Pouca visibilidade das jornadas e da performance",
+        "Execução de campanhas desconectada e sem governança padronizada"
+      ],
+      "solucao": [
+        "Avaliação de maturidade de CRM e definição do modelo operacional-alvo",
+        "Redesenho de processos ponta a ponta, centrado no engajamento do cliente",
+        "Arquitetura 360 de stakeholders entre médicos, pacientes e vendas",
+        "Framework estratégico de campanhas integrado ao Marketing Cloud e analytics"
+      ],
+      "resultados": [
+        "+20 jornadas estratégicas de marketing desenhadas",
+        "+190 soluções de CRM do estado futuro definidas",
+        "+85 requisitos de integração e dados mapeados"
+      ]
+    },
+    {
+      "titulo": "Fundação de dados Customer 360",
+      "cliente": "um dos maiores grupos industriais do Brasil",
+      "desafios": [
+        "Dados de clientes dispersos entre unidades de negócio e sistemas",
+        "Pouca capacidade de gerar insights acionáveis",
+        "Experiência do cliente inconsistente entre canais e operações"
+      ],
+      "solucao": [
+        "Arquitetura Customer 360 e modelo de dados unificado",
+        "Estratégia de integração de dados entre plataformas comerciais, de serviço e de marketing",
+        "Discovery executivo e mapeamento de jornadas nos processos-chave",
+        "Roadmap de CRM alinhado às prioridades e à estratégia de crescimento"
+      ],
+      "resultados": [
+        "+40 entrevistas executivas",
+        "+168 capacidades de CRM do estado futuro definidas",
+        "+150 oportunidades estratégicas priorizadas para o roadmap"
+      ]
+    },
+    {
+      "titulo": "Estratégia de Voz do Cliente",
+      "cliente": "uma fornecedora líder de equipamentos industriais e soluções de tecnologia",
+      "desafios": [
+        "Insights de clientes não capturados nem operacionalizados de forma sistemática",
+        "Decisões guiadas por processos internos, e não pelas necessidades do cliente",
+        "Falta de mensuração e governança de CX estruturadas"
+      ],
+      "solucao": [
+        "Framework corporativo de Voz do Cliente e modelo de governança",
+        "Desenho de capacidades de CX e roadmap de implementação",
+        "Alinhamento organizacional para decisões centradas no cliente",
+        "Metodologias de boas práticas incorporadas às operações"
+      ],
+      "resultados": [
+        "+60 stakeholders engajados entre unidades de negócio",
+        "+15 frameworks e métricas estratégicas definidos",
+        "4 playbooks corporativos de CX entregues",
+        "+30 entrevistas executivas"
+      ]
+    }
+  ]
+}

@@ -52,9 +52,14 @@ export const politica = lerJson('politica.json');
 
 // Modo demonstração: nada é publicado, mesmo que PUBLICACAO_MODO e o token do Instagram estejam configurados.
 if (politica.demonstracao === true) env.publicacaoModo = 'simulacao';
+// Canal manual (ex.: LinkedIn): quem publica é a pessoa. O sistema nunca envia nada ao Instagram, mesmo com token.
+if (politica.canal?.tipo === 'manual') env.publicacaoModo = 'simulacao';
 export const calendario = lerJson('calendario.json');
 export const segmentos = lerJson('segmentos.json').segmentos;
 export const ofertas = lerJson('ofertas.json').ofertas;
+
+/** Base de conhecimento opcional (ofertas, casos e números aprovados). Quando existe, é a única fonte de fatos dos posts. */
+export const conhecimento = fs.existsSync(path.join(raiz, 'conhecimento.json')) ? lerJson('conhecimento.json') : null;
 
 export const MARCADOR_PENDENTE = '[DADO A SER VALIDADO]';
 

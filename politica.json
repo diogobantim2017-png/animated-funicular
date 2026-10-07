@@ -1,70 +1,84 @@
 {
-  "versao": "2026-10-01.demo",
-  "observacao": "Política do case Bradesco: categorias, termos e travas de um banco. A publicação segue PUBLICACAO_MODO no Render. Para não publicar, use simulacao.",
+  "versao": "2026-10-06.linkedin",
+  "observacao": "Política do perfil de LinkedIn da área de Martech & CRM da Capgemini. Todo número e resultado precisa existir na base de conhecimento (conhecimento.json); nomes de clientes, concorrentes e preços nunca entram.",
   "categorias": {
-    "seguranca_golpes": {
-      "nome": "Segurança e prevenção a golpes",
+    "ponto_de_vista": {
+      "nome": "Ponto de vista sobre o mercado",
       "risco": "baixo",
       "autonomia_maxima": "auto"
     },
-    "educacao_financeira": {
-      "nome": "Educação financeira",
+    "sinais_e_desafios": {
+      "nome": "Sinais e desafios do executivo",
       "risco": "baixo",
       "autonomia_maxima": "auto"
     },
-    "data_comemorativa": {
-      "nome": "Data comemorativa",
+    "metodo": {
+      "nome": "Como fazemos: método e framework",
       "risco": "baixo",
       "autonomia_maxima": "auto"
     },
-    "institucional": {
-      "nome": "Institucional",
+    "caso_de_sucesso": {
+      "nome": "Caso de sucesso (sem nome do cliente)",
       "risco": "medio",
+      "autonomia_maxima": "humano"
+    },
+    "resultados": {
+      "nome": "Resultados em números",
+      "risco": "medio",
+      "autonomia_maxima": "humano"
+    },
+    "ia_no_marketing": {
+      "nome": "IA no marketing e Agentforce",
+      "risco": "baixo",
       "autonomia_maxima": "auto"
     },
-    "produto_credito": {
-      "nome": "Oferta de crédito",
-      "risco": "alto",
-      "autonomia_maxima": "humano",
-      "exige_oferta": "credito",
-      "avisos_obrigatorios": [
-        "CET"
-      ]
-    },
-    "produto_investimento": {
-      "nome": "Oferta de investimento",
-      "risco": "alto",
-      "autonomia_maxima": "humano",
-      "exige_oferta": "investimento",
-      "avisos_obrigatorios": [
-        "não representa garantia de rentabilidade futura"
-      ]
+    "convite": {
+      "nome": "Convite para conversa de diagnóstico",
+      "risco": "baixo",
+      "autonomia_maxima": "auto"
     }
   },
   "termos_proibidos": [
+    "revolucionário",
+    "revolucionária",
+    "disruptivo",
+    "disruptiva",
+    "game changer",
+    "sinergia",
+    "solução definitiva",
+    "garantimos",
     "garantido",
     "garantida",
-    "sem risco",
-    "risco zero",
-    "sem consulta",
-    "sem análise",
-    "aprovação imediata",
-    "aprovação garantida",
-    "dinheiro fácil",
-    "fique rico",
-    "lucro certo",
-    "rendimento garantido"
+    "melhor do mercado",
+    "líder absoluto",
+    "imperdível",
+    "promoção",
+    "desconto",
+    "compre agora",
+    "não perca"
   ],
   "concorrentes": [
-    "Itaú",
-    "Santander",
     "Banco do Brasil",
-    "Caixa Econômica",
-    "Nubank",
-    "Banco Inter",
-    "C6 Bank",
-    "PicPay",
-    "Mercado Pago"
+    "Bradesco",
+    "Bradesco Seguros",
+    "Audi",
+    "Grupo Comporte",
+    "Comporte",
+    "banco next",
+    "Aché",
+    "Klabin",
+    "Sotreq",
+    "Vivara",
+    "Amazon",
+    "Accenture",
+    "Deloitte",
+    "IBM",
+    "EY",
+    "KPMG",
+    "PwC",
+    "McKinsey",
+    "BCG",
+    "Bain"
   ],
   "padroes_estilo_ia": [
     {
@@ -81,20 +95,22 @@
     }
   ],
   "limites": {
-    "titulo_max": 48,
+    "titulo_max": 60,
     "subtitulo_max": 110,
     "cta_max": 24,
-    "legenda_max": 1200,
-    "hashtags_max": 5,
+    "legenda_max": 2200,
+    "hashtags_max": 4,
     "geracoes_por_dia": null,
-    "publicacoes_por_dia": null
+    "publicacoes_por_dia": null,
+    "legenda_slides_max": 1500
   },
   "juiz": {
     "nota_minima_media": 8,
     "nota_minima_item": 6,
     "riscos_aceitos_para_auto": [
       "baixo"
-    ]
+    ],
+    "risco_alto_quando": "o post cita cliente pelo nome, usa número, resultado ou caso que não está nos fatos da base de conhecimento, revela preço ou condição comercial, promete resultado, fala mal de concorrente ou fornecedor, soa como anúncio de venda em vez de conversa consultiva, ou exagera o que a Capgemini entrega."
   },
   "visao": {
     "texto_no_fundo": "bloqueio",
@@ -114,5 +130,36 @@
     "credito_bloqueia_vulneraveis": true
   },
   "rotulo_ia": "Imagem ilustrativa criada com IA.",
-  "demonstracao": false
+  "demonstracao": false,
+  "canal": {
+    "tipo": "manual",
+    "nome": "LinkedIn",
+    "orientacao": "Canal: LinkedIn, publicado pelo executivo no próprio perfil. A legenda é o texto completo do post: as duas primeiras linhas aparecem antes do \"ver mais\" e precisam prender quem lê. Parágrafos curtos, de até 3 linhas. Em carrossel, o post vira um documento em PDF."
+  },
+  "travas": {
+    "numeros_financeiros": false,
+    "numeros_da_base": true,
+    "rotulo_marcas": "Sem citar clientes nem concorrentes"
+  },
+  "regras_de_redacao": [
+    "Abra com uma frase que nomeia um problema real do executivo. Sem clickbait e sem pergunta retórica vazia.",
+    "Estrutura: o problema, o que vemos funcionar (a abordagem), a evidência e uma pergunta ou convite no final.",
+    "Escreva como um consultor sênior: claro, específico e sem jargão vazio.",
+    "Números, resultados, métodos e casos só podem vir dos fatos da base de conhecimento. Nunca invente clientes, números, prazos ou histórias pessoais.",
+    "Nunca cite o nome de clientes: use a descrição anônima da base (por exemplo, uma das maiores instituições financeiras públicas do Brasil).",
+    "Nunca informe preços, valores de investimento, prazos comerciais nem condições de contratação.",
+    "Não fale mal de concorrentes nem de fornecedores de tecnologia. Parceiros como Salesforce e Databricks podem ser citados quando estiverem na base.",
+    "Primeira pessoa do plural (na Capgemini, temos visto...), para qualquer executivo da área poder publicar.",
+    "Feche com uma pergunta para reflexão ou um convite para conversar, sem tom de venda.",
+    "No máximo 2 emojis no post inteiro, e só se fizerem sentido."
+  ],
+  "radar": {
+    "busca_web": false,
+    "criterios": [
+      "Dor do executivo: escolha um desafio concreto de CMOs, CDOs, CIOs ou líderes de CRM que a área resolve.",
+      "Prova: sempre que possível, apoie o post num número, método ou caso da base de conhecimento.",
+      "Momento do ano: aproveite datas do calendário de negócio, como o planejamento do próximo ano.",
+      "Variedade: alterne ofertas, categorias e públicos, e evite repetir o tema das últimas peças."
+    ]
+  }
 }

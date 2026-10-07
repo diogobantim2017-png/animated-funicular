@@ -13,6 +13,7 @@ import {
 import { renderizarArte, renderizarCarrossel } from './arte.js';
 import { normalizarFormato, formatoDaPeca, visualDaPeca, normalizarDesign } from './formatos.js';
 import { avaliarRegras } from './regras.js';
+import { montarPdf } from './pdf.js';
 import { avaliarComVisao } from './juiz.js';
 import { consolidarGate, decidirRota, calcularMetricas } from './autonomia.js';
 import {
@@ -716,6 +717,17 @@ export function criarMotor({ db, ia, imagem, fotos = null, canal, sortear = Math
     },
 
     /** A equipe descreve o que mudar e a IA reescreve os textos; a arte é refeita e passa pelas travas de novo. */
+    /** PDF com todas as imagens da peça, uma por página: o formato de carrossel do LinkedIn. */
+    async pdfDaPeca(id) {
+      const peca = await db.obterPeca(id);
+      if (!peca) throw erroHttp(404, 'Peça não encontrada.');
+      const chaves = peca.slides_arte?.length ? peca.slides_arte.map((s) => s.chave) : [peca.arte?.chave].filter(Boolean);
+      if (!chaves.length) throw erroHttp(409, 'A peça ainda não tem imagem.');
+      const imagens = [];
+      for (const chave of chaves) imagens.push(await db.lerMidia(chave));
+      return montarPdf(imagens);
+    },
+
     async ajustarTextosComIa(id, usuario, pedido) {
       const texto = String(pedido || '').trim();
       if (!texto) throw erroHttp(400, 'Escreva o que a IA deve mudar nos textos.');
@@ -932,6 +944,7 @@ export function criarMotor({ db, ia, imagem, fotos = null, canal, sortear = Math
           fotos_disponiveis: Boolean(fotos?.disponivel),
           fontes_de_fotos: fotos?.fontes || [],
           demonstracao: politica.demonstracao === true,
+          canal: politica.canal || null,
           modelo_ia: env.modeloIa,
           modelo_revisor: env.modeloJuiz,
           armazenamento: db.tipo,

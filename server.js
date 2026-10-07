@@ -123,6 +123,13 @@ app.get('/api/pecas', async (req, res) => {
   res.json(await motor.listar({ status }));
 });
 
+app.get('/api/pecas/:id/pdf', async (req, res) => {
+  const pdf = await motor.pdfDaPeca(req.params.id);
+  res.set('Content-Type', 'application/pdf');
+  res.set('Content-Disposition', `attachment; filename="post-${req.params.id.slice(0, 8)}.pdf"`);
+  res.send(pdf);
+});
+
 app.get('/api/pecas/:id', async (req, res) => {
   res.json(await motor.detalhe(req.params.id));
 });

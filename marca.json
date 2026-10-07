@@ -1,48 +1,50 @@
 {
-  "observacao": "Configuração para a demonstração do case Bradesco, com os logos oficiais enviados pelo banco. O degradê e as cores de apoio são aproximações da identidade atual e devem ser validados com o time de marca. A fonte proprietária Bradesco Sans é substituída pela Poppins, também geométrica.",
-  "nome": "Bradesco",
-  "descricao": "Banco brasileiro com clientes pessoa física, empreendedores e empresas. Nas redes, fala de segurança, educação financeira e uso consciente do crédito.",
-  "tom_de_voz": "Próximo, claro e confiável. Frases curtas, sem jargão financeiro, sem exageros e sem promessas. Trata o cliente por você.",
+  "observacao": "Perfil de LinkedIn da área de Martech & CRM da Capgemini. Os posts são publicados pelos executivos da área, no próprio perfil. Sem logo até o arquivo oficial do símbolo da Capgemini ser enviado: por enquanto, a arte assina com o texto de rotulo_assinatura.",
+  "nome": "Capgemini",
+  "rotulo_assinatura": "Capgemini · Martech & CRM",
+  "descricao": "Área de Martech & CRM (Connected Marketing) da Capgemini no Brasil: estratégia, dados, tecnologia e criação para transformar marketing e CRM em crescimento mensurável. Os posts vão para o LinkedIn de executivos da área e falam com CMOs, CDOs, CIOs e líderes de CRM.",
+  "tom_de_voz": "Consultivo, como um sócio que conhece o problema por dentro: claro, específico e sem jargão vazio. Abre com a dor do executivo, explica o que vemos funcionar e sustenta com evidência. Fala em primeira pessoa do plural (na Capgemini, temos visto...), sem histórias pessoais inventadas. Termina com uma pergunta para reflexão ou um convite para conversa, nunca com tom de venda.",
   "valores": [
-    "transparência",
-    "segurança",
-    "inclusão financeira"
+    "clareza",
+    "evidência",
+    "parceria com o cliente"
   ],
   "objetivos_de_negocio": [
-    "Reduzir golpes contra clientes com conteúdo educativo sobre Pix, WhatsApp e falsa central.",
-    "Aumentar o uso do app e dos canais digitais.",
-    "Promover educação financeira e uso consciente do crédito.",
-    "Fortalecer a imagem de banco próximo e transparente."
+    "Despertar o interesse de CxOs por uma conversa de diagnóstico com a área de Martech & CRM.",
+    "Posicionar a Capgemini como referência em marketing conectado: estratégia, dados, tecnologia e criação.",
+    "Mostrar resultados reais com evidência da base de conhecimento, sem expor clientes.",
+    "Explicar métodos e frameworks de forma simples, para o executivo se reconhecer no problema.",
+    "Gerar comentários e conversas qualificadas nos posts dos executivos."
   ],
   "cores": {
-    "primaria": "#CC092F",
-    "secundaria": "#FFFFFF",
+    "primaria": "#0070AD",
+    "secundaria": "#00AEEF",
     "texto_sobre_primaria": "#FFFFFF",
-    "texto_sobre_secundaria": "#CC092F",
+    "texto_sobre_secundaria": "#00112C",
     "gradiente": [
-      "#A30724",
-      "#E1173F"
+      "#00112C",
+      "#0B3B6E"
     ],
-    "texto_corpo": "#3C3C3C",
-    "fundo_claro": "#F4F4F4"
+    "texto_corpo": "#2B2F38",
+    "fundo_claro": "#F2F6FA"
   },
   "fontes": {
-    "titulo": "Poppins-SemiBold.ttf",
-    "destaque": "Poppins-Medium.ttf",
-    "texto": "Poppins-Regular.ttf"
+    "titulo": "Ubuntu-Bold.ttf",
+    "destaque": "Ubuntu-Medium.ttf",
+    "texto": "Ubuntu-Regular.ttf"
   },
-  "logo": "logo-bradesco-horizontal-vermelho.png",
-  "estilos_visuais": {
-    "fotografia_lifestyle": "Editorial lifestyle photograph, natural daylight, warm and optimistic mood, authentic everyday Brazilian setting, realistic skin tones, shallow depth of field, clean uncluttered composition",
-    "ilustracao_flat": "Flat vector illustration, clean geometric shapes, solid colors, friendly and modern, generous negative space",
-    "render_3d_suave": "Soft 3D render, rounded clay-like shapes, gentle studio lighting, soft tones, minimal scene"
-  },
-  "restricoes_visuais_en": "Absolutely no text, letters, numbers, words, signage, readable screens, logos, brand marks, watermarks, banknotes or coins, credit cards with numbers, and no real public figures.",
+  "logo": null,
   "layout": "corporativo",
-  "logos": {
-    "horizontal_claro": "logo-bradesco-horizontal-vermelho.png",
-    "horizontal_escuro": "logo-bradesco-horizontal-branco.png",
-    "simbolo_claro": "logo-bradesco-simbolo-vermelho.png",
-    "simbolo_escuro": "logo-bradesco-simbolo-branco.png"
-  }
+  "logos": {},
+  "estilos_visuais": {
+    "abstrato_tecnologico": "Abstract technology visual: flowing light lines, data particles and connected nodes, deep navy and blue tones, cinematic depth, plenty of negative space",
+    "fotografia_corporativa": "Editorial corporate photography of diverse professionals collaborating in a modern Brazilian office, natural light, candid moment, shallow depth of field",
+    "ilustracao_3d": "Clean 3D render of abstract shapes representing data, journeys and growth, soft studio light, blue palette, minimal background"
+  },
+  "restricoes_visuais_en": "Absolutely no text, letters, numbers, words, signage, readable screens, charts with labels, logos, brand marks or watermarks, and no real public figures.",
+  "diretrizes_de_cena": [
+    "A cena precisa funcionar sem nenhum texto: nada de telas legíveis, gráficos com números, letreiros ou logotipos.",
+    "Prefira visuais abstratos de dados e conexões, ou cenas de trabalho em equipe em ambiente corporativo brasileiro, com diversidade.",
+    "A metade de baixo da imagem recebe um painel de texto. Coloque o assunto principal na metade de cima."
+  ]
 }

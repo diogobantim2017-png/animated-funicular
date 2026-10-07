@@ -1,4 +1,4 @@
-import { marca, politica, segmentos, MARCADOR_PENDENTE, temPendencia } from './config.js';
+import { marca, politica, segmentos, conhecimento, MARCADOR_PENDENTE, temPendencia } from './config.js';
 import { ofertaPorId, ofertaTemPendencia } from './sinais.js';
 import { contemTermo, contraste, normalizar } from './util.js';
 import { LIMITES_SLIDE } from './formatos.js';
@@ -37,6 +37,28 @@ function textosDaIa(textos) {
  * Avalia a peça contra a política. Cada resultado traz ok, severidade (bloqueio | alerta) e detalhe.
  * bloqueio: nem humano publica sem corrigir. alerta: exige revisão humana.
  */
+/* Números com unidade (%, vezes, mil, milhões, bilhões): a forma como resultados aparecem nos posts. */
+const NUMERO_COM_UNIDADE = /(\d+(?:[.,]\d+)?)\s*(%|x\b|vezes\b|mm\b|mi\b|milh(?:ões|ão|oes|ao)\b|bi\b|bilh(?:ões|ão|oes|ao)\b|k\b|mil\b)/gi;
+
+function unidadePadrao(u) {
+  const t = u.toLowerCase();
+  if (t === '%') return '%';
+  if (t === 'x' || t === 'vezes') return 'x';
+  if (t === 'mm' || t === 'mi' || t.startsWith('milh')) return 'mi';
+  if (t === 'bi' || t.startsWith('bilh')) return 'bi';
+  return 'mil';
+}
+
+export function numerosComUnidade(texto) {
+  return [...String(texto || '').matchAll(NUMERO_COM_UNIDADE)].map((m) => ({
+    chave: `${m[1].replace('.', ',')}${unidadePadrao(m[2])}`,
+    texto: m[0].trim(),
+  }));
+}
+
+let numerosDaBase = null;
+const numerosAprovados = () => (numerosDaBase ??= new Set(numerosComUnidade(JSON.stringify(conhecimento || {})).map((n) => n.chave)));
+
 function somarDias(dia, n) {
   const [a, m, d] = String(dia).split('-').map(Number);
   return new Date(Date.UTC(a, m - 1, d + n)).toISOString().slice(0, 10);
@@ -86,6 +108,23 @@ export function avaliarRegras({ textos, categoriaId, segmentoId, ofertaId, arte,
     }
     r.push(resultado('numeros_so_do_catalogo', 'Sem taxas, valores ou rendimentos escritos pela IA', numeros.length === 0, 'bloqueio',
       numeros.length ? `A IA escreveu ${numeros.join('; ')}.` : 'A IA não escreveu taxas, valores nem condições.'));
+  }
+
+  // Perfis com base de conhecimento: todo número com unidade precisa existir na base, e preço nunca entra.
+  if (politica.travas?.numeros_da_base) {
+    const aprovados = numerosAprovados();
+    const fora = [];
+    for (const [campo, texto] of Object.entries(campos)) {
+      for (const n of numerosComUnidade(texto)) if (!aprovados.has(n.chave)) fora.push(`"${n.texto}" em ${campo}`);
+    }
+    const comPreco = Object.entries(campos)
+      .filter(([, texto]) => /R\$\s?\d/.test(texto))
+      .map(([campo]) => campo);
+    const problemas = [fora.length ? `Fora da base de conhecimento: ${fora.join('; ')}.` : '', comPreco.length ? `Valor em reais em ${comPreco.join(', ')}.` : '']
+      .filter(Boolean)
+      .join(' ');
+    r.push(resultado('numeros_da_base', 'Números só da base de conhecimento, sem preços', !problemas, 'bloqueio',
+      problemas || 'Todos os números do post estão na base de conhecimento.'));
   }
 
   // Notícia só sai com fonte recente que apareceu de fato nos resultados da busca na web.

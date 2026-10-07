@@ -947,8 +947,8 @@ await caso('Carrossel em pista: só design e pista contínua de uma imagem para 
   }
 });
 
-await caso('Modo demonstração: nunca publica de verdade, mesmo com o Instagram configurado', async () => {
-  if (perfilAtivo.politica.demonstracao !== true) return;
+await caso('Modo demonstração ou canal manual: nunca publica no Instagram, mesmo com token configurado', async () => {
+  if (perfilAtivo.politica.demonstracao !== true && perfilAtivo.politica.canal?.tipo !== 'manual') return;
   const { execFileSync } = await import('node:child_process');
   const saida = execFileSync(
     process.execPath,
@@ -988,6 +988,34 @@ await caso('Layout corporativo: post, carrossel e flashcards com os logos da mar
   } finally {
     Object.assign(marca, guardado);
   }
+});
+
+await caso('Base de conhecimento: números só da base, sem preços, e PDF do carrossel', async () => {
+  const { conhecimento } = await import('./config.js');
+  if (!conhecimento) return;
+  const guardado = politica.travas;
+  politica.travas = { numeros_financeiros: false, numeros_da_base: true };
+  try {
+    roteiro = { textos: { legenda: 'Vimos +500% na taxa de conversão e 3,7x de ganho de produtividade. Vamos conversar?' } };
+    const boa = await gerarPeca();
+    const regra = (p) => p.governanca.regras.find((r) => r.id === 'numeros_da_base');
+    assert.equal(regra(boa).ok, true, 'números que estão na base passam');
+    roteiro = { textos: { legenda: 'Vimos +250% na taxa de conversão. Vamos conversar?' } };
+    const inventada = await gerarPeca();
+    assert.equal(regra(inventada).ok, false);
+    assert.match(regra(inventada).detalhe, /250%/);
+    assert.equal(inventada.governanca.gate.veredito, 'bloqueada');
+    roteiro = { textos: { legenda: 'O diagnóstico custa R$ 311 mil. Vamos conversar?' } };
+    const comPreco = await gerarPeca();
+    assert.match(regra(comPreco).detalhe, /Valor em reais/);
+  } finally {
+    politica.travas = guardado;
+    roteiro = {};
+  }
+  const car = await gerarPeca({ orientacao: { formato: 'carrossel', visual: 'design', num_slides: 4 } });
+  const pdf = await motor.pdfDaPeca(car.id);
+  assert.equal(pdf.subarray(0, 5).toString(), '%PDF-');
+  assert.equal((pdf.toString('latin1').match(/\/Type \/Page /g) || []).length, 4, 'uma página por imagem');
 });
 
 await caso('Estado do painel com métricas por categoria e configuração ativa', async () => {

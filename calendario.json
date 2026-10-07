@@ -1,24 +1,26 @@
 {
-  "observacao": "Datas que o radar considera. Inclua o calendário de marketing do banco. Tipos: fixa (dia/mês), n_dia_semana (n-ésimo dia da semana do mês; n = -1 é o último; 0 = domingo) e periodo (início e fim).",
+  "observacao": "Momentos do calendário de negócio que o radar considera. Tipos: fixa (dia/mês), n_dia_semana e periodo (início e fim).",
   "janela_dias": 35,
   "eventos": [
     {
-      "nome": "Planejamento financeiro do ano novo",
+      "nome": "Planejamento estratégico e orçamento do próximo ano",
       "tipo": "periodo",
       "inicio": {
         "dia": 1,
-        "mes": 1
+        "mes": 10
       },
       "fim": {
         "dia": 15,
-        "mes": 1
+        "mes": 12
       },
       "temas": [
-        "educacao_financeira"
+        "convite",
+        "sinais_e_desafios",
+        "metodo"
       ]
     },
     {
-      "nome": "Contas de início de ano (IPVA, IPTU, material escolar)",
+      "nome": "Início do ano: prioridades de marketing e CRM",
       "tipo": "periodo",
       "inicio": {
         "dia": 5,
@@ -29,146 +31,40 @@
         "mes": 2
       },
       "temas": [
-        "educacao_financeira"
+        "ponto_de_vista",
+        "metodo"
       ]
     },
     {
-      "nome": "Dia do Consumidor",
-      "tipo": "fixa",
-      "dia": 15,
-      "mes": 3,
-      "temas": [
-        "institucional",
-        "seguranca_golpes"
-      ]
-    },
-    {
-      "nome": "Declaração do Imposto de Renda (confirmar datas oficiais da Receita a cada ano)",
+      "nome": "Revisão de resultados do primeiro semestre",
       "tipo": "periodo",
       "inicio": {
         "dia": 1,
-        "mes": 3
+        "mes": 7
       },
       "fim": {
         "dia": 31,
-        "mes": 5
+        "mes": 7
       },
       "temas": [
-        "educacao_financeira",
-        "seguranca_golpes"
+        "resultados",
+        "sinais_e_desafios"
       ]
     },
     {
-      "nome": "Dia das Mães",
-      "tipo": "n_dia_semana",
-      "mes": 5,
-      "dia_semana": 0,
-      "n": 2,
-      "temas": [
-        "data_comemorativa",
-        "seguranca_golpes"
-      ]
-    },
-    {
-      "nome": "Dia dos Namorados",
-      "tipo": "fixa",
-      "dia": 12,
-      "mes": 6,
-      "temas": [
-        "data_comemorativa",
-        "seguranca_golpes"
-      ]
-    },
-    {
-      "nome": "Dia dos Pais",
-      "tipo": "n_dia_semana",
-      "mes": 8,
-      "dia_semana": 0,
-      "n": 2,
-      "temas": [
-        "data_comemorativa"
-      ]
-    },
-    {
-      "nome": "Dia do Cliente",
-      "tipo": "fixa",
-      "dia": 15,
-      "mes": 9,
-      "temas": [
-        "institucional"
-      ]
-    },
-    {
-      "nome": "Dia das Crianças",
-      "tipo": "fixa",
-      "dia": 12,
-      "mes": 10,
-      "temas": [
-        "data_comemorativa",
-        "educacao_financeira"
-      ]
-    },
-    {
-      "nome": "Dia Mundial da Poupança",
-      "tipo": "fixa",
-      "dia": 31,
-      "mes": 10,
-      "temas": [
-        "educacao_financeira"
-      ]
-    },
-    {
-      "nome": "Black Friday",
-      "tipo": "n_dia_semana",
-      "mes": 11,
-      "dia_semana": 5,
-      "n": -1,
-      "temas": [
-        "seguranca_golpes",
-        "educacao_financeira"
-      ]
-    },
-    {
-      "nome": "Prazo da 1ª parcela do 13º salário",
-      "tipo": "fixa",
-      "dia": 30,
-      "mes": 11,
-      "temas": [
-        "educacao_financeira"
-      ]
-    },
-    {
-      "nome": "Prazo da 2ª parcela do 13º salário",
-      "tipo": "fixa",
-      "dia": 20,
-      "mes": 12,
-      "temas": [
-        "educacao_financeira"
-      ]
-    },
-    {
-      "nome": "Natal",
-      "tipo": "fixa",
-      "dia": 25,
-      "mes": 12,
-      "temas": [
-        "data_comemorativa",
-        "seguranca_golpes"
-      ]
-    },
-    {
-      "nome": "Férias e viagens de fim de ano (golpes em reservas e compras online)",
+      "nome": "Temporada de campanhas de varejo do fim de ano",
       "tipo": "periodo",
       "inicio": {
-        "dia": 15,
-        "mes": 12
+        "dia": 1,
+        "mes": 10
       },
       "fim": {
-        "dia": 31,
-        "mes": 1
+        "dia": 30,
+        "mes": 11
       },
       "temas": [
-        "seguranca_golpes"
+        "caso_de_sucesso",
+        "resultados"
       ]
     }
   ]

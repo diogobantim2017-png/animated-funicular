@@ -847,6 +847,20 @@ function colocarLogo(ctx, imagem, x, y, altura, alinhar = 'esquerda') {
   ctx.drawImage(imagem, px, y, largura, altura);
 }
 
+/** Logo oficial quando existe; sem logo, o nome da marca em texto (nunca um logo desenhado). */
+async function assinatura(ctx, chave, x, y, altura, alinhar, cor) {
+  const logo = await logoDaMarca(chave);
+  if (logo) return colocarLogo(ctx, logo, x, y, altura, alinhar);
+  const texto = marca.rotulo_assinatura || marca.nome;
+  if (!texto) return;
+  ctx.font = `${Math.round(altura * 0.46)}px "Marca Destaque"`;
+  ctx.fillStyle = cor;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = alinhar === 'direita' ? 'right' : alinhar === 'centro' ? 'center' : 'left';
+  ctx.fillText(texto, x, y + altura / 2);
+  ctx.textAlign = 'left';
+}
+
 function pintarDegrade(ctx, x = 0, y = 0, w = LARGURA, h = ALTURA) {
   const [de, ate] = marca.cores.gradiente || [marca.cores.primaria, marca.cores.primaria];
   const g = ctx.createLinearGradient(x, y, x + w, y + h);
@@ -967,7 +981,7 @@ async function capaCorporativa({ fundo, textos, oferta, visual, credito, d, rotu
     pintarDegrade(ctx);
     ctx.fillRect(0, 0, LARGURA, ALTURA);
     await marcaDagua(ctx, d);
-    colocarLogo(ctx, await logoDaMarca('horizontal_escuro'), x, MARGEM + 10, 66);
+    await assinatura(ctx, 'horizontal_escuro', x, MARGEM + 10, 66, 'esquerda', branco);
     y = Math.max(300, ALTURA - rodape - 40 - alturaTexto);
   }
 
@@ -988,7 +1002,7 @@ async function capaCorporativa({ fundo, textos, oferta, visual, credito, d, rotu
     desenharBloco(ctx, blocoLegal, x, ALTURA - 48 - alturaBloco(blocoLegal), branco);
     ctx.globalAlpha = 1;
   }
-  if (comFoto) colocarLogo(ctx, await logoDaMarca('horizontal_escuro'), LARGURA - MARGEM, ALTURA - 52 - 54, 54, 'direita');
+  if (comFoto) await assinatura(ctx, 'horizontal_escuro', LARGURA - MARGEM, ALTURA - 52 - 54, 54, 'direita', branco);
 
   const transbordou = !titulo.coube || !sub.coube || (destaque && !destaque.coube) || (blocoLegal && !blocoLegal.coube) || y > ALTURA - rodape + 30;
   return {
@@ -1021,7 +1035,7 @@ async function slideCorporativo({ titulo, texto, numero, total, d, mostrarNumero
   ctx.fillRect(0, 0, LARGURA, ALTURA);
   if (escuro) await marcaDagua(ctx, d);
 
-  colocarLogo(ctx, await logoDaMarca(escuro ? 'simbolo_escuro' : 'simbolo_claro'), MARGEM, MARGEM, 68);
+  await assinatura(ctx, escuro ? 'simbolo_escuro' : 'simbolo_claro', MARGEM, MARGEM, 68, 'esquerda', escuro ? branco : primaria);
   if (d.contador) {
     ctx.font = '30px "Marca Destaque"';
     ctx.fillStyle = escuro ? branco : primaria;
@@ -1116,7 +1130,7 @@ async function finalCorporativo({ fechamento, cta, legal, numero, total, d }) {
   y = desenharBloco(ctx, bloco, x, y, cor);
   y += 48;
   y = botao(ctx, cta, x, y, claro ? { fundo: marca.cores.primaria, cor: marca.cores.texto_sobre_primaria } : { fundo: marca.cores.secundaria, cor: marca.cores.texto_sobre_secundaria });
-  colocarLogo(ctx, await logoDaMarca(claro ? 'horizontal_claro' : 'horizontal_escuro'), x, ALTURA - 150 - 64, 64);
+  await assinatura(ctx, claro ? 'horizontal_claro' : 'horizontal_escuro', x, ALTURA - 150 - 64, 64, 'esquerda', cor);
   if (blocoLegal) {
     ctx.globalAlpha = 0.85;
     desenharBloco(ctx, blocoLegal, x, y + 40, cor);
