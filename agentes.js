@@ -385,6 +385,24 @@ export async function escreverTextos({
     ferramenta.input_schema.properties.legenda.description = `Legenda do post, até ${(politica.limites.legenda_slides_max || LIMITES_SLIDE.legenda)} caracteres, sem hashtags.`;
     ferramenta.input_schema.required.push('slides', 'fechamento');
   }
+  // Layout do playbook da Capgemini: destaque só por cor na manchete e rótulo com o cursor.
+  if (marca.layout === 'playbook') {
+    const props = ferramenta.input_schema.properties;
+    props.cta_arte.description = `Chamada curta em caixa alta no pé da arte, até ${l.cta_max} caracteres (ex.: Leia no post).`;
+    props.titulo_destaque = {
+      type: 'string',
+      description: 'Trecho do título, de 1 a 4 palavras copiadas exatamente, que aparece em destaque de cor na arte. Escolha a ideia principal.',
+    };
+    props.rotulo_arte = {
+      type: 'string',
+      description: 'Rótulo curto que aparece em caixa alta ao lado do cursor, no alto da arte, até 28 caracteres (ex.: Maturidade em Martech).',
+    };
+    ferramenta.input_schema.required.push('titulo_destaque', 'rotulo_arte');
+    if (emSlides) {
+      props.fechamento_destaque = { type: 'string', description: 'Trecho da frase de fechamento, de 1 a 4 palavras copiadas exatamente, em destaque de cor.' };
+      ferramenta.input_schema.required.push('fechamento_destaque');
+    }
+  }
   const regrasDaPista =
     formato === 'pista'
       ? `\n- Carrossel em pista: a metade de baixo de cada imagem é a pista, então o texto é mais curto. Títulos com até 40 caracteres e textos com até 150. Cada slide é um trecho da volta, em ordem: pense em curvas, setores, etapas de um fim de semana ou momentos de uma corrida.`

@@ -22,6 +22,8 @@ function registrarFontes() {
     'Marca Destaque': marca.fontes.destaque,
     'Marca Texto': marca.fontes.texto,
   };
+  // Peso extra para números grandes (no playbook da Capgemini, Ubuntu Sans Thin só para numerais).
+  if (marca.fontes.numeros) familias['Marca Numeros'] = marca.fontes.numeros;
   for (const [familia, relativo] of Object.entries(familias)) {
     const caminho = path.resolve(raiz, relativo);
     if (!fs.existsSync(caminho)) throw new Error(`Fonte da marca não encontrada: ${relativo}`);
@@ -128,6 +130,7 @@ async function desenharAssinatura(ctx) {
  * logo, oferta, texto legal e rótulo de IA vêm de configuração oficial.
  */
 export async function renderizarArte({ fundo, textos, oferta, visual = 'ia', credito = null, semente = 1, design = {} }) {
+  if (marca.layout === 'playbook') return renderizarArtePlaybook({ fundo, textos, oferta, design, semente });
   if (marca.layout === 'corporativo') return renderizarArteCorporativa({ fundo, textos, oferta, visual, credito, design });
   registrarFontes();
   const d = normalizarDesign(design);
@@ -794,6 +797,7 @@ async function renderizarPista({ textos, design, semente = 1 }) {
  */
 export async function renderizarCarrossel({ fundo, textos, oferta, formato, visual = 'ia', credito = null, semente = 1, design = {} }) {
   if (formato === 'pista') return renderizarPista({ textos, design: { ...design }, semente });
+  if (marca.layout === 'playbook') return renderizarCarrosselPlaybook({ fundo, textos, formato, design, semente });
   if (marca.layout === 'corporativo') return renderizarCarrosselCorporativo({ fundo, textos, oferta, formato, visual, credito, design });
   registrarFontes();
   const miolo = textos.slides || [];
@@ -1346,4 +1350,376 @@ export async function renderizarRegua(regua, rotulos) {
     paginas.push(await canvas.encode('jpeg', 92));
   }
   return paginas;
+}
+
+/* ------------------------------------------------------------ layout playbook */
+// Capgemini Visual Identity Playbook 2026 (marca.layout = "playbook"):
+// grade quadrada, temas oficiais (degradê, Midnight Blue ou branco), pixelização em grade em até 10% da peça,
+// cursor com caixa alta, manchete em Ubuntu Sans Light com destaque só por cor, barra de progresso e logo oficial.
+// Sem imagem gerada por IA: o playbook não permite.
+
+const PB = { u: 45, margem: 90 };
+
+function paletaPb() {
+  const c = marca.cores;
+  return {
+    midnight: c.midnight || '#121A38',
+    azul: c.primaria || '#0058AB',
+    claro: c.secundaria || '#1DB8F2',
+    turquesa: c.turquesa || '#09CCDA',
+    g1: c.g1 || '#F3F4F7',
+    g4: c.g4 || '#ADB8C2',
+    g6: c.texto_corpo || '#4B5972',
+  };
+}
+
+const rgbDe = (hex) => {
+  const h = hex.replace('#', '');
+  return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+};
+const hexDe = (rgb) => `#${rgb.map((v) => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0')).join('')}`;
+const mistura = (a, b, t) => hexDe(rgbDe(a).map((v, i) => v + (rgbDe(b)[i] - v) * t));
+
+/** Cor do degradê comum (Midnight → Capgemini Blue → Light Blue) num ponto de 0 a 1. */
+function corNoDegradePb(t) {
+  const p = paletaPb();
+  return t < 0.62 ? mistura(p.midnight, p.azul, t / 0.62) : mistura(p.azul, p.claro, (t - 0.62) / 0.38);
+}
+
+/** Posição (0 a 1) no degradê do fundo, para o ponto (x, y). Mesmo eixo usado em pintarFundoPb. */
+const posicaoNoDegradePb = (x, y) => Math.max(0, Math.min(1, (x * 0.35 * LARGURA + y * ALTURA) / ((0.35 * LARGURA) ** 2 + ALTURA ** 2)));
+
+function pintarFundoPb(ctx, tema) {
+  const p = paletaPb();
+  if (tema === 'claro') ctx.fillStyle = '#FFFFFF';
+  else if (tema === 'escuro') ctx.fillStyle = p.midnight;
+  else {
+    // Degradê comum, do escuro (alto, à esquerda) para o claro (baixo): o texto fica sobre a parte escura.
+    const g = ctx.createLinearGradient(0, 0, 0.35 * LARGURA, ALTURA);
+    g.addColorStop(0, p.midnight);
+    g.addColorStop(0.62, p.azul);
+    g.addColorStop(1, p.claro);
+    ctx.fillStyle = g;
+  }
+  ctx.fillRect(0, 0, LARGURA, ALTURA);
+}
+
+/**
+ * Pixelização em grade: quadrados alinhados à grade, perto de um canto, em tons do próprio fundo.
+ * Fica sempre abaixo de 10% da área da peça, como o playbook pede.
+ */
+function pixelarPb(ctx, tema, semente, quantidade = 'padrao') {
+  if (quantidade === 'nenhuma') return 0;
+  const r = sorteador(semente + 29);
+  const p = paletaPb();
+  const { u } = PB;
+  const colunas = LARGURA / u;
+  const linhas = ALTURA / u;
+  const limite = Math.floor(colunas * linhas * 0.1);
+  const raio = quantidade === 'poucas' ? 5 : 7.5;
+  const quadrados = [];
+  for (let cy = 0; cy < linhas; cy++) {
+    for (let cx = 0; cx < colunas; cx++) {
+      // Canto superior direito, longe do texto e do logo.
+      const d = Math.hypot(colunas - 1 - cx, cy) / raio;
+      if (d >= 1) continue;
+      if (r() < (1 - d) ** 1.6 * 0.95) quadrados.push([cx, cy, d]);
+    }
+  }
+  for (const [cx, cy, d] of quadrados.slice(0, limite)) {
+    const x = cx * u;
+    const y = cy * u;
+    let cor;
+    if (tema === 'claro') cor = mistura('#FFFFFF', r() < 0.5 ? p.claro : p.azul, 0.06 + r() * 0.22 * (1 - d * 0.5));
+    else if (tema === 'escuro') cor = mistura(p.midnight, r() < 0.65 ? p.azul : p.claro, 0.12 + r() * 0.45 * (1 - d * 0.6));
+    else {
+      const base = corNoDegradePb(posicaoNoDegradePb(x + u / 2, y + u / 2));
+      cor = mistura(base, r() < 0.7 ? p.claro : p.azul, 0.15 + r() * 0.5 * (1 - d * 0.6));
+    }
+    ctx.fillStyle = cor;
+    ctx.fillRect(x, y, u, u);
+  }
+  return Math.min(quadrados.length, limite);
+}
+
+/** Cursor do playbook: retângulo na proporção 1 : 1,83. */
+function cursorPb(ctx, x, y, altura, cor) {
+  ctx.fillStyle = cor;
+  ctx.fillRect(x, y, Math.round(altura / 1.83), altura);
+}
+
+/** Rótulo em caixa alta com o cursor antes (o "prompt" do playbook). Devolve a largura usada. */
+function rotuloPb(ctx, texto, x, y, cor, corCursor, tamanho = 24) {
+  const t = String(texto || '').trim().toUpperCase();
+  if (!t) return 0;
+  cursorPb(ctx, x, y, Math.round(tamanho * 1.05), corCursor);
+  ctx.font = `${tamanho}px "Marca Destaque"`;
+  ctx.letterSpacing = `${Math.round(tamanho * 0.12)}px`;
+  ctx.fillStyle = cor;
+  ctx.textBaseline = 'alphabetic';
+  const xt = x + Math.round(tamanho * 1.05 / 1.83) + 14;
+  ctx.fillText(t, xt, y + tamanho * 0.9);
+  const largura = ctx.measureText(t).width + (xt - x);
+  ctx.letterSpacing = '0px';
+  return largura;
+}
+
+/** Marca, palavra por palavra, o trecho do título que vai em destaque de cor. */
+function palavrasComDestaque(texto, destaque) {
+  const palavras = String(texto || '').trim().split(/\s+/).filter(Boolean);
+  const alvo = String(destaque || '').trim().split(/\s+/).filter(Boolean);
+  const limpar = (w) => w.toLowerCase().replace(/[.,!?;:"“”'’()]/g, '');
+  const marcado = palavras.map(() => false);
+  if (alvo.length) {
+    for (let i = 0; i + alvo.length <= palavras.length; i++) {
+      if (alvo.every((w, k) => limpar(palavras[i + k]) === limpar(w))) {
+        for (let k = 0; k < alvo.length; k++) marcado[i + k] = true;
+        break;
+      }
+    }
+  }
+  return palavras.map((p, i) => ({ p, d: marcado[i] }));
+}
+
+/** Manchete em Ubuntu Sans Light, com letras aproximadas e destaque só por cor (nunca negrito). */
+function manchetePb(ctx, texto, destaque, { largura, maximo, minimo, maxLinhas, entrelinha = 1.06 }) {
+  const palavras = palavrasComDestaque(texto, destaque);
+  let resultado = null;
+  for (let tamanho = maximo; tamanho >= minimo; tamanho -= 2) {
+    ctx.font = `${tamanho}px "Marca Titulo"`;
+    ctx.letterSpacing = `${(-tamanho * 0.025).toFixed(1)}px`;
+    const espaco = ctx.measureText(' ').width;
+    const linhas = [];
+    let atual = [];
+    let larguraAtual = 0;
+    for (const w of palavras) {
+      const lw = ctx.measureText(w.p).width;
+      if (atual.length && larguraAtual + espaco + lw > largura) {
+        linhas.push(atual);
+        atual = [];
+        larguraAtual = 0;
+      }
+      atual.push({ ...w, largura: lw });
+      larguraAtual += (atual.length > 1 ? espaco : 0) + lw;
+    }
+    if (atual.length) linhas.push(atual);
+    resultado = { tamanho, linhas, entrelinha, espaco, coube: linhas.length <= maxLinhas };
+    if (resultado.coube) break;
+  }
+  ctx.letterSpacing = '0px';
+  resultado.altura = resultado.linhas.length * resultado.tamanho * resultado.entrelinha;
+  return resultado;
+}
+
+function desenharManchetePb(ctx, m, x, y, cor, corDestaque) {
+  ctx.font = `${m.tamanho}px "Marca Titulo"`;
+  ctx.letterSpacing = `${(-m.tamanho * 0.025).toFixed(1)}px`;
+  ctx.textBaseline = 'alphabetic';
+  const alt = m.tamanho * m.entrelinha;
+  m.linhas.forEach((linha, i) => {
+    let cx = x;
+    const base = y + i * alt + m.tamanho * 0.86;
+    for (const w of linha) {
+      ctx.fillStyle = w.d ? corDestaque : cor;
+      ctx.fillText(w.p, cx, base);
+      cx += w.largura + m.espaco;
+    }
+  });
+  ctx.letterSpacing = '0px';
+  return y + m.altura;
+}
+
+/**
+ * Barra de progresso: degradê sólido Midnight → Capgemini Blue → Light Blue → Turquoise,
+ * com a altura de um quadrado da grade. "fracao" revela só parte da barra (progresso do carrossel).
+ */
+function barraPb(ctx, { x, y, largura, fracao = 1, invertida = false }) {
+  const p = paletaPb();
+  const g = ctx.createLinearGradient(x - largura * 0.2, 0, x + largura * 1.2, 0);
+  // Sobre degradê, o playbook permite a sequência ao contrário, para a barra não sumir no fundo claro.
+  const cores = invertida ? [p.turquesa, p.claro, p.azul, p.midnight] : [p.midnight, p.azul, p.claro, p.turquesa];
+  g.addColorStop(0, cores[0]);
+  g.addColorStop(0.379, cores[1]);
+  g.addColorStop(0.621, cores[2]);
+  g.addColorStop(1, cores[3]);
+  ctx.fillStyle = g;
+  ctx.fillRect(x, y, Math.max(PB.u, largura * Math.max(0, Math.min(1, fracao))), PB.u);
+}
+
+async function logoPb(ctx, tema, x, y, altura) {
+  const logo = await logoDaMarca(tema === 'claro' ? 'horizontal_claro' : 'horizontal_escuro');
+  if (logo) colocarLogo(ctx, logo, x, y, altura);
+  else await assinatura(ctx, tema === 'claro' ? 'horizontal_claro' : 'horizontal_escuro', x, y, altura, 'esquerda', tema === 'claro' ? paletaPb().azul : '#FFFFFF');
+}
+
+function coresDoTemaPb(tema) {
+  const p = paletaPb();
+  return tema === 'claro'
+    ? { texto: p.azul, destaque: p.claro, apoio: p.g6, linha: 'rgba(0, 88, 171, 0.25)', cursor: p.claro }
+    : { texto: p.g1, destaque: p.claro, apoio: 'rgba(243, 244, 247, 0.86)', linha: 'rgba(243, 244, 247, 0.35)', cursor: p.claro };
+}
+
+/** Post único e capa de carrossel. */
+async function capaPb({ fundo, textos, d, semente, cta, fracao = 1, tema }) {
+  const canvas = createCanvas(LARGURA, ALTURA);
+  const ctx = canvas.getContext('2d');
+  const { margem, u } = PB;
+  const cores = coresDoTemaPb(tema);
+  pintarFundoPb(ctx, tema);
+  let topoTexto = 330;
+  if (fundo) {
+    // Foto real (licenciada) no alto, com a pixelização fazendo a transição para o degradê.
+    const img = await loadImage(fundo);
+    const alturaFoto = 14 * u;
+    const escala = Math.max(LARGURA / img.width, alturaFoto / img.height);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, LARGURA, alturaFoto);
+    ctx.clip();
+    ctx.drawImage(img, (LARGURA - img.width * escala) / 2, (alturaFoto - img.height * escala) / 2, img.width * escala, img.height * escala);
+    ctx.restore();
+    const r = sorteador(semente + 5);
+    for (let cx = 0; cx < LARGURA / u; cx++) {
+      for (let k = 0; k < 2; k++) {
+        if (r() < (k === 0 ? 0.55 : 0.25)) {
+          ctx.fillStyle = corNoDegradePb(posicaoNoDegradePb(cx * u, alturaFoto + k * u));
+          ctx.fillRect(cx * u, alturaFoto - (k + 1) * u, u, u);
+        }
+      }
+    }
+    topoTexto = alturaFoto + u * 2;
+  } else {
+    pixelarPb(ctx, tema, semente, d.formas);
+  }
+  await logoPb(ctx, fundo ? 'escuro' : tema, margem, margem, 54);
+
+  const rotulo = textos.rotulo_arte || marca.playbook?.rotulo_padrao || '';
+  if (rotulo) rotuloPb(ctx, rotulo, margem, topoTexto - 70, cores.texto, cores.cursor);
+  const m = manchetePb(ctx, textos.titulo, textos.titulo_destaque, {
+    largura: LARGURA - margem * 2,
+    maximo: fundo ? (d.texto_maior ? 84 : 76) : d.texto_maior ? 104 : 94,
+    minimo: 52,
+    maxLinhas: fundo ? 3 : 6,
+  });
+  let y = desenharManchetePb(ctx, m, margem, topoTexto, cores.texto, cores.destaque);
+
+  // Linha fina e texto de apoio com o cursor, como no "basic with logo" do playbook.
+  y += 44;
+  ctx.fillStyle = cores.linha;
+  ctx.fillRect(margem, y, 8 * u, 2);
+  y += 26;
+  const sub = ajustarBloco(ctx, textos.subtitulo, { familia: 'Marca Texto', maximo: d.texto_maior ? 40 : 36, minimo: 26, maxLinhas: 4, entrelinha: 1.32, largura: 15 * u });
+  cursorPb(ctx, margem, y + 6, 24, cores.cursor);
+  desenharBloco(ctx, sub, margem + 30, y, cores.apoio);
+  const fimTexto = y + alturaBloco(sub);
+
+  const yBarra = ALTURA - margem - u;
+  if (cta) rotuloPb(ctx, cta, margem, yBarra - 70, cores.texto, cores.cursor, 22);
+  barraPb(ctx, { x: margem, y: yBarra, largura: LARGURA - margem, fracao, invertida: tema === 'gradiente' && !fundo });
+  const transbordou = !m.coube || !sub.coube || fimTexto > yBarra - (cta ? 90 : 40);
+  return { canvas, ajustes: { tamanho_titulo: m.tamanho, tamanho_subtitulo: sub.tamanho, altura_card: Math.round(fimTexto - topoTexto), transbordou } };
+}
+
+async function renderizarArtePlaybook({ fundo, textos, oferta, design, semente = 1 }) {
+  registrarFontes();
+  const d = normalizarDesign(design);
+  const tema = d.fundo === 'claro' ? 'claro' : d.fundo === 'escuro' ? 'escuro' : 'gradiente';
+  const { canvas, ajustes } = await capaPb({ fundo, textos, d, semente, cta: textos.cta_arte, tema });
+  if (oferta?.texto_legal) ajustes.transbordou = true;
+  return { buffer: await canvas.encode('jpeg', 92), largura: LARGURA, altura: ALTURA, ajustes };
+}
+
+/** Slide de conteúdo (fundo branco por padrão) ou cartão de estudo (Midnight Blue por padrão). */
+async function slidePb({ titulo, texto, numero, total, d, mostrarNumero, cartao = null, cartoes = 0, semente }) {
+  const canvas = createCanvas(LARGURA, ALTURA);
+  const ctx = canvas.getContext('2d');
+  const { margem, u } = PB;
+  const p = paletaPb();
+  const tema = cartao ? (d.fundo === 'claro' ? 'claro' : 'escuro') : d.fundo === 'escuro' ? 'escuro' : d.fundo === 'gradiente' ? 'gradiente' : 'claro';
+  const cores = coresDoTemaPb(tema);
+  pintarFundoPb(ctx, tema);
+  pixelarPb(ctx, tema, semente + numero * 7, d.formas === 'nenhuma' ? 'nenhuma' : 'poucas');
+  await logoPb(ctx, tema, margem, margem, 44);
+  if (d.contador) {
+    ctx.font = '24px "Marca Destaque"';
+    ctx.letterSpacing = '3px';
+    ctx.fillStyle = cores.texto;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(`${String(numero).padStart(2, '0')} / ${String(total).padStart(2, '0')}`, LARGURA - margem, ALTURA - margem - u - 30);
+    ctx.textAlign = 'left';
+    ctx.letterSpacing = '0px';
+  }
+  let y = 6 * u;
+  if (cartao) {
+    rotuloPb(ctx, `Cartão ${cartao} de ${cartoes}`, margem, y, cores.texto, cores.cursor);
+    y += 80;
+  } else if (mostrarNumero) {
+    ctx.font = `${d.texto_maior ? 230 : 210}px "${marca.fontes.numeros ? 'Marca Numeros' : 'Marca Titulo'}"`;
+    ctx.letterSpacing = '-6px';
+    ctx.fillStyle = tema === 'claro' ? p.claro : p.claro;
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(String(numero - 1).padStart(2, '0'), margem - 10, y + 150);
+    ctx.letterSpacing = '0px';
+    y += 210;
+  }
+  const limite = ALTURA - margem - u - 90;
+  const m = manchetePb(ctx, titulo, null, { largura: LARGURA - margem * 2, maximo: d.texto_maior ? 84 : 76, minimo: 46, maxLinhas: 4 });
+  y = desenharManchetePb(ctx, m, margem, y, cores.texto, cores.destaque);
+  y += 40;
+  ctx.fillStyle = cores.linha;
+  ctx.fillRect(margem, y, 6 * u, 2);
+  y += 30;
+  const corpo = ajustarBloco(ctx, texto, { familia: 'Marca Texto', maximo: d.texto_maior ? 44 : 40, minimo: 28, maxLinhas: 8, entrelinha: 1.36, largura: LARGURA - margem * 2 });
+  desenharBloco(ctx, corpo, margem, y, cores.apoio);
+  const fim = y + alturaBloco(corpo);
+  if (d.pontos) barraPb(ctx, { x: margem, y: ALTURA - margem - u, largura: LARGURA - margem, fracao: numero / total, invertida: tema === 'gradiente' });
+  return { buffer: await canvas.encode('jpeg', 92), coube: m.coube && corpo.coube && fim <= limite };
+}
+
+async function finalPb({ textos, d, total, semente }) {
+  const tema = d.fundo === 'claro' ? 'claro' : d.fundo === 'escuro' ? 'escuro' : 'gradiente';
+  const cores = coresDoTemaPb(tema);
+  const canvas = createCanvas(LARGURA, ALTURA);
+  const ctx = canvas.getContext('2d');
+  const { margem, u } = PB;
+  pintarFundoPb(ctx, tema);
+  pixelarPb(ctx, tema, semente + 101, d.formas);
+  await logoPb(ctx, tema, margem, margem, 54);
+  const m = manchetePb(ctx, textos.fechamento, textos.fechamento_destaque, { largura: LARGURA - margem * 2, maximo: d.texto_maior ? 96 : 88, minimo: 50, maxLinhas: 6 });
+  const fim = desenharManchetePb(ctx, m, margem, 330, cores.texto, cores.destaque);
+  const yBarra = ALTURA - margem - u;
+  if (textos.cta_arte) rotuloPb(ctx, textos.cta_arte, margem, yBarra - 70, cores.texto, cores.cursor, 22);
+  barraPb(ctx, { x: margem, y: yBarra, largura: LARGURA - margem, fracao: 1, invertida: tema === 'gradiente' });
+  return { buffer: await canvas.encode('jpeg', 92), coube: m.coube && fim <= yBarra - 110 };
+}
+
+async function renderizarCarrosselPlaybook({ fundo, textos, formato, design, semente = 1 }) {
+  registrarFontes();
+  const d = normalizarDesign(design);
+  const miolo = textos.slides || [];
+  const total = miolo.length + 2;
+  const mostrarNumero =
+    d.numeros_grandes === 'sim' || (d.numeros_grandes === 'auto' && formato !== 'flashcards' && !miolo.some((s) => temNumeracaoPropria(s.titulo)));
+  const temaCapa = d.fundo === 'claro' ? 'claro' : d.fundo === 'escuro' ? 'escuro' : 'gradiente';
+  const capa = await capaPb({ fundo, textos, d, semente, cta: 'Deslize para o lado', fracao: d.pontos ? 1 / total : 1, tema: temaCapa });
+  const slides = [await capa.canvas.encode('jpeg', 92)];
+  let coube = !capa.ajustes.transbordou;
+  for (const [i, item] of miolo.entries()) {
+    const r = await slidePb({
+      ...item,
+      numero: i + 2,
+      total,
+      d,
+      mostrarNumero,
+      semente,
+      ...(formato === 'flashcards' ? { cartao: i + 1, cartoes: miolo.length } : {}),
+    });
+    slides.push(r.buffer);
+    coube &&= r.coube;
+  }
+  const final = await finalPb({ textos, d, total, semente });
+  slides.push(final.buffer);
+  coube &&= final.coube;
+  return { slides, largura: LARGURA, altura: ALTURA, ajustes: { ...capa.ajustes, slides: total, transbordou: !coube } };
 }

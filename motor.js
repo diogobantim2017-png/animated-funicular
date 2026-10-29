@@ -43,7 +43,7 @@ export function erroHttp(status, mensagem) {
   return erro;
 }
 
-const CAMPOS_EDITAVEIS = ['titulo', 'subtitulo', 'cta_arte', 'legenda', 'hashtags', 'fechamento', 'slides'];
+const CAMPOS_EDITAVEIS = ['titulo', 'subtitulo', 'cta_arte', 'legenda', 'hashtags', 'fechamento', 'slides', 'titulo_destaque', 'rotulo_arte', 'fechamento_destaque'];
 
 export function criarMotor({ db, ia, imagem, fotos = null, canal, sortear = Math.random, agora = () => new Date() }) {
   let emGeracao = null;
@@ -466,6 +466,9 @@ export function criarMotor({ db, ia, imagem, fotos = null, canal, sortear = Math
   return {
     async gerar({ origem = 'manual', orientacao = null, usuario = 'equipe', aguardar = false, paraHorario = null } = {}) {
       const escolha = normalizarFormato(orientacao || {});
+      // Tipos de imagem que a marca permite (o playbook da Capgemini não aceita imagem gerada por IA).
+      const permitidos = politica.visuais_permitidos;
+      if (permitidos?.length && !permitidos.includes(escolha.visual)) escolha.visual = permitidos[0];
       verificarChaves(escolha.visual);
       orientacao = { ...(orientacao || {}), ...escolha };
       if (emGeracao) throw erroHttp(409, 'Já existe uma peça sendo gerada. Aguarde terminar.');
@@ -1080,6 +1083,8 @@ export function criarMotor({ db, ia, imagem, fotos = null, canal, sortear = Math
           fotos_disponiveis: Boolean(fotos?.disponivel),
           fontes_de_fotos: fotos?.fontes || [],
           demonstracao: politica.demonstracao === true,
+          layout: marca.layout || null,
+          visuais_permitidos: politica.visuais_permitidos || null,
           canal: politica.canal || null,
           modelo_ia: env.modeloIa,
           modelo_revisor: env.modeloJuiz,

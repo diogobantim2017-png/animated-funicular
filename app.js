@@ -60,14 +60,24 @@ const FORMATOS = { post: 'Post único', carrossel: 'Carrossel', flashcards: 'Fla
 const VISUAIS = { ia: 'imagem criada por IA', foto: 'foto real', design: 'só design' };
 const LIMITES_SLIDE = { titulo: 60, texto: 240, fechamento: 90, legenda: 700 };
 
+const emPlaybook = () => ui.estado?.config?.layout === 'playbook';
+const CAMPOS_PLAYBOOK = [
+  { id: 'titulo_destaque', rotulo: 'Destaque do título, em azul-claro (copie as palavras do título)', max: 60 },
+  { id: 'rotulo_arte', rotulo: 'Rótulo com o cursor, em caixa alta', max: 28 },
+];
+
 /** Campos editáveis conforme o formato: post único ou capa, slides e slide final. */
 function camposDaPeca(p) {
   const t = p?.textos || {};
-  if (!Array.isArray(t.slides)) return CAMPOS;
+  if (!Array.isArray(t.slides)) {
+    if (!emPlaybook()) return CAMPOS;
+    return CAMPOS.flatMap((c) => (c.id === 'titulo' ? [c, ...CAMPOS_PLAYBOOK] : c.id === 'cta_arte' ? [{ ...c, rotulo: 'Chamada no pé da arte' }] : [c]));
+  }
   const cartao = p.formato === 'flashcards';
   const campos = [
     { id: 'titulo', rotulo: 'Título', limite: 'titulo_max', grupo: 'Capa' },
     { id: 'subtitulo', rotulo: 'Subtítulo', limite: 'subtitulo_max', linhas: 2 },
+    ...(emPlaybook() ? CAMPOS_PLAYBOOK : []),
   ];
   t.slides.forEach((_, i) => {
     const nome = cartao ? `Cartão ${i + 1}` : `Slide ${i + 2}`;
@@ -78,7 +88,8 @@ function camposDaPeca(p) {
   });
   campos.push(
     { id: 'fechamento', rotulo: 'Frase de fechamento', max: LIMITES_SLIDE.fechamento, grupo: 'Slide final' },
-    { id: 'cta_arte', rotulo: 'Chamada no botão', limite: 'cta_max' },
+    ...(emPlaybook() ? [{ id: 'fechamento_destaque', rotulo: 'Destaque do fechamento, em azul-claro', max: 60 }] : []),
+    { id: 'cta_arte', rotulo: emPlaybook() ? 'Chamada no pé da arte' : 'Chamada no botão', limite: 'cta_max' },
     { id: 'legenda', rotulo: 'Legenda do post', max: LIMITES_SLIDE.legenda, linhas: 6, grupo: 'Legenda' },
     { id: 'hashtags', rotulo: 'Hashtags, separadas por espaço', limite: 'hashtags_max' },
   );
@@ -89,6 +100,7 @@ function camposDaPeca(p) {
 function formParaTextos(r, t = {}) {
   const saida = { titulo: r.titulo, subtitulo: r.subtitulo, cta_arte: r.cta_arte, legenda: r.legenda, hashtags: r.hashtags };
   if (t.fechamento !== undefined) saida.fechamento = r.fechamento;
+  for (const campo of ['titulo_destaque', 'rotulo_arte', 'fechamento_destaque']) if (r[campo] !== undefined) saida[campo] = r[campo];
   if (Array.isArray(t.slides)) saida.slides = t.slides.map((_, i) => ({ titulo: r[`slide_${i}_titulo`], texto: r[`slide_${i}_texto`] }));
   return saida;
 }
@@ -478,6 +490,13 @@ const textosParaForm = (t = {}) => ({
   legenda: t.legenda || '',
   hashtags: (t.hashtags || []).join(' '),
   ...(t.fechamento !== undefined ? { fechamento: t.fechamento || '' } : {}),
+  ...(emPlaybook()
+    ? {
+        titulo_destaque: t.titulo_destaque || '',
+        rotulo_arte: t.rotulo_arte || '',
+        ...(t.fechamento !== undefined ? { fechamento_destaque: t.fechamento_destaque || '' } : {}),
+      }
+    : {}),
   ...Object.fromEntries(
     (t.slides || []).flatMap((sl, i) => [
       [`slide_${i}_titulo`, sl.titulo || ''],
@@ -1165,6 +1184,16 @@ function atualizarDialogoGerar() {
     visual.disabled = false;
     visual.value = visual.dataset.antes || 'ia';
     delete visual.dataset.antes;
+  }
+  // Tipos de imagem que a marca permite (o playbook da Capgemini não aceita imagem gerada por IA).
+  const permitidos = ui.estado?.config?.visuais_permitidos;
+  if (permitidos?.length) {
+    for (const opcao of visual.options) {
+      const ok = permitidos.includes(opcao.value);
+      opcao.disabled = !ok;
+      opcao.textContent = opcao.textContent.replace(/ \(fora do brandbook\)$/, '') + (ok ? '' : ' (fora do brandbook)');
+    }
+    if (!permitidos.includes(visual.value)) visual.value = permitidos[0];
   }
 }
 

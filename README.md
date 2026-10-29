@@ -1,6 +1,14 @@
 # Motor de campanhas com IA e autonomia governada
 
-> **Configuração atual: posts de LinkedIn da área de Martech & CRM da Capgemini.** Os posts são consultivos e publicados à mão pelos executivos da área: o painel tem "Copiar texto do post" e "Baixar PDF" (o PDF é o formato de carrossel do LinkedIn). Com `"canal": {"tipo": "manual"}` em `politica.json`, o sistema nunca publica no Instagram, mesmo com token configurado. Todo fato do post vem de `conhecimento.json` (ofertas, métodos, casos e números do portfólio), e a trava "Números só da base de conhecimento, sem preços" bloqueia número fora da base e qualquer valor em reais. Nomes de clientes e concorrentes estão na lista de marcas proibidas: os casos aparecem só pela descrição anônima. Visual corporativo com as cores e a fonte Ubuntu da Capgemini; sem o logo oficial, a arte assina com o texto de `rotulo_assinatura` em `marca.json`. Para usar o logo, coloque os arquivos e preencha `logos` em `marca.json`.
+> **Configuração atual: posts de LinkedIn da área de Martech & CRM da Capgemini, no padrão do Capgemini Visual Identity Playbook 2026.** O visual usa `"layout": "playbook"` em `marca.json`:
+> - **Temas e fundos:** os três temas oficiais (degradê, Midnight Blue ou branco), com pixelização em grade em menos de 10% da peça.
+> - **Elementos do playbook:** cursor com rótulo em caixa alta e barra de progresso, que no carrossel vai enchendo slide a slide.
+> - **Tipografia:** Ubuntu Sans Light na manchete, com o destaque só por cor (`titulo_destaque`), e Ubuntu Sans Thin para números grandes.
+> - **Logo:** o oficial (`logo-capgemini-azul.png` e `logo-capgemini-branco.png`), recortado do próprio playbook.
+
+> **Imagens:** o playbook não permite imagem gerada por IA, por isso `"visuais_permitidos": ["design"]` em `politica.json`; as outras opções aparecem desativadas no painel. Quando a biblioteca oficial de fotos licenciadas estiver disponível, basta incluir `"foto"` nessa lista: o layout já tem a composição com foto no alto e a transição pixelada para o degradê.
+
+> **Publicação e conteúdo:** os posts são consultivos e publicados à mão pelos executivos (botões "Copiar texto do post" e "Baixar PDF"). Todo fato vem de `conhecimento.json`, e a aba Régua monta séries com calendário e PDF para aprovação.
 
 MVP de um motor que percebe a necessidade de um post, define público e objetivo, escreve os textos, gera a imagem com IA, monta a arte no template da marca, passa a peça pelas travas de governança e então publica no Instagram ou manda para revisão humana.
 

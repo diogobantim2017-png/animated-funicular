@@ -1,5 +1,5 @@
 {
-  "observacao": "Perfil de LinkedIn da área de Martech & CRM da Capgemini. Os posts são publicados pelos executivos da área, no próprio perfil. Sem logo até o arquivo oficial do símbolo da Capgemini ser enviado: por enquanto, a arte assina com o texto de rotulo_assinatura.",
+  "observacao": "Perfil de LinkedIn da área de Martech & CRM da Capgemini, no padrão do Capgemini Visual Identity Playbook 2026: temas oficiais (degradê, Midnight Blue ou branco), pixelização em grade, cursor, barra de progresso, Ubuntu Sans (Light, Regular e Thin) e logo oficial. O playbook não permite imagens geradas por IA; os fundos são feitos pelo sistema com os degradês da marca.",
   "nome": "Capgemini",
   "rotulo_assinatura": "Capgemini · Martech & CRM",
   "descricao": "Área de Martech & CRM (Connected Marketing) da Capgemini no Brasil: estratégia, dados, tecnologia e criação para transformar marketing e CRM em crescimento mensurável. Os posts vão para o LinkedIn de executivos da área e falam com CMOs, CDOs, CIOs e líderes de CRM.",
@@ -17,25 +17,34 @@
     "Gerar comentários e conversas qualificadas nos posts dos executivos."
   ],
   "cores": {
-    "primaria": "#0070AD",
-    "secundaria": "#00AEEF",
+    "primaria": "#0058AB",
+    "secundaria": "#1DB8F2",
     "texto_sobre_primaria": "#FFFFFF",
-    "texto_sobre_secundaria": "#00112C",
+    "texto_sobre_secundaria": "#121A38",
+    "midnight": "#121A38",
+    "turquesa": "#09CCDA",
+    "g1": "#F3F4F7",
+    "g4": "#ADB8C2",
+    "texto_corpo": "#4B5972",
     "gradiente": [
-      "#00112C",
-      "#0B3B6E"
+      "#121A38",
+      "#0058AB",
+      "#1DB8F2"
     ],
-    "texto_corpo": "#2B2F38",
-    "fundo_claro": "#F2F6FA"
+    "fundo_claro": "#FFFFFF"
   },
   "fontes": {
-    "titulo": "Ubuntu-Bold.ttf",
-    "destaque": "Ubuntu-Medium.ttf",
-    "texto": "Ubuntu-Regular.ttf"
+    "titulo": "UbuntuSans-Light.ttf",
+    "destaque": "UbuntuSans-Regular.ttf",
+    "texto": "UbuntuSans-Light.ttf",
+    "numeros": "UbuntuSans-Thin.ttf"
   },
-  "logo": null,
-  "layout": "corporativo",
-  "logos": {},
+  "logo": "logo-capgemini-azul.png",
+  "layout": "playbook",
+  "logos": {
+    "horizontal_claro": "logo-capgemini-azul.png",
+    "horizontal_escuro": "logo-capgemini-branco.png"
+  },
   "estilos_visuais": {
     "abstrato_tecnologico": "Abstract technology visual: flowing light lines, data particles and connected nodes, deep navy and blue tones, cinematic depth, plenty of negative space",
     "fotografia_corporativa": "Editorial corporate photography of diverse professionals collaborating in a modern Brazilian office, natural light, candid moment, shallow depth of field",
@@ -46,5 +55,9 @@
     "A cena precisa funcionar sem nenhum texto: nada de telas legíveis, gráficos com números, letreiros ou logotipos.",
     "Prefira visuais abstratos de dados e conexões, ou cenas de trabalho em equipe em ambiente corporativo brasileiro, com diversidade.",
     "A metade de baixo da imagem recebe um painel de texto. Coloque o assunto principal na metade de cima."
-  ]
+  ],
+  "playbook": {
+    "fonte": "Capgemini Visual Identity Playbook 2026",
+    "rotulo_padrao": "MARTECH"
+  }
 }

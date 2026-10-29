@@ -1088,6 +1088,60 @@ await caso('Régua de comunicação: calendário sem feriados, montagem com IA, 
   assert.ok(!(await motor.listarReguas()).some((r) => r.id === importada.id));
 });
 
+await caso('Playbook da Capgemini: degradê, destaque por cor, barra de progresso e só design', async () => {
+  if (perfilAtivo.marca.layout !== 'playbook') return;
+  const { renderizarArte, renderizarCarrossel } = await import('./arte.js');
+  const { loadImage, createCanvas } = await import('@napi-rs/canvas');
+  const guardado = { layout: marca.layout, logos: marca.logos, cores: marca.cores, playbook: marca.playbook };
+  Object.assign(marca, { layout: 'playbook', logos: perfilAtivo.marca.logos, cores: perfilAtivo.marca.cores, playbook: perfilAtivo.marca.playbook });
+  try {
+    const textos = {
+      titulo: 'Martech robusta não é só sobre ter mais tecnologia. É sobre gerar mais valor.',
+      titulo_destaque: 'mais valor.',
+      subtitulo: 'Como transformar investimentos em plataformas, dados e automação em crescimento.',
+      rotulo_arte: 'Maturidade em Martech',
+      cta_arte: 'Leia no post',
+      fechamento: 'Quantos desses sinais você reconhece hoje?',
+      fechamento_destaque: 'reconhece hoje?',
+      slides: [
+        { titulo: 'Investimentos em CRM fragmentados', texto: 'Cada área contrata a sua ferramenta.' },
+        { titulo: 'Estratégia, dados e tecnologia em silos', texto: 'As decisões não conversam entre si.' },
+        { titulo: 'Visibilidade limitada de ROI', texto: 'O investimento fica difícil de defender.' },
+      ],
+    };
+    const post = await renderizarArte({ fundo: null, textos, oferta: null, visual: 'design', design: {} });
+    assert.equal(post.ajustes.transbordou, false);
+    const img = await loadImage(post.buffer);
+    const c = createCanvas(img.width, img.height);
+    const ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const brilho = (x, y) => {
+      const [r, g, b] = ctx.getImageData(x, y, 1, 1).data;
+      return r + g + b;
+    };
+    assert.ok(brilho(40, 300) < brilho(40, 1300), 'degradê do escuro (alto) para o claro (baixo)');
+    for (const formato of ['carrossel', 'flashcards']) {
+      const r = await renderizarCarrossel({ fundo: null, textos, oferta: null, formato, visual: 'design', design: {} });
+      assert.equal(r.slides.length, 5, formato);
+      assert.equal(r.ajustes.transbordou, false, formato);
+    }
+  } finally {
+    Object.assign(marca, guardado);
+  }
+
+  // O playbook não permite imagem gerada por IA: o pedido vira "só design".
+  const guardadoV = politica.visuais_permitidos;
+  politica.visuais_permitidos = ['design'];
+  try {
+    const antes = promptsImagem.length;
+    const peca = await gerarPeca({ orientacao: { visual: 'ia' } });
+    assert.equal(peca.visual, 'design');
+    assert.equal(promptsImagem.length, antes, 'nenhuma imagem de IA foi pedida');
+  } finally {
+    politica.visuais_permitidos = guardadoV;
+  }
+});
+
 await caso('Estado do painel com métricas por categoria e configuração ativa', async () => {
   const e = await motor.estado();
   assert.equal(e.categorias.length, Object.keys(politica.categorias).length);
