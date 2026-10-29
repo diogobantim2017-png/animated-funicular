@@ -107,6 +107,35 @@ export async function criarArmazenamentoSupabase({ url, chave, bucket }) {
       return data;
     },
 
+    /* Réguas de comunicação: uma linha por série, com os dados em JSON. */
+    async listarReguas() {
+      const { data, error } = await sb.from('reguas').select('*').order('criada_em', { ascending: false });
+      falha('ler réguas; rode de novo o schema.sql no SQL Editor', error);
+      return data.map((r) => ({ ...r.dados, id: r.id, criada_em: r.criada_em, atualizada_em: r.atualizada_em }));
+    },
+
+    async obterRegua(id) {
+      const { data, error } = await sb.from('reguas').select('*').eq('id', id).maybeSingle();
+      falha('ler régua; rode de novo o schema.sql no SQL Editor', error);
+      return data ? { ...data.dados, id: data.id, criada_em: data.criada_em, atualizada_em: data.atualizada_em } : null;
+    },
+
+    async salvarRegua(regua) {
+      const { id, criada_em, atualizada_em, ...dados } = regua;
+      const { data, error } = await sb
+        .from('reguas')
+        .upsert({ id, dados, criada_em: criada_em || new Date().toISOString(), atualizada_em: new Date().toISOString() })
+        .select()
+        .single();
+      falha('gravar régua; rode de novo o schema.sql no SQL Editor', error);
+      return { ...data.dados, id: data.id, criada_em: data.criada_em, atualizada_em: data.atualizada_em };
+    },
+
+    async excluirRegua(id) {
+      const { error } = await sb.from('reguas').delete().eq('id', id);
+      falha('excluir régua', error);
+    },
+
     async obterModosCategorias() {
       const { data, error } = await sb.from('estado_categorias').select('*');
       falha('ler categorias', error);

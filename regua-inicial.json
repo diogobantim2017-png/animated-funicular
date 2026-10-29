@@ -1,0 +1,166 @@
+{
+  "observacao": "Régua sugerida para a série sobre maturidade em Martech. Carregue pelo botão 'Carregar a régua sugerida' na aba Régua. As datas são recalculadas a partir do início, pulando feriados.",
+  "nome": "Maturidade em Martech: da stack ao valor",
+  "objetivo": "Levar CxOs da provocação inicial (stack robusta não é maturidade) a uma conversa de diagnóstico, passando por credibilidade e pelas seis capacidades que fazem a diferença.",
+  "narrativa": "A série abre com o post já produzido, que apresenta as seis capacidades. Logo depois vem o reconhecimento da Everest Group, para dar credibilidade antes de aprofundar. Em seguida, um post por capacidade, cada um com prova da base, e o fechamento retoma a pergunta do primeiro post com um convite para diagnóstico.",
+  "cadencia": {
+    "inicio": "2026-11-03",
+    "dias_semana": [
+      2,
+      4
+    ]
+  },
+  "itens": [
+    {
+      "titulo": "Stack robusta não é o mesmo que operação Martech madura",
+      "categoria": "ponto_de_vista",
+      "segmento": "cmo",
+      "etapa_funil": "atrair",
+      "formato": "post",
+      "gancho": "Na sua opinião, ter uma stack robusta significa ter uma operação Martech madura?",
+      "mensagem": "A maturidade em Martech vem de seis capacidades operando de forma integrada, e não do tamanho da stack.",
+      "provas": [],
+      "cta": "E na sua organização, qual é hoje o principal desafio para transformar Martech em resultado de negócio?",
+      "ja_produzido": true,
+      "observacoes": "Post e arte já produzidos. Abre a série e apresenta as seis capacidades que os próximos posts aprofundam."
+    },
+    {
+      "titulo": "Capgemini é Líder no Everest Group PEAK Matrix® 2026 de Marketing Transformation Services",
+      "categoria": "reconhecimento",
+      "segmento": "cmo",
+      "etapa_funil": "atrair",
+      "formato": "post",
+      "gancho": "A Everest Group reconheceu a Capgemini como Líder em Marketing Transformation Services no PEAK Matrix® 2026.",
+      "mensagem": "O reconhecimento conversa com a abertura da série: transformação de marketing de ponta a ponta, com IA aplicada à operação e foco em resultado de negócio.",
+      "provas": [
+        "Transformação de marketing de ponta a ponta: estratégia, experiência, conteúdo, commerce, campanhas, mídia, fidelidade e operações com IA",
+        "IA agêntica em operação, com plataformas como Helix e Capgemini RAISE conectando estratégia, conteúdo, dados e execução",
+        "Operações de marketing com IA em escala, reforçadas pela aquisição da WNS e por um amplo portfólio de aceleradores",
+        "Modelos comerciais flexíveis, alinhados aos resultados de negócio do cliente"
+      ],
+      "cta": "Quais dessas frentes estão na agenda da sua liderança para o próximo ano?",
+      "ja_produzido": false,
+      "observacoes": "Usar o selo oficial da Everest Group, sem recriar. Nome do estudo, posição e data exatamente como no comunicado oficial. Validar com Comunicação antes de publicar."
+    },
+    {
+      "titulo": "Capacidade 1: Martech sem estratégia vira coleção de ferramentas",
+      "categoria": "sinais_e_desafios",
+      "segmento": "cmo",
+      "etapa_funil": "engajar",
+      "formato": "carrossel",
+      "gancho": "Quando a estratégia de Martech não nasce das prioridades do negócio, cada área compra a sua ferramenta.",
+      "mensagem": "Os sinais de que estratégia, dados e tecnologia estão em silos, e como um diagnóstico executivo organiza as prioridades de investimento.",
+      "provas": [
+        "Investimentos em CRM fragmentados",
+        "Estratégia, dados e tecnologia em silos",
+        "Visibilidade limitada de ROI"
+      ],
+      "cta": "Quantos desses sinais você reconhece na sua operação hoje?",
+      "ja_produzido": false,
+      "observacoes": ""
+    },
+    {
+      "titulo": "Capacidade 2: de dados fragmentados a uma visão única do cliente",
+      "categoria": "caso_de_sucesso",
+      "segmento": "cdo_cio",
+      "etapa_funil": "engajar",
+      "formato": "carrossel",
+      "gancho": "Dado espalhado em vários sistemas não vira decisão. Vira relatório.",
+      "mensagem": "Como um Customer 360 numa das maiores instituições financeiras públicas do Brasil unificou perfis e passou a ativar audiências quase em tempo real.",
+      "provas": [
+        "+94 milhões de perfis de clientes unificados",
+        "+150 segmentos de audiência publicados",
+        "+50 segmentos ativados por mês"
+      ],
+      "cta": "Na sua operação, quanto tempo leva hoje para um dado virar campanha?",
+      "ja_produzido": false,
+      "observacoes": "Caso sem nome do cliente, como nos slides. Validar com Comunicação antes de publicar."
+    },
+    {
+      "titulo": "Capacidade 3: quando a comunicação vira jornada",
+      "categoria": "metodo",
+      "segmento": "crm_cx",
+      "etapa_funil": "engajar",
+      "formato": "carrossel",
+      "gancho": "Campanha pensada por canal fala com todo mundo. Jornada fala com cada cliente.",
+      "mensagem": "As cinco etapas para sair de campanhas fragmentadas para jornadas orquestradas, com um exemplo de resultado em recuperação de crédito.",
+      "provas": [
+        "Diagnóstico de jornadas e mapeamento de gaps",
+        "Priorização de jornadas por valor",
+        "Blueprint de decisão e gatilhos",
+        "+65% das renegociações vieram das comunicações de jornada"
+      ],
+      "cta": "Suas campanhas hoje seguem uma lógica de jornada ou de canal?",
+      "ja_produzido": false,
+      "observacoes": ""
+    },
+    {
+      "titulo": "Capacidade 4: o gargalo raramente é a ferramenta, é o modelo operacional",
+      "categoria": "sinais_e_desafios",
+      "segmento": "coo_chro",
+      "etapa_funil": "engajar",
+      "formato": "post",
+      "gancho": "Em muitas operações de Martech, a tecnologia está pronta. O que trava é quem decide, quem executa e quem responde pelo resultado.",
+      "mensagem": "Papéis, governança e direitos de decisão claros conectam Marketing, Negócios, Dados e Tecnologia e destravam a execução.",
+      "provas": [
+        "Papéis, processos e direitos de decisão pouco claros",
+        "Marketing e tecnologia operando em silos",
+        "Modelo de produção de campanhas ineficiente"
+      ],
+      "cta": "Na sua empresa, quem é o dono de uma jornada de ponta a ponta?",
+      "ja_produzido": false,
+      "observacoes": ""
+    },
+    {
+      "titulo": "Capacidade 5: tecnologia para escalar, com IA na operação",
+      "categoria": "ia_no_marketing",
+      "segmento": "cdo_cio",
+      "etapa_funil": "engajar",
+      "formato": "carrossel",
+      "gancho": "Escalar personalização não deveria depender de aumentar o time.",
+      "mensagem": "Como agentes de IA aceleram a criação de jornadas alinhadas aos padrões da empresa, com humano e IA trabalhando juntos.",
+      "provas": [
+        "73% de redução no tempo de criação de jornadas com Agentforce",
+        "Ganho de produtividade de 3,7x com Agentforce"
+      ],
+      "cta": "Onde a IA já entrou na sua operação de marketing, e onde ainda não?",
+      "ja_produzido": false,
+      "observacoes": ""
+    },
+    {
+      "titulo": "Capacidade 6: mensuração que mostra o valor do investimento",
+      "categoria": "resultados",
+      "segmento": "cfo",
+      "etapa_funil": "engajar",
+      "formato": "post",
+      "gancho": "Se o investimento em Martech não aparece no resultado do negócio, o problema raramente é falta de dado.",
+      "mensagem": "Mensuração ligada a resultado de negócio é o que torna o investimento em Martech defensável, com exemplos do que essa combinação de capacidades já gerou.",
+      "provas": [
+        "+400% em vendas digitais",
+        "-79% no time to market de campanhas",
+        "+500% na taxa de conversão"
+      ],
+      "cta": "Qual indicador de marketing o seu CFO acompanha hoje?",
+      "ja_produzido": false,
+      "observacoes": "Números da base aprovada. Validar com Comunicação antes de publicar."
+    },
+    {
+      "titulo": "Fechamento: 5 perguntas para medir a maturidade da sua operação Martech",
+      "categoria": "convite",
+      "segmento": "cmo",
+      "etapa_funil": "converter",
+      "formato": "carrossel",
+      "gancho": "Antes de escolher a próxima tecnologia, vale responder cinco perguntas.",
+      "mensagem": "As cinco dimensões de um diagnóstico de maturidade, retomando a pergunta do primeiro post: estamos capturando todo o valor da tecnologia que já temos?",
+      "provas": [
+        "Estratégia e alinhamento de portfólio",
+        "Modelo operacional e governança",
+        "Ecossistema de dados e Martech",
+        "Mensuração e realização de valor"
+      ],
+      "cta": "Quer olhar essas cinco dimensões na sua operação? Vamos conversar.",
+      "ja_produzido": false,
+      "observacoes": "Fecha a série retomando a pergunta da abertura."
+    }
+  ]
+}

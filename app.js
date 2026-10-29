@@ -112,6 +112,7 @@ const ui = {
   rascunho: null,
   verFundo: false,
   semConexao: false,
+  gaveta: false,
   cache: {},
 };
 
@@ -235,6 +236,12 @@ async function carregarLista() {
   const quando = (p) => p.publicacao?.em || p.criada_em || '';
   ui.historico = historico.sort((a, b) => quando(b).localeCompare(quando(a))).slice(0, 8);
   renderLista();
+  // Na tela inicial, o resumo da fila acompanha a contagem; com uma peça aberta, só o botão da fila muda.
+  if (!ui.selecionada) renderDetalhe();
+  else {
+    const botao = $('.peca__navegacao .abrir-fila');
+    if (botao) botao.outerHTML = botaoFila();
+  }
 }
 
 async function carregarDetalhe() {
@@ -326,12 +333,17 @@ function renderTopo() {
   const html = `
     <span class="estado-chip ${pausado ? 'estado-chip--pausado' : ''}">${pausado ? 'Pausado' : 'Operando'}</span>
     <span class="modo-chip ${real ? 'modo-chip--real' : ''}">${real ? `Publicação real no Instagram${ui.estado?.instagram?.usuario ? `: @${esc(ui.estado.instagram.usuario)}` : ''}` : canalManual() ? `${esc(canalManual().nome)}: o executivo publica` : ui.estado?.config?.demonstracao ? 'Demonstração: nada é publicado' : 'Simulação: nada é publicado'}</span>
-    <span>${pausado ? `Pausado por ${esc(e.controle.atualizado_por || 'equipe')}${e.controle.motivo ? `: ${esc(e.controle.motivo)}` : ''}` : esc(agenda)}</span>
-    <span>Hoje: ${e.contagens.geradas_hoje}${e.limites.geracoes_por_dia ? ` de ${e.limites.geracoes_por_dia}` : ''} ${
-      e.contagens.geradas_hoje === 1 ? 'geração' : 'gerações'
-    }, ${e.contagens.publicadas_hoje}${e.limites.publicacoes_por_dia ? ` de ${e.limites.publicacoes_por_dia}` : ''} ${
-      e.contagens.publicadas_hoje === 1 ? 'publicação' : 'publicações'
-    }</span>`;
+    ${pausado ? `<span>Pausado por ${esc(e.controle.atualizado_por || 'equipe')}${e.controle.motivo ? `: ${esc(e.controle.motivo)}` : ''}</span>` : ''}
+    <button type="button" class="topo__mais" data-acao="topo-detalhes" aria-expanded="${Boolean(ui.topoDetalhes)}">${ui.topoDetalhes ? 'Menos' : 'Detalhes'}</button>
+    ${
+      ui.topoDetalhes
+        ? `<span class="topo__extra">${pausado ? '' : esc(agenda)}</span><span class="topo__extra">Hoje: ${e.contagens.geradas_hoje}${e.limites.geracoes_por_dia ? ` de ${e.limites.geracoes_por_dia}` : ''} ${
+            e.contagens.geradas_hoje === 1 ? 'geração' : 'gerações'
+          }, ${e.contagens.publicadas_hoje}${e.limites.publicacoes_por_dia ? ` de ${e.limites.publicacoes_por_dia}` : ''} ${
+            e.contagens.publicadas_hoje === 1 ? 'publicação' : 'publicações'
+          }</span>`
+        : ''
+    }`;
   pintar($('#topo-situacao'), 'topo', html);
 
   const gerar = $('#btn-gerar');
@@ -355,7 +367,7 @@ function renderPendencias() {
     el,
     'pendencias',
     lista.length
-      ? `<details ${telaEstreita() ? '' : 'open'}><summary>Configuração pendente (${lista.length})</summary><ul>${lista.map((p) => `<li>${esc(p)}</li>`).join('')}</ul></details>`
+      ? `<details><summary>Configuração pendente (${lista.length})</summary><ul>${lista.map((p) => `<li>${esc(p)}</li>`).join('')}</ul></details>`
       : '',
   );
 }
@@ -392,8 +404,26 @@ function itemHtml(p) {
   </button>`;
 }
 
+/* A fila fica numa gaveta: só aparece quando a pessoa pede. */
+const nomeDaLista = () => (ui.aba === 'todas' ? 'Todas as peças' : 'Fila de revisão');
+const contagemDaLista = () => (ui.aba === 'todas' ? ui.pecas.length : ui.pecas.filter((p) => p.status === 'em_revisao').length);
+
+function aplicarGaveta() {
+  $('#area-pecas').dataset.gaveta = ui.gaveta ? 'aberta' : 'fechada';
+  $('#gaveta-fundo').hidden = !ui.gaveta;
+  for (const botao of $$('[data-acao="abrir-fila"]')) botao.setAttribute('aria-expanded', String(ui.gaveta));
+}
+
+function botaoFila(classe = 'abrir-fila') {
+  const n = contagemDaLista();
+  return `<button type="button" class="${classe}" data-acao="abrir-fila" aria-controls="lista" aria-expanded="${ui.gaveta}">
+    <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h9" /></svg>
+    ${nomeDaLista()}${n ? `<span class="abrir-fila__contador">${n}</span>` : ''}
+  </button>`;
+}
+
 function renderLista() {
-  let html = '';
+  let html = `<div class="gaveta__topo"><h2 class="gaveta__titulo">${nomeDaLista()}</h2><button type="button" class="gaveta__fechar" data-acao="fechar-fila">Fechar</button></div>`;
   if (ui.aba === 'todas') {
     const opcoes = [
       ['', 'Todas'],
@@ -524,7 +554,7 @@ function situacao(p) {
   return '';
 }
 
-function regua(p) {
+function regua(p, { comSituacao = true } = {}) {
   const g = p.governanca;
   const gate = g.gate;
   const passos = VEREDITOS.map((v) => {
@@ -542,7 +572,7 @@ function regua(p) {
     g.veredito_inicial && g.veredito_inicial !== gate.veredito
       ? `<p class="regua__nota">Veredito original, antes da alteração humana: ${esc(NOME_VEREDITO[g.veredito_inicial])}. É ele que conta na métrica de concordância da categoria.</p>`
       : '';
-  return `<section class="regua" aria-label="Veredito das travas de governança"><ol class="regua__trilho">${passos}</ol><p class="regua__situacao">${situacao(p)}</p>${inicial}</section>`;
+  return `<section class="regua" aria-label="Veredito das travas de governança"><ol class="regua__trilho">${passos}</ol>${comSituacao ? `<p class="regua__situacao">${situacao(p)}</p>` : ''}${inicial}</section>`;
 }
 
 function faixaSuperior(d) {
@@ -552,7 +582,16 @@ function faixaSuperior(d) {
     return `<section class="falha" role="alert"><strong>A geração parou na etapa ${esc(NOME_ETAPA[p.etapa] || p.etapa || 'inicial')}</strong>${esc(p.erro || 'Motivo não informado.')}</section>`;
   }
   const aviso = p.erro ? `<section class="falha" role="alert"><strong>A última ação falhou</strong>${esc(p.erro)}</section>` : '';
-  return `${aviso}${p.governanca ? regua(p) : ''}`;
+  if (!p.governanca) return aviso;
+  const gate = p.governanca.gate;
+  const v = VEREDITOS.find((x) => x.id === gate.veredito) || VEREDITOS[1];
+  const contagem = [gate.bloqueios ? plural(gate.bloqueios, 'bloqueio', 'bloqueios') : '', gate.alertas ? plural(gate.alertas, 'alerta', 'alertas') : '']
+    .filter(Boolean)
+    .join(' e ');
+  return `${aviso}<div class="decisao decisao--${v.classe}">
+    <span class="decisao__selo">${v.nome}</span>
+    <span class="decisao__texto">${situacao(p)} <button type="button" class="decisao__ver" data-acao="aba-peca" data-aba="travas">${contagem ? `Ver ${contagem}` : 'Ver travas'}</button></span>
+  </div>`;
 }
 
 function figura(d) {
@@ -674,20 +713,31 @@ function textos(d) {
           ${p.arte?.url ? `<a class="botao botao--texto" href="${esc(p.arte.url)}" target="_blank" rel="noopener">Abrir imagem</a>` : ''}
         </div>`
       : '';
-  const legendaFinal = d.legenda_final
-    ? `<h4 class="bloco__subtitulo">${manual ? `Texto do post para o ${esc(manual.nome)}` : 'Legenda como será publicada'}</h4><p class="legenda-final">${esc(d.legenda_final)}</p>${baixar}<p class="dica">Rótulo de imagem criada com IA (só quando a imagem é de IA), crédito da foto e hashtags entram automaticamente.${editavel ? ' Atualiza quando você salvar.' : ''}</p>`
+  // Primeiro o texto final do post, com copiar e baixar; os textos de cada imagem ficam numa caixa que abre ao clicar.
+  const textoFinal = d.legenda_final
+    ? bloco(
+        manual ? `Texto do post para o ${esc(manual.nome)}` : 'Legenda como será publicada',
+        `<p class="legenda-final">${esc(d.legenda_final)}</p>${baixar}<p class="dica">Rótulo de imagem criada com IA (só quando a imagem é de IA), crédito da foto e hashtags entram automaticamente.${editavel ? ' Atualiza quando você salvar.' : ''}</p>`,
+      )
     : '';
+  const recolhivel = (resumo, dica, conteudo, aberto) =>
+    `<section class="bloco bloco--recolhivel"><details class="editar"${aberto ? ' open' : ''}><summary><span class="bloco__titulo">${resumo}</span><span class="recolhivel__dica">${dica}</span></summary><div class="editar__conteudo">${conteudo}</div></details></section>`;
 
   if (!editavel) {
-    return bloco(
-      'Textos',
-      fatos([
-        ['Título', p.textos.titulo],
-        ['Subtítulo', p.textos.subtitulo],
-        ...(p.textos.slides || []).map((sl, i) => [p.formato === 'flashcards' ? `Cartão ${i + 1}` : `Slide ${i + 2}`, `${sl.titulo}. ${sl.texto}`]),
-        ['Fechamento', p.textos.fechamento],
-        ['Chamada', p.textos.cta_arte],
-      ]) + legendaFinal,
+    return (
+      textoFinal +
+      recolhivel(
+        'Textos da arte',
+        'Ver',
+        fatos([
+          ['Título', p.textos.titulo],
+          ['Subtítulo', p.textos.subtitulo],
+          ...(p.textos.slides || []).map((sl, i) => [p.formato === 'flashcards' ? `Cartão ${i + 1}` : `Slide ${i + 2}`, `${sl.titulo}. ${sl.texto}`]),
+          ['Fechamento', p.textos.fechamento],
+          ['Chamada', p.textos.cta_arte],
+        ]),
+        Boolean(ui.editarAberto),
+      )
     );
   }
 
@@ -699,7 +749,7 @@ function textos(d) {
       : `<input id="campo-${c.id}" type="text" data-campo="${c.id}" value="${esc(valores[c.id])}">`;
     return `${c.grupo && Array.isArray(p.textos.slides) ? `<h4 class="campos__grupo">${esc(c.grupo)}</h4>` : ''}<div class="campo"><label class="campo__rotulo" for="campo-${c.id}"><span>${c.rotulo}</span><span class="campo__contador ${m.excedido ? 'campo__contador--excedido' : ''}" id="contador-${c.id}">${m.texto}</span></label>${controle}</div>`;
   }).join('');
-  return bloco('Textos', `${campos}${legendaFinal}`);
+  return textoFinal + recolhivel('Textos da arte', 'Editar', campos, Boolean(ui.editarAberto || ui.rascunho));
 }
 
 function checagem(estado, nome, detalhe) {
@@ -844,8 +894,28 @@ function boasVindas() {
     ['Arte', 'O template oficial aplica textos, cores e os avisos legais do catálogo.'],
     ['Travas', 'Regras em código e um revisor de IA com visão decidem: bloqueia, pede humano ou libera.'],
   ];
+  const n = contagemDaLista();
+  const contar = (veredito) => ui.pecas.filter((p) => p.status === 'em_revisao' && p.veredito === veredito).length;
+  const resumo =
+    ui.aba === 'fila' && n
+      ? `<ul class="fila-resumo__numeros">
+          <li class="fila-resumo__numero fila-resumo__numero--verde"><b>${contar('publicavel')}</b> publicáveis</li>
+          <li class="fila-resumo__numero fila-resumo__numero--ambar"><b>${contar('precisa_humano')}</b> precisam de revisão</li>
+          <li class="fila-resumo__numero fila-resumo__numero--vermelho"><b>${contar('bloqueada')}</b> bloqueadas</li>
+        </ul>`
+      : '';
+  const chamada =
+    ui.aba === 'fila' && !n
+      ? `<p class="fila-resumo__texto">Nada para revisar agora.</p><button type="button" class="botao botao--primario" data-acao="abrir-gerar">Gerar peça agora</button>`
+      : `<p class="fila-resumo__texto">${ui.aba === 'fila' ? `${n === 1 ? 'peça esperando' : 'peças esperando'} a sua decisão` : `${n === 1 ? 'peça' : 'peças'} no total`}</p>${botaoFila('botao botao--primario abrir-fila--grande')}`;
   return `<div class="boas-vindas">
-    <h2 class="boas-vindas__titulo">Selecione uma peça para revisar</h2>
+    <section class="fila-resumo">
+      <p class="fila-resumo__rotulo">${nomeDaLista()}</p>
+      ${n ? `<p class="fila-resumo__total">${n}</p>` : ''}
+      ${chamada}
+      ${resumo}
+    </section>
+    <h2 class="boas-vindas__titulo">Abra a fila e escolha uma peça para revisar</h2>
     <p class="boas-vindas__texto">Cada peça mostra a arte, o motivo do post, o público escolhido e o que cada trava encontrou. Toda decisão, da IA ou de uma pessoa, fica na trilha de auditoria.</p>
     <h3 class="bloco__titulo">Como uma peça chega até aqui</h3>
     <ol class="percurso">${passos.map(([t, desc]) => `<li class="percurso__passo"><strong>${t}</strong><span>${desc}</span></li>`).join('')}</ol>
@@ -862,25 +932,56 @@ function renderDetalhe() {
   }
   const d = ui.detalhe;
   const p = d.peca;
-  const info = `${porQue(d)}${publico(d)}${textos(d)}${travas(d)}${revisor(d)}`;
-  let corpo = '';
+  const textosHtml = textos(d);
+  let post = '';
   if (p.arte) {
-    corpo = `<div class="peca__corpo">${figura(d)}<div class="peca__info">${info}</div></div>`;
+    post = `<div class="peca__corpo">${figura(d)}<div class="peca__info">${textosHtml}</div></div>`;
   } else if (p.status === 'erro') {
     // Falhou antes da arte: mostra só o que chegou a ser produzido, sem o espaço vazio da imagem.
-    corpo = info ? `<div class="peca__corpo peca__corpo--sem-arte"><div class="peca__info">${info}</div></div>` : '';
+    post = textosHtml ? `<div class="peca__corpo peca__corpo--sem-arte"><div class="peca__info">${textosHtml}</div></div>` : '';
   } else if (p.status !== 'gerando') {
-    corpo = `<div class="peca__corpo">${figura(d)}<div class="peca__info">${info}</div></div>`;
+    post = `<div class="peca__corpo">${figura(d)}<div class="peca__info">${textosHtml}</div></div>`;
   }
+  // Cada parte da peça fica numa aba, para a tela mostrar uma coisa de cada vez.
+  const gate = p.governanca?.gate;
+  const abas = [
+    { id: 'post', nome: 'Post', html: post },
+    { id: 'estrategia', nome: 'Estratégia', html: `${porQue(d)}${publico(d)}` },
+    {
+      id: 'travas',
+      nome: 'Travas',
+      html: p.governanca ? `${regua(p, { comSituacao: false })}${travas(d)}${revisor(d)}` : '',
+      contador: (gate?.bloqueios || 0) + (gate?.alertas || 0),
+    },
+    { id: 'historico', nome: 'Histórico', html: auditoriaHtml(d.auditoria) },
+  ].filter((a) => a.html);
+  const atual = abas.some((a) => a.id === ui.abaPeca) ? ui.abaPeca : abas[0]?.id;
+  const barra =
+    abas.length > 1
+      ? `<div class="sub-abas" role="tablist" aria-label="Partes da peça">${abas
+          .map(
+            (a) =>
+              `<button type="button" role="tab" class="sub-aba" id="sub-aba-${a.id}" aria-controls="painel-${a.id}" aria-selected="${a.id === atual}" data-acao="aba-peca" data-aba="${a.id}">${a.nome}${
+                a.contador ? `<span class="sub-aba__contador">${a.contador}</span>` : ''
+              }</button>`,
+          )
+          .join('')}</div>`
+      : '';
+  const paineis = abas
+    .map((a) => `<section class="painel-peca" id="painel-${a.id}" role="tabpanel" aria-labelledby="sub-aba-${a.id}" ${a.id === atual ? '' : 'hidden'}>${a.html}</section>`)
+    .join('');
   const tema = p.oportunidade?.tema || (p.status === 'erro' ? 'Geração interrompida antes da escolha do tema' : 'Tema em definição pelo radar');
   el.innerHTML = `<article class="peca">
-    <button type="button" class="voltar" data-acao="voltar">← Voltar ao início</button>
+    <div class="peca__navegacao">
+      <button type="button" class="voltar" data-acao="voltar">← Voltar ao início</button>
+      ${botaoFila()}
+    </div>
     <p class="peca__contexto">${contextoDaPeca(p, d.categoria)}</p>
     <h2 class="peca__tema">${esc(tema)}</h2>
     ${faixaSuperior(d)}
-    ${corpo}
+    ${barra}
+    ${paineis}
     ${acoesHtml(d)}
-    ${auditoriaHtml(d.auditoria)}
   </article>`;
 }
 
@@ -1117,6 +1218,7 @@ async function selecionar(id) {
     ui.rascunho = null;
     ui.verFundo = false;
     ui.slideAtual = 0;
+    ui.abaPeca = 'post';
   }
   ui.selecionada = id;
   history.replaceState(null, '', id ? `#peca=${id}` : location.pathname);
@@ -1348,20 +1450,176 @@ $('#quando-data').addEventListener('focus', () => {
 
 function trocarAba(aba) {
   ui.aba = aba;
+  ui.gaveta = false;
+  aplicarGaveta();
   for (const b of $$('.aba')) {
     b.setAttribute('aria-selected', String(b.dataset.aba === aba));
     b.tabIndex = b.dataset.aba === aba ? 0 : -1;
   }
-  $('#area-pecas').hidden = aba === 'autonomia' || aba === 'programacao';
+  $('#area-pecas').hidden = aba === 'autonomia' || aba === 'programacao' || aba === 'regua';
   $('#area-autonomia').hidden = aba !== 'autonomia';
   $('#area-programacao').hidden = aba !== 'programacao';
+  $('#area-regua').hidden = aba !== 'regua';
   if (aba === 'autonomia') renderAutonomia();
   else if (aba === 'programacao') carregarProgramacao().catch((erro) => avisar(erro.message, 'erro'));
+  else if (aba === 'regua') carregarRegua().catch((erro) => avisar(erro.message, 'erro'));
   else carregarLista().catch((erro) => avisar(erro.message, 'erro'));
 }
 
+/* -------------------------------------------------------------------- régua */
+
+const ETAPAS_DO_FUNIL = { atrair: 'Atrair atenção', engajar: 'Gerar conversa', converter: 'Convidar para conversa' };
+const DIAS_CURTOS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+let atualizacaoDaRegua = null;
+
+function diaDaRegua(iso) {
+  if (!iso) return { dia: 'A definir', semana: '' };
+  const [a, m, d] = iso.split('-').map(Number);
+  return { dia: `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}`, semana: DIAS_CURTOS[new Date(Date.UTC(a, m - 1, d, 12)).getUTCDay()] };
+}
+
+async function carregarRegua() {
+  ui.reguas = await api('/api/reguas');
+  if (!ui.reguas.some((r) => r.id === ui.reguaAtual)) ui.reguaAtual = ui.reguas[0]?.id || null;
+  ui.regua = ui.reguaAtual ? await api(`/api/reguas/${ui.reguaAtual}`) : null;
+  renderRegua();
+  // Enquanto algum post da régua está sendo gerado, a tela se atualiza sozinha.
+  clearTimeout(atualizacaoDaRegua);
+  if (ui.aba === 'regua' && ui.regua?.itens?.some((i) => i.peca?.status === 'gerando')) {
+    atualizacaoDaRegua = setTimeout(() => carregarRegua().catch(() => {}), 8000);
+  }
+}
+
+function seloDoPostDaRegua(item) {
+  if (item.peca) {
+    const s = seloDoItem(item.peca);
+    return `<span class="selo selo--${s.classe}">${esc(s.texto)}</span>`;
+  }
+  if (item.ja_produzido) return '<span class="selo selo--publicavel">Já produzido</span>';
+  return '<span class="selo selo--neutro">Planejado</span>';
+}
+
+function itemDaRegua(item, i) {
+  const categorias = ui.estado?.categorias || [];
+  const publicos = ui.estado?.segmentos || [];
+  const nomeCategoria = categorias.find((c) => c.id === item.categoria)?.nome || item.categoria;
+  const nomePublico = publicos.find((s) => s.id === item.segmento)?.nome || item.segmento;
+  const d = diaDaRegua(item.data);
+  const acaoPrincipal = item.peca
+    ? `<button type="button" class="botao botao--secundario" data-acao="regua-abrir-peca" data-peca="${esc(item.peca.id)}">Abrir post</button>`
+    : item.ja_produzido
+      ? ''
+      : `<button type="button" class="botao botao--primario" data-acao="regua-gerar" data-item="${esc(item.id)}">Gerar post</button>`;
+  const marcar = item.peca
+    ? ''
+    : `<button type="button" class="botao botao--texto" data-acao="regua-produzido" data-item="${esc(item.id)}">${item.ja_produzido ? 'Desmarcar já produzido' : 'Marcar como já produzido'}</button>`;
+  return `<li class="regua__item">
+    <div class="regua__data">
+      <span class="regua__numero">${String(i + 1).padStart(2, '0')}</span>
+      <b>${d.dia}</b><span>${d.semana}</span>
+      <label class="regua__mudar-data">Mudar data<input type="date" value="${esc(item.data || '')}" data-regua-data="${esc(item.id)}"></label>
+    </div>
+    <div class="regua__conteudo">
+      <div class="regua__chips">
+        ${seloDoPostDaRegua(item)}
+        <span class="etiqueta">${esc(nomeCategoria)}</span>
+        <span class="etiqueta">${esc(FORMATOS[item.formato] || item.formato)}</span>
+        <span class="etiqueta">${esc(ETAPAS_DO_FUNIL[item.etapa_funil] || item.etapa_funil)}</span>
+        <span class="etiqueta">${esc(nomePublico)}</span>
+      </div>
+      <h3 class="regua__titulo">${esc(item.titulo)}</h3>
+      <p class="regua__gancho">“${esc(item.gancho)}”</p>
+      <p class="regua__mensagem">${esc(item.mensagem)}</p>
+      ${
+        item.provas?.length
+          ? `<details class="regua__provas"><summary>Provas da base (${item.provas.length})</summary><ul>${item.provas.map((pv) => `<li>${esc(pv)}</li>`).join('')}</ul></details>`
+          : ''
+      }
+      <p class="regua__cta"><b>Chamada final:</b> ${esc(item.cta)}</p>
+      ${item.observacoes ? `<p class="regua__obs"><b>Para a aprovação:</b> ${esc(item.observacoes)}</p>` : ''}
+    </div>
+    <div class="regua__acoes-item">${acaoPrincipal}${marcar}</div>
+  </li>`;
+}
+
+function renderRegua() {
+  const area = $('#area-regua');
+  const r = ui.regua;
+  if (!r) {
+    area.innerHTML = `<div class="regua">
+      <section class="fila-resumo">
+        <p class="fila-resumo__rotulo">Régua de comunicação</p>
+        <h2 class="regua__nome">Nenhuma régua ainda</h2>
+        <p class="fila-resumo__texto">O motor monta a série de posts com calendário, a partir da base de conhecimento. Depois você baixa em PDF para aprovação e gera cada post com um clique.</p>
+        <div class="regua__botoes">
+          <button type="button" class="botao botao--primario" data-acao="regua-sugerida">Carregar a régua sugerida</button>
+          <button type="button" class="botao botao--secundario" data-acao="nova-regua">Montar régua com IA</button>
+        </div>
+      </section>
+    </div>`;
+    return;
+  }
+  const datas = r.itens.map((i) => i.data).filter(Boolean).sort();
+  const periodo = datas.length ? `${diaDaRegua(datas[0]).dia} a ${diaDaRegua(datas.at(-1)).dia}` : 'datas a definir';
+  const pulados = r.cadencia?.feriados_pulados || [];
+  const outras =
+    ui.reguas.length > 1
+      ? `<label class="regua__escolher">Régua<select data-regua-escolher>${ui.reguas
+          .map((x) => `<option value="${esc(x.id)}" ${x.id === r.id ? 'selected' : ''}>${esc(x.nome)}</option>`)
+          .join('')}</select></label>`
+      : '';
+  area.innerHTML = `<div class="regua">
+    <section class="fila-resumo regua__topo">
+      <p class="fila-resumo__rotulo">Régua de comunicação</p>
+      <h2 class="regua__nome">${esc(r.nome)}</h2>
+      <p class="fila-resumo__texto">${r.itens.length} posts · ${periodo}${r.cadencia?.texto ? ` · ${esc(r.cadencia.texto)}` : ''}</p>
+      <div class="regua__botoes">
+        <a class="botao botao--primario" href="/api/reguas/${esc(r.id)}/pdf" download>Baixar PDF para aprovação</a>
+        <button type="button" class="botao botao--secundario" data-acao="nova-regua">Montar outra régua</button>
+        <button type="button" class="botao botao--texto" data-acao="regua-excluir">Excluir esta régua</button>
+        ${outras}
+      </div>
+    </section>
+    <section class="bloco regua__resumo">
+      ${fatos([
+        ['Objetivo', r.objetivo],
+        ['Narrativa', r.narrativa],
+        pulados.length ? ['Feriados pulados', pulados.map((p) => `${diaDaRegua(p.data).dia} (${p.motivo})`).join(', ')] : null,
+      ])}
+    </section>
+    <ol class="regua__linha">${r.itens.map(itemDaRegua).join('')}</ol>
+  </div>`;
+}
+
+function abrirMontarRegua() {
+  const dlg = $('#dlg-regua');
+  const publicos = ui.estado?.segmentos || [];
+  $('#regua-publico').innerHTML = `<option value="">Variado</option>${publicos.map((s) => `<option value="${esc(s.id)}">${esc(s.nome)}</option>`).join('')}`;
+  // Sugere começar na próxima terça.
+  const d = new Date();
+  do d.setDate(d.getDate() + 1);
+  while (d.getDay() !== 2);
+  $('#regua-inicio').value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  dlg.showModal();
+}
+
 const acoesPorNome = {
-  abrir: (alvo) => selecionar(alvo.dataset.id),
+  abrir: (alvo) => {
+    ui.gaveta = false;
+    aplicarGaveta();
+    return selecionar(alvo.dataset.id);
+  },
+
+  'abrir-fila': () => {
+    ui.gaveta = !ui.gaveta;
+    aplicarGaveta();
+    if (ui.gaveta) $('.gaveta__fechar')?.focus({ preventScroll: true });
+  },
+
+  'fechar-fila': () => {
+    ui.gaveta = false;
+    aplicarGaveta();
+  },
 
   voltar: () => {
     ui.selecionada = null;
@@ -1443,6 +1701,57 @@ const acoesPorNome = {
   descartar: () => {
     ui.rascunho = null;
     renderDetalhe();
+  },
+
+  'aba-peca': (alvo) => {
+    ui.abaPeca = alvo.dataset.aba;
+    for (const b of $$('.sub-aba')) b.setAttribute('aria-selected', String(b.dataset.aba === ui.abaPeca));
+    for (const painel of $$('.painel-peca')) painel.hidden = painel.id !== `painel-${ui.abaPeca}`;
+    if (!alvo.classList.contains('sub-aba')) $('.sub-abas')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  },
+
+  'topo-detalhes': () => {
+    ui.topoDetalhes = !ui.topoDetalhes;
+    renderTopo();
+  },
+
+  'nova-regua': () => abrirMontarRegua(),
+
+  'regua-sugerida': async (alvo) => {
+    await executar(alvo, 'Carregando…', async () => {
+      const r = await acao('/api/reguas/sugerida');
+      ui.reguaAtual = r.id;
+      avisar('Régua sugerida carregada. Revise as datas e baixe o PDF para aprovação.', 'sucesso');
+    });
+    await carregarRegua();
+  },
+
+  'regua-gerar': async (alvo) => {
+    if (!exigirNome()) return;
+    await executar(alvo, 'Gerando…', async () => {
+      await acao(`/api/reguas/${ui.regua.id}/itens/${alvo.dataset.item}/gerar`);
+      avisar('Gerando o post. Ele aparece na fila de revisão em 1 a 2 minutos.', 'sucesso');
+    });
+    await carregarRegua();
+  },
+
+  'regua-produzido': async (alvo) => {
+    const item = ui.regua.itens.find((i) => i.id === alvo.dataset.item);
+    ui.regua = await api(`/api/reguas/${ui.regua.id}/itens/${item.id}`, { metodo: 'PATCH', corpo: { ja_produzido: !item.ja_produzido } });
+    renderRegua();
+  },
+
+  'regua-abrir-peca': async (alvo) => {
+    trocarAba('fila');
+    await selecionar(alvo.dataset.peca);
+  },
+
+  'regua-excluir': async () => {
+    const r = await confirmar({ titulo: 'Excluir esta régua?', texto: 'Os posts já gerados continuam na fila. Só o planejamento da série é apagado.', botao: 'Excluir', perigo: true });
+    if (!r.ok) return;
+    await api(`/api/reguas/${ui.regua.id}`, { metodo: 'DELETE' });
+    ui.reguaAtual = null;
+    await carregarRegua();
   },
 
   'copiar-texto': async () => {
@@ -1727,12 +2036,70 @@ function irParaInicio() {
 
 $('#btn-inicio').addEventListener('click', irParaInicio);
 
+$('#dlg-regua').addEventListener('close', async () => {
+  const dlg = $('#dlg-regua');
+  if (dlg.returnValue !== 'confirmar') return;
+  const form = new FormData($('#form-regua'));
+  const corpo = {
+    objetivo: form.get('objetivo'),
+    total: Number(form.get('total')),
+    inicio: form.get('inicio'),
+    publico: form.get('publico'),
+    obrigatorios: form.get('obrigatorios'),
+    ja_produzido: form.get('ja_produzido'),
+    dias_semana: form.getAll('dia').map(Number),
+  };
+  if (!corpo.dias_semana.length) return avisar('Escolha pelo menos um dia de publicação.', 'erro');
+  avisar('Montando a régua. Isso leva até 1 minuto.');
+  try {
+    const r = await acao('/api/reguas', corpo);
+    ui.reguaAtual = r.id;
+    await carregarRegua();
+    avisar('Régua pronta. Revise e baixe o PDF para aprovação.', 'sucesso');
+  } catch (erro) {
+    avisar(erro.message, 'erro');
+  }
+});
+
+document.addEventListener('change', async (evento) => {
+  const campoData = evento.target.closest?.('[data-regua-data]');
+  if (campoData && ui.regua) {
+    try {
+      ui.regua = await api(`/api/reguas/${ui.regua.id}/itens/${campoData.dataset.reguaData}`, { metodo: 'PATCH', corpo: { data: campoData.value } });
+      renderRegua();
+      avisar('Data atualizada. A régua foi reordenada.', 'sucesso');
+    } catch (erro) {
+      avisar(erro.message, 'erro');
+    }
+    return;
+  }
+  const escolha = evento.target.closest?.('[data-regua-escolher]');
+  if (escolha) {
+    ui.reguaAtual = escolha.value;
+    carregarRegua().catch((erro) => avisar(erro.message, 'erro'));
+  }
+});
+
 // Esc fecha a peça aberta e volta ao início, quando não há janela aberta por cima.
 document.addEventListener('keydown', (evento) => {
+  if (evento.key === 'Escape' && ui.gaveta && !document.querySelector('dialog[open]')) {
+    ui.gaveta = false;
+    aplicarGaveta();
+    return;
+  }
   if (evento.key !== 'Escape' || !ui.selecionada || document.querySelector('dialog[open]')) return;
   if (evento.target.closest('input, textarea, select')) return;
   acoesPorNome.voltar();
 });
+
+// O evento "toggle" não sobe pela página: é ouvido na captura.
+document.addEventListener(
+  'toggle',
+  (evento) => {
+    if (evento.target.matches?.('details.editar')) ui.editarAberto = evento.target.open;
+  },
+  true,
+);
 
 for (const aba of $$('.aba')) {
   // Clicar de novo na aba em que você já está fecha a peça aberta.

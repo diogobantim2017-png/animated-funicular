@@ -86,6 +86,30 @@ export async function criarArmazenamentoLocal({ diretorio, urlPublica }) {
       return copiar(estado.programacao || null);
     },
 
+    /* Réguas de comunicação (séries de posts com calendário) */
+    async listarReguas() {
+      return copiar((estado.reguas || []).slice().sort((a, b) => String(b.criada_em).localeCompare(String(a.criada_em))));
+    },
+
+    async obterRegua(id) {
+      return copiar((estado.reguas || []).find((r) => r.id === id) || null);
+    },
+
+    async salvarRegua(regua) {
+      estado.reguas ||= [];
+      const i = estado.reguas.findIndex((r) => r.id === regua.id);
+      const registro = { ...regua, atualizada_em: new Date().toISOString() };
+      if (i >= 0) estado.reguas[i] = registro;
+      else estado.reguas.push(registro);
+      await salvar();
+      return copiar(registro);
+    },
+
+    async excluirRegua(id) {
+      estado.reguas = (estado.reguas || []).filter((r) => r.id !== id);
+      await salvar();
+    },
+
     async salvarProgramacao(dados, por) {
       estado.programacao = { dados, atualizado_em: new Date().toISOString(), atualizado_por: por };
       await salvar();

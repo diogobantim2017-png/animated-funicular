@@ -784,5 +784,21 @@
         "+30 entrevistas executivas"
       ]
     }
+  ],
+  "reconhecimentos": [
+    {
+      "nome": "Everest Group Marketing Transformation Services PEAK Matrix® Assessment 2026",
+      "posicao": "Líder",
+      "divulgacao": "julho de 2026",
+      "destaques": [
+        "Transformação de marketing de ponta a ponta: estratégia, experiência, conteúdo, commerce, campanhas, mídia, fidelidade e operações com IA",
+        "IA agêntica em operação, com plataformas como Helix e Capgemini RAISE conectando estratégia, conteúdo, dados e execução",
+        "Operações de marketing com IA em escala, reforçadas pela aquisição da WNS e por um amplo portfólio de aceleradores",
+        "Modelos comerciais flexíveis, alinhados aos resultados de negócio do cliente"
+      ],
+      "fonte": "Comunicado oficial da Capgemini sobre o reconhecimento da Everest Group",
+      "url": "https://www.capgemini.com/news/analyst-recognition/everest-group-recognizes-capgemini-as-a-leader-in-its-marketing-transformation-services-peak-matrix-assessment-2026/",
+      "cuidados": "Usar o selo oficial da Everest Group, sem recriar. Posição, nome do estudo e data exatamente como no comunicado oficial. Não citar trechos longos do relatório."
+    }
   ]
 }

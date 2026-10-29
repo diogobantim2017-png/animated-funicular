@@ -6,9 +6,16 @@
   <title>Motor de campanhas</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2300112C'/%3E%3Crect x='7' y='9' width='18' height='4' rx='2' fill='%2300AEEF'/%3E%3Crect x='7' y='19' width='12' height='4' rx='2' fill='%23ffffff'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="estilo.css">
+  <script src="efeitos.js" defer></script>
   <script src="app.js" type="module"></script>
 </head>
 <body>
+  <canvas class="campo-de-luz" id="campo-de-luz" aria-hidden="true"></canvas>
+  <div class="abertura" id="abertura" hidden aria-hidden="true">
+    <p class="abertura__titulo">Motor de campanhas</p>
+    <div class="abertura__linha"></div>
+    <p class="abertura__sub">Estratégia, criação e governança com IA</p>
+  </div>
   <header class="topo">
     <div class="topo__identidade">
       <h1 class="topo__titulo"><button type="button" class="topo__inicio" id="btn-inicio" title="Voltar ao início">Motor de campanhas</button></h1>
@@ -29,6 +36,7 @@
     <div class="abas__lista" role="tablist">
       <button class="aba" role="tab" id="aba-fila" data-aba="fila" aria-selected="true"><span>Fila<span class="aba__extra"> de revisão</span></span> <span class="aba__contador" id="contador-fila"></span></button>
       <button class="aba" role="tab" id="aba-programacao" data-aba="programacao" aria-selected="false">Programação</button>
+      <button class="aba" role="tab" id="aba-regua" data-aba="regua" aria-selected="false">Régua</button>
       <button class="aba" role="tab" id="aba-todas" data-aba="todas" aria-selected="false"><span>Todas<span class="aba__extra"> as peças</span></span></button>
       <button class="aba" role="tab" id="aba-autonomia" data-aba="autonomia" aria-selected="false">Autonomia</button>
     </div>
@@ -39,11 +47,58 @@
   <main class="principal" id="principal">
     <div class="area-pecas" id="area-pecas">
       <aside class="lista" id="lista" aria-label="Peças"></aside>
+      <div class="gaveta-fundo" id="gaveta-fundo" data-acao="fechar-fila" hidden></div>
       <section class="detalhe" id="detalhe" aria-live="polite"></section>
     </div>
     <div class="area-autonomia" id="area-autonomia" hidden></div>
     <div class="area-autonomia" id="area-programacao" hidden></div>
+    <div class="area-autonomia" id="area-regua" hidden></div>
   </main>
+
+  <dialog class="dialogo" id="dlg-regua" aria-labelledby="dlg-regua-titulo">
+    <form class="dialogo__form" id="form-regua" method="dialog" novalidate>
+      <h2 class="dialogo__titulo" id="dlg-regua-titulo">Montar régua com IA</h2>
+      <p class="dialogo__texto">O motor monta a série de posts a partir da base de conhecimento e distribui as datas nos dias escolhidos, pulando feriados. Leva até 1 minuto.</p>
+      <label class="campo">
+        <span class="campo__rotulo">Objetivo da série</span>
+        <textarea name="objetivo" rows="2" maxlength="600">Gerar interesse de executivos por Martech, da provocação inicial até uma conversa de diagnóstico.</textarea>
+      </label>
+      <div class="campo-linha">
+        <label class="campo">
+          <span class="campo__rotulo">Quantidade de posts</span>
+          <input type="number" name="total" min="3" max="16" value="9">
+        </label>
+        <label class="campo">
+          <span class="campo__rotulo">Começa em</span>
+          <input type="date" name="inicio" id="regua-inicio">
+        </label>
+        <label class="campo">
+          <span class="campo__rotulo">Público principal</span>
+          <select name="publico" id="regua-publico"><option value="">Variado</option></select>
+        </label>
+      </div>
+      <fieldset class="campo dias-semana">
+        <legend class="campo__rotulo">Dias de publicação</legend>
+        <label><input type="checkbox" name="dia" value="1"> Seg</label>
+        <label><input type="checkbox" name="dia" value="2" checked> Ter</label>
+        <label><input type="checkbox" name="dia" value="3"> Qua</label>
+        <label><input type="checkbox" name="dia" value="4" checked> Qui</label>
+        <label><input type="checkbox" name="dia" value="5"> Sex</label>
+      </fieldset>
+      <label class="campo">
+        <span class="campo__rotulo">Itens obrigatórios (opcional)</span>
+        <textarea name="obrigatorios" rows="2" maxlength="1500" placeholder="Ex.: incluir o reconhecimento da Everest Group como Líder em Marketing Transformation Services"></textarea>
+      </label>
+      <label class="campo">
+        <span class="campo__rotulo">Post já produzido (opcional)</span>
+        <textarea name="ja_produzido" rows="3" maxlength="4000" placeholder="Cole o texto do post que já existe. Ele entra na série no lugar certo."></textarea>
+      </label>
+      <div class="dialogo__acoes">
+        <button type="submit" class="botao botao--secundario" value="cancelar" formnovalidate>Cancelar</button>
+        <button type="submit" class="botao botao--primario" value="confirmar" id="dlg-regua-botao">Montar régua</button>
+      </div>
+    </form>
+  </dialog>
 
   <dialog class="dialogo" id="dlg-gerar" aria-labelledby="dlg-gerar-titulo">
     <form class="dialogo__form" id="form-gerar" method="dialog">

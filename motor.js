@@ -9,8 +9,13 @@ import {
   montarLegendaFinal,
   categoriasDisponiveis,
   interpretarAjusteVisual,
+  planejarRegua,
+  ETAPAS_DO_FUNIL,
 } from './agentes.js';
-import { renderizarArte, renderizarCarrossel } from './arte.js';
+import { renderizarArte, renderizarCarrossel, renderizarRegua } from './arte.js';
+import { distribuirDatas, DIAS_DA_SEMANA as DIAS_DA_REGUA } from './regua.js';
+import { randomUUID } from 'node:crypto';
+import { FORMATOS } from './formatos.js';
 import { normalizarFormato, formatoDaPeca, visualDaPeca, normalizarDesign } from './formatos.js';
 import { avaliarRegras } from './regras.js';
 import { montarPdf } from './pdf.js';
@@ -717,6 +722,136 @@ export function criarMotor({ db, ia, imagem, fotos = null, canal, sortear = Math
     },
 
     /** A equipe descreve o que mudar e a IA reescreve os textos; a arte é refeita e passa pelas travas de novo. */
+    /* ------------------------------------------------ régua de comunicação */
+
+    async listarReguas() {
+      return (await db.listarReguas()).map((r) => ({
+        id: r.id,
+        nome: r.nome,
+        criada_em: r.criada_em,
+        total: r.itens?.length || 0,
+        inicio: r.itens?.[0]?.data || null,
+        fim: r.itens?.at(-1)?.data || null,
+      }));
+    },
+
+    /** A régua com a situação atual de cada post que já virou peça. */
+    async obterRegua(id) {
+      const regua = await db.obterRegua(id);
+      if (!regua) throw erroHttp(404, 'Régua não encontrada.');
+      for (const item of regua.itens || []) {
+        if (!item.peca_id) continue;
+        const peca = await db.obterPeca(item.peca_id).catch(() => null);
+        item.peca = peca
+          ? { id: peca.id, status: peca.status, veredito: peca.governanca?.gate?.veredito || null, arte_url: peca.arte?.url || null }
+          : null;
+      }
+      return regua;
+    },
+
+    async criarRegua(usuario, pedido = {}) {
+      if (!env.anthropicKey) throw erroHttp(400, 'Configure no .env: ANTHROPIC_API_KEY.');
+      const total = Math.min(16, Math.max(3, Number(pedido.total) || 9));
+      const dias = (pedido.dias_semana || [2, 4]).map(Number);
+      const { datas, pulados } = distribuirDatas({ inicio: pedido.inicio, diasSemana: dias, total });
+      const r = await planejarRegua({ ia, pedido, total });
+      const itens = r.dados.itens.map((item, i) => ({
+        ...item,
+        id: randomUUID().slice(0, 8),
+        data: datas[i] || null,
+        peca_id: null,
+      }));
+      return db.salvarRegua({
+        id: randomUUID(),
+        nome: r.dados.nome,
+        objetivo: r.dados.objetivo,
+        narrativa: r.dados.narrativa,
+        criada_em: new Date().toISOString(),
+        criada_por: usuario,
+        pedido,
+        cadencia: { inicio: pedido.inicio, dias_semana: dias, texto: dias.map((d) => DIAS_DA_REGUA[d]).join(' e '), feriados_pulados: pulados },
+        modelo: r.modelo,
+        itens,
+      });
+    },
+
+    /** Carrega uma régua pronta (ex.: a sugerida no arquivo regua-inicial.json), recalculando as datas. */
+    async importarRegua(usuario, modelo) {
+      const itens = modelo.itens || [];
+      const dias = modelo.cadencia?.dias_semana || [2, 4];
+      const { datas, pulados } = distribuirDatas({ inicio: modelo.cadencia?.inicio, diasSemana: dias, total: itens.length });
+      return db.salvarRegua({
+        ...modelo,
+        id: randomUUID(),
+        criada_em: new Date().toISOString(),
+        criada_por: usuario,
+        cadencia: { ...modelo.cadencia, dias_semana: dias, texto: dias.map((d) => DIAS_DA_REGUA[d]).join(' e '), feriados_pulados: pulados },
+        itens: itens.map((item, i) => ({ ...item, id: randomUUID().slice(0, 8), data: item.data || datas[i] || null, peca_id: null })),
+      });
+    },
+
+    async atualizarItemRegua(id, itemId, parcial = {}) {
+      const regua = await db.obterRegua(id);
+      if (!regua) throw erroHttp(404, 'Régua não encontrada.');
+      const item = regua.itens.find((i) => i.id === itemId);
+      if (!item) throw erroHttp(404, 'Post não encontrado na régua.');
+      if (parcial.data !== undefined) {
+        if (parcial.data && !/^\d{4}-\d{2}-\d{2}$/.test(parcial.data)) throw erroHttp(400, 'Data inválida.');
+        item.data = parcial.data || null;
+      }
+      if (typeof parcial.titulo === 'string' && parcial.titulo.trim()) item.titulo = parcial.titulo.trim().slice(0, 120);
+      if (typeof parcial.ja_produzido === 'boolean') item.ja_produzido = parcial.ja_produzido;
+      regua.itens.sort((a, b) => String(a.data || '9999').localeCompare(String(b.data || '9999')));
+      await db.salvarRegua(regua);
+      return this.obterRegua(id);
+    },
+
+    /** Gera a peça de um post da régua, com o tema, o gancho, as provas e a chamada planejados. */
+    async gerarPecaDaRegua(id, itemId, usuario) {
+      const regua = await db.obterRegua(id);
+      if (!regua) throw erroHttp(404, 'Régua não encontrada.');
+      const posicao = regua.itens.findIndex((i) => i.id === itemId);
+      const item = regua.itens[posicao];
+      if (!item) throw erroHttp(404, 'Post não encontrado na régua.');
+      const publico = segmentos.find((s) => s.id === item.segmento)?.nome || item.segmento;
+      const texto = [
+        `Post ${posicao + 1} de ${regua.itens.length} da série "${regua.nome}": ${item.titulo}.`,
+        `Primeira linha sugerida: ${item.gancho}`,
+        `Ideia central: ${item.mensagem}`,
+        item.provas?.length ? `Provas da base para usar: ${item.provas.join('; ')}` : '',
+        `Como terminar: ${item.cta}`,
+        `Público principal: ${publico}.`,
+        item.observacoes ? `Cuidados: ${item.observacoes}` : '',
+      ]
+        .filter(Boolean)
+        .join('\n');
+      const peca = await this.gerar({
+        origem: 'regua',
+        usuario,
+        orientacao: { texto, categoria: item.categoria, formato: item.formato, num_slides: item.formato === 'post' ? undefined : 6, visual: 'design' },
+      });
+      item.peca_id = peca.id;
+      await db.salvarRegua(regua);
+      return { regua: await this.obterRegua(id), peca };
+    },
+
+    async excluirRegua(id) {
+      await db.excluirRegua(id);
+      return { ok: true };
+    },
+
+    async pdfDaRegua(id) {
+      const regua = await db.obterRegua(id);
+      if (!regua) throw erroHttp(404, 'Régua não encontrada.');
+      const paginas = await renderizarRegua(regua, {
+        categoria: (i) => politica.categorias[i.categoria]?.nome || i.categoria,
+        publico: (i) => segmentos.find((s) => s.id === i.segmento)?.nome || i.segmento,
+        formato: (i) => FORMATOS[i.formato] || i.formato,
+        etapa: (i) => ETAPAS_DO_FUNIL[i.etapa_funil] || i.etapa_funil,
+      });
+      return montarPdf(paginas);
+    },
+
     /** PDF com todas as imagens da peça, uma por página: o formato de carrossel do LinkedIn. */
     async pdfDaPeca(id) {
       const peca = await db.obterPeca(id);
@@ -925,6 +1060,7 @@ export function criarMotor({ db, ia, imagem, fotos = null, canal, sortear = Math
           total: pecas.length,
         },
         limites: politica.limites,
+        segmentos: segmentos.map((s) => ({ id: s.id, nome: s.nome })),
         categorias: Object.entries(politica.categorias).map(([id, c]) => ({
           id,
           nome: c.nome,

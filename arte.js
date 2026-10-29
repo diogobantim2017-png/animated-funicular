@@ -1167,3 +1167,183 @@ async function renderizarCarrosselCorporativo({ fundo, textos, oferta, formato, 
   coube &&= final.coube;
   return { slides, largura: LARGURA, altura: ALTURA, ajustes: { ...capa.ajustes, slides: total, transbordou: !coube } };
 }
+
+/* ------------------------------------------------- régua de comunicação em PDF */
+
+const PAGINA = { largura: 1754, altura: 1240 };
+const DIAS_CURTOS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+
+function dataCurta(iso) {
+  const [a, m, d] = String(iso).split('-').map(Number);
+  const dia = new Date(Date.UTC(a, m - 1, d, 12)).getUTCDay();
+  return { dia: `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}`, semana: DIAS_CURTOS[dia] };
+}
+
+function linhasCabendo(ctx, texto, largura, maxLinhas) {
+  const linhas = quebrarLinhas(ctx, String(texto || ''), largura);
+  if (linhas.length <= maxLinhas) return linhas;
+  const cortadas = linhas.slice(0, maxLinhas);
+  let ultima = cortadas[maxLinhas - 1];
+  while (ultima && ctx.measureText(`${ultima}…`).width > largura) ultima = ultima.slice(0, -1);
+  cortadas[maxLinhas - 1] = `${ultima.trimEnd()}…`;
+  return cortadas;
+}
+
+/**
+ * Páginas JPEG (A4 deitado) com a régua de comunicação, para aprovação.
+ * `rotulos` traz os nomes legíveis de categoria, público, formato e etapa.
+ */
+export async function renderizarRegua(regua, rotulos) {
+  registrarFontes();
+  const { largura: W, altura: H } = PAGINA;
+  const m = 80;
+  const azul = marca.cores.primaria;
+  const navy = (marca.cores.gradiente || [])[0] || '#00112C';
+  const ciano = marca.cores.secundaria;
+  const cinza = '#5B6472';
+  const colunas = [
+    { chave: 'n', titulo: '#', largura: 56 },
+    { chave: 'data', titulo: 'Data', largura: 120 },
+    { chave: 'tema', titulo: 'Tema e primeira linha do post', largura: 470 },
+    { chave: 'categoria', titulo: 'Capacidade', largura: 200 },
+    { chave: 'formato', titulo: 'Formato', largura: 128 },
+    { chave: 'etapa', titulo: 'Etapa', largura: 150 },
+    { chave: 'publico', titulo: 'Público', largura: 160 },
+  ];
+  colunas.push({ chave: 'cta', titulo: 'Chamada final', largura: W - 2 * m - colunas.reduce((t, c) => t + c.largura, 0) });
+  const itens = regua.itens || [];
+  // A primeira página tem objetivo e narrativa, então leva menos linhas da tabela.
+  const grupos = [];
+  for (let i = 0, cap = 5; i < itens.length || !grupos.length; i += cap, cap = 7) grupos.push(itens.slice(i, i + cap));
+  const paginas = [];
+  const totalPaginas = grupos.length;
+  let inicioDoGrupo = 0;
+  const datas = itens.map((i) => i.data).filter(Boolean).sort();
+  const periodo = datas.length ? `${dataCurta(datas[0]).dia} a ${dataCurta(datas[datas.length - 1]).dia}/${datas[datas.length - 1].slice(0, 4)}` : '';
+
+  for (let p = 0; p < totalPaginas; p++) {
+    const canvas = createCanvas(W, H);
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, W, H);
+
+    // Cabeçalho
+    const g = ctx.createLinearGradient(0, 0, W, 0);
+    g.addColorStop(0, navy);
+    g.addColorStop(1, azul);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, 190);
+    ctx.fillStyle = ciano;
+    ctx.fillRect(m, 188, 160, 4);
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    ctx.font = '24px "Marca Destaque"';
+    ctx.fillText('RÉGUA DE COMUNICAÇÃO · LINKEDIN', m, 66);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '50px "Marca Titulo"';
+    ctx.fillText(linhasCabendo(ctx, regua.nome || 'Série de posts', W - 2 * m - 420, 1)[0], m, 128);
+    ctx.font = '26px "Marca Texto"';
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.fillText(`${itens.length} posts · ${periodo}${regua.cadencia?.texto ? ` · ${regua.cadencia.texto}` : ''}`, m, 168);
+    ctx.textAlign = 'right';
+    ctx.font = '26px "Marca Destaque"';
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText(marca.rotulo_assinatura || marca.nome, W - m, 66);
+    ctx.textAlign = 'left';
+
+    let y = 240;
+    if (p === 0) {
+      ctx.fillStyle = navy;
+      ctx.font = '26px "Marca Titulo"';
+      ctx.fillText('Objetivo', m, y);
+      ctx.font = '24px "Marca Texto"';
+      ctx.fillStyle = cinza;
+      const obj = linhasCabendo(ctx, regua.objetivo, W - 2 * m - 160, 2);
+      obj.forEach((l, i) => ctx.fillText(l, m + 160, y + i * 32));
+      y += Math.max(1, obj.length) * 32 + 18;
+      ctx.fillStyle = navy;
+      ctx.font = '26px "Marca Titulo"';
+      ctx.fillText('Narrativa', m, y);
+      ctx.font = '24px "Marca Texto"';
+      ctx.fillStyle = cinza;
+      const nar = linhasCabendo(ctx, regua.narrativa, W - 2 * m - 160, 3);
+      nar.forEach((l, i) => ctx.fillText(l, m + 160, y + i * 32));
+      y += Math.max(1, nar.length) * 32 + 26;
+    }
+
+    // Tabela
+    ctx.fillStyle = '#EEF3F8';
+    ctx.fillRect(m, y, W - 2 * m, 52);
+    ctx.font = '21px "Marca Destaque"';
+    ctx.fillStyle = navy;
+    let x = m;
+    for (const c of colunas) {
+      ctx.fillText(c.titulo, x + 14, y + 34);
+      x += c.largura;
+    }
+    y += 52;
+    const grupo = grupos[p];
+    const alturaLinha = Math.min(150, Math.floor((H - y - 90) / (p === 0 ? 5 : 7)));
+    const linhasCabem = (altura) => Math.max(1, Math.floor((alturaLinha - 22) / altura));
+    grupo.forEach((item, k) => {
+      const i = inicioDoGrupo + k;
+      if (k % 2 === 1) {
+        ctx.fillStyle = '#F7F9FC';
+        ctx.fillRect(m, y, W - 2 * m, alturaLinha);
+      }
+      ctx.fillStyle = '#E1E8F0';
+      ctx.fillRect(m, y + alturaLinha - 1, W - 2 * m, 1);
+      let cx = m;
+      const topo = y + 36;
+      for (const c of colunas) {
+        const area = c.largura - 28;
+        if (c.chave === 'n') {
+          ctx.font = '30px "Marca Titulo"';
+          ctx.fillStyle = azul;
+          ctx.fillText(String(i + 1).padStart(2, '0'), cx + 14, topo + 4);
+        } else if (c.chave === 'data') {
+          const dc = item.data ? dataCurta(item.data) : { dia: 'a definir', semana: '' };
+          ctx.font = '26px "Marca Titulo"';
+          ctx.fillStyle = navy;
+          ctx.fillText(dc.dia, cx + 14, topo + 2);
+          ctx.font = '21px "Marca Texto"';
+          ctx.fillStyle = cinza;
+          ctx.fillText(dc.semana, cx + 14, topo + 32);
+          if (item.ja_produzido) {
+            ctx.font = '15px "Marca Destaque"';
+            ctx.fillStyle = '#1F8A57';
+            ctx.fillText('JÁ PRODUZIDO', cx + 14, topo + 60);
+          }
+        } else if (c.chave === 'tema') {
+          ctx.font = '23px "Marca Titulo"';
+          ctx.fillStyle = navy;
+          const t = linhasCabendo(ctx, item.titulo, area, 2);
+          t.forEach((l, j) => ctx.fillText(l, cx + 14, topo + j * 29));
+          ctx.font = '20px "Marca Texto"';
+          ctx.fillStyle = cinza;
+          const sobra = Math.max(1, Math.floor((alturaLinha - 30 - t.length * 29) / 26));
+          linhasCabendo(ctx, `“${item.gancho || ''}”`, area, Math.min(3, sobra)).forEach((l, j) => ctx.fillText(l, cx + 14, topo + t.length * 29 + 6 + j * 26));
+        } else {
+          const valor = c.chave === 'cta' ? item.cta : rotulos[c.chave]?.(item) || '';
+          ctx.font = c.chave === 'cta' ? '19px "Marca Texto"' : '20px "Marca Texto"';
+          ctx.fillStyle = '#2B2F38';
+          const altura = c.chave === 'cta' ? 24 : 26;
+          linhasCabendo(ctx, valor, area, linhasCabem(altura)).forEach((l, j) => ctx.fillText(l, cx + 14, topo + j * altura));
+        }
+        cx += c.largura;
+      }
+      y += alturaLinha;
+    });
+    inicioDoGrupo += grupo.length;
+
+    // Rodapé
+    ctx.font = '19px "Marca Texto"';
+    ctx.fillStyle = cinza;
+    ctx.fillText('Datas sem feriados nacionais. Números e casos vêm da base de conhecimento aprovada; clientes aparecem sem nome.', m, H - 40);
+    ctx.textAlign = 'right';
+    ctx.fillText(`Página ${p + 1} de ${totalPaginas}`, W - m, H - 40);
+    ctx.textAlign = 'left';
+    paginas.push(await canvas.encode('jpeg', 92));
+  }
+  return paginas;
+}

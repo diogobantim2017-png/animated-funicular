@@ -1,40 +1,68 @@
 /*
   Painel do motor de campanhas.
-  Identidade Capgemini Invent: navy, azul e ciano, Arial.
+  Tema escuro, no mesmo visual do portfólio da Digital Agency: navy, azul e ciano da Capgemini, fonte Ubuntu,
+  filamentos de luz no fundo e caixas que acendem sob o cursor.
   Verde, âmbar e vermelho são reservados aos estados de governança.
 */
 
+@font-face {
+  font-family: 'Ubuntu';
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fontes/Ubuntu-Regular.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Ubuntu';
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fontes/Ubuntu-Medium.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Ubuntu';
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fontes/Ubuntu-Bold.ttf') format('truetype');
+}
+
 :root {
+  color-scheme: dark;
+
   --navy: #00112c;
-  --azul: #0070ad;
-  --azul-escuro: #005a8c;
+  --navy-2: #001b3d;
+  --navy-3: #002a56;
+  --azul: #2ea7e0;
+  --azul-escuro: #7fd3f7;
   --ciano: #00aeef;
+  --ciano-2: #12abdb;
 
-  --papel: #eef2f6;
-  --superficie: #ffffff;
-  --superficie-2: #f5f8fb;
-  --linha: #d3dce6;
-  --linha-forte: #a9b7c7;
-  --texto: #00112c;
-  --texto-2: #43536a;
-  --texto-3: #5b6a7e;
+  --papel: #00112c;
+  --superficie: rgba(6, 28, 58, 0.72);
+  --superficie-solida: #061c3a;
+  --superficie-2: rgba(255, 255, 255, 0.045);
+  --linha: rgba(120, 190, 235, 0.16);
+  --linha-forte: rgba(120, 190, 235, 0.34);
+  --texto: #e8f1f8;
+  --texto-2: #b9c9dc;
+  --texto-3: #93aac6;
 
-  --verde: #15764a;
-  --verde-fundo: #e2f3ea;
-  --ambar: #875100;
-  --ambar-forte: #f2a900;
-  --ambar-fundo: #fff2d2;
-  --vermelho: #b3261e;
-  --vermelho-fundo: #fce7e6;
+  --verde: #3ccf91;
+  --verde-fundo: rgba(60, 207, 145, 0.13);
+  --ambar: #f5c451;
+  --ambar-forte: #f2b705;
+  --ambar-fundo: rgba(242, 183, 5, 0.13);
+  --vermelho: #ff6b6b;
+  --vermelho-fundo: rgba(255, 107, 107, 0.13);
 
-  --fonte: Arial, "Helvetica Neue", Helvetica, sans-serif;
+  --fonte: Ubuntu, Arial, 'Helvetica Neue', Helvetica, sans-serif;
   --t-1: 0.8125rem;
   --t-2: 0.9375rem;
   --t-3: 1.125rem;
   --t-4: 1.5rem;
 
-  --raio: 6px;
-  --raio-p: 3px;
+  --raio: 10px;
+  --raio-p: 6px;
   --margem: 32px;
 }
 
@@ -120,7 +148,7 @@ textarea {
 }
 
 .botao--secundario:not(:disabled):hover {
-  background: #eaf4fb;
+  background: rgba(0, 174, 239, 0.12);
   border-color: var(--azul);
 }
 
@@ -135,7 +163,7 @@ textarea {
 .botao--perigo {
   background: var(--superficie);
   color: var(--vermelho);
-  border-color: #e3a19c;
+  border-color: rgba(255, 107, 107, 0.55);
 }
 
 .botao--perigo:not(:disabled):hover {
@@ -145,11 +173,11 @@ textarea {
 
 .botao--perigo-cheio {
   background: var(--vermelho);
-  color: #fff;
+  color: var(--navy);
 }
 
 .botao--perigo-cheio:not(:disabled):hover {
-  background: #8f1d17;
+  background: #ff8f8f;
 }
 
 .botao--claro {
@@ -173,8 +201,8 @@ textarea {
 }
 
 .botao--retomar {
-  background: #1f9d5f;
-  color: #fff;
+  background: var(--verde);
+  color: var(--navy);
 }
 
 .botao--retomar:not(:disabled):hover {
@@ -378,11 +406,11 @@ textarea:disabled {
 }
 
 .aba:hover {
-  color: var(--navy);
+  color: #fff;
 }
 
 .aba[aria-selected="true"] {
-  color: var(--navy);
+  color: #fff;
   border-bottom-color: var(--azul);
 }
 
@@ -390,8 +418,8 @@ textarea:disabled {
   min-width: 22px;
   padding: 1px 7px;
   border-radius: 999px;
-  background: var(--navy);
-  color: #fff;
+  background: var(--ciano-2);
+  color: var(--navy);
   font-size: var(--t-1);
   text-align: center;
 }
@@ -405,8 +433,8 @@ textarea:disabled {
 .pendencias {
   padding: 10px 24px;
   background: var(--ambar-fundo);
-  border-bottom: 1px solid #efd18a;
-  color: #4a3000;
+  border-bottom: 1px solid rgba(242, 183, 5, 0.35);
+  color: var(--ambar);
   font-size: var(--t-1);
 }
 
@@ -494,7 +522,7 @@ textarea:disabled {
 }
 
 .item[aria-current="true"] {
-  background: #e7f2fa;
+  background: rgba(18, 171, 219, 0.12);
   box-shadow: inset 4px 0 0 var(--azul);
 }
 
@@ -503,7 +531,7 @@ textarea:disabled {
   width: 56px;
   aspect-ratio: 4 / 5;
   border-radius: var(--raio-p);
-  background: #dce4ec;
+  background: rgba(255, 255, 255, 0.06);
   overflow: hidden;
 }
 
@@ -574,7 +602,7 @@ textarea:disabled {
 
 .selo--gerando {
   color: var(--azul);
-  background: #e1f1fb;
+  background: rgba(18, 171, 219, 0.14);
 }
 
 .selo--gerando::before {
@@ -582,13 +610,13 @@ textarea:disabled {
 }
 
 .selo--aguardando {
-  color: var(--navy);
-  background: #e3e9f0;
+  color: var(--texto);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .selo--neutro {
   color: var(--texto-2);
-  background: #e8ecf1;
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .vazio {
@@ -696,7 +724,7 @@ textarea:disabled {
 
 .regua__passo[aria-current="true"] {
   padding-block: 18px;
-  color: #fff;
+  color: var(--navy);
 }
 
 .regua__passo[aria-current="true"] .regua__nome {
@@ -736,9 +764,9 @@ textarea:disabled {
 .progresso {
   margin: 0 0 28px;
   padding: 16px 18px;
-  border: 1px solid #bfe3f5;
+  border: 1px solid rgba(18, 171, 219, 0.35);
   border-radius: var(--raio);
-  background: #f1f9fe;
+  background: rgba(18, 171, 219, 0.07);
 }
 
 .progresso__titulo {
@@ -757,7 +785,7 @@ textarea:disabled {
 
 .progresso__etapa {
   padding-top: 9px;
-  border-top: 4px solid #d3e2ec;
+  border-top: 4px solid rgba(255, 255, 255, 0.12);
   font-size: var(--t-1);
   color: var(--texto-3);
 }
@@ -769,7 +797,7 @@ textarea:disabled {
 
 .progresso__etapa--atual {
   border-top-color: var(--ciano);
-  color: var(--navy);
+  color: #fff;
   font-weight: 700;
   animation: pulsar-borda 1.4s ease-in-out infinite;
 }
@@ -785,7 +813,7 @@ textarea:disabled {
   padding: 14px 18px;
   border-radius: var(--raio);
   background: var(--vermelho-fundo);
-  color: #5c120e;
+  color: var(--texto);
 }
 
 .falha strong {
@@ -844,7 +872,7 @@ textarea:disabled {
 }
 
 .arte__alternar button[aria-pressed="true"] {
-  background: var(--navy);
+  background: rgba(18, 171, 219, 0.24);
   color: #fff;
 }
 
@@ -863,7 +891,7 @@ textarea:disabled {
   aspect-ratio: 4 / 5;
   object-fit: cover;
   border-radius: var(--raio);
-  background: #dce4ec;
+  background: rgba(255, 255, 255, 0.05);
   box-shadow: 0 1px 2px rgba(0, 17, 44, 0.14), 0 10px 28px rgba(0, 17, 44, 0.12);
 }
 
@@ -1044,7 +1072,7 @@ textarea:disabled {
   height: 20px;
   margin-top: 1px;
   border-radius: 50%;
-  color: #fff;
+  color: var(--navy);
   font-size: 12px;
   font-weight: 700;
   line-height: 1;
@@ -1093,7 +1121,7 @@ textarea:disabled {
 .nota__barra {
   height: 8px;
   border-radius: 4px;
-  background: #e2e8ee;
+  background: rgba(255, 255, 255, 0.1);
   overflow: hidden;
 }
 
@@ -1168,7 +1196,7 @@ textarea:disabled {
   height: 14px;
   border: 2px solid var(--azul);
   border-radius: 50%;
-  background: var(--superficie);
+  background: var(--navy);
 }
 
 .evento--humano::before {
@@ -1190,7 +1218,7 @@ textarea:disabled {
 
 .evento__ator {
   font-weight: 700;
-  color: var(--navy);
+  color: #fff;
 }
 
 .evento__resumo {
@@ -1260,7 +1288,8 @@ textarea:disabled {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: var(--navy);
+  background: rgba(18, 171, 219, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(18, 171, 219, 0.6);
   color: #fff;
   font-weight: 700;
   font-size: var(--t-1);
@@ -1341,14 +1370,14 @@ textarea:disabled {
 .etiqueta--auto {
   background: var(--verde);
   border-color: var(--verde);
-  color: #fff;
+  color: var(--navy);
   font-weight: 700;
 }
 
 .etiqueta--humano {
-  background: #e3e9f0;
-  border-color: #e3e9f0;
-  color: var(--navy);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: var(--texto);
   font-weight: 700;
 }
 
@@ -1373,7 +1402,7 @@ textarea:disabled {
   position: relative;
   height: 10px;
   border-radius: 5px;
-  background: #e2e8ee;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .medidor__preenchido {
@@ -1392,7 +1421,7 @@ textarea:disabled {
   top: -4px;
   bottom: -4px;
   width: 2px;
-  background: var(--navy);
+  background: #fff;
 }
 
 .categoria__numeros {
@@ -1693,7 +1722,7 @@ textarea:disabled {
 
 .quando__opcao:has(input:checked) {
   border-color: var(--azul);
-  background: #eaf4fb;
+  background: rgba(18, 171, 219, 0.12);
 }
 
 .quando__opcao input[type='radio'] {
@@ -1757,7 +1786,8 @@ textarea:disabled {
 }
 
 .dialogo::backdrop {
-  background: rgba(0, 17, 44, 0.55);
+  background: rgba(0, 8, 22, 0.72);
+  backdrop-filter: blur(4px);
 }
 
 .dialogo__form {
@@ -1991,4 +2021,934 @@ textarea:disabled {
   align-items: center;
   gap: 10px;
   margin: 12px 0 4px;
+}
+
+/* =====================================================================
+   Tema tecnológico (mesmo visual do portfólio da Digital Agency)
+   ===================================================================== */
+
+body {
+  background:
+    radial-gradient(1100px 620px at 88% -12%, rgba(0, 112, 173, 0.3), transparent 62%),
+    radial-gradient(900px 520px at -12% 112%, rgba(18, 171, 219, 0.14), transparent 60%),
+    var(--navy);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  scrollbar-color: rgba(120, 190, 235, 0.32) transparent;
+}
+
+/* Campo de filamentos de luz (efeitos.js): fica atrás de todo o conteúdo e não recebe cliques. */
+.campo-de-luz {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* Topo e abas em vidro escuro */
+.topo {
+  background: rgba(0, 17, 44, 0.74);
+  border-bottom: 1px solid var(--linha);
+  backdrop-filter: blur(14px) saturate(140%);
+}
+
+.topo__inicio {
+  background: linear-gradient(90deg, #fff 0%, #bfeeff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.abas {
+  background: rgba(0, 17, 44, 0.58);
+  border-bottom-color: var(--linha);
+  backdrop-filter: blur(10px);
+}
+
+.aba[aria-selected='true'] {
+  border-bottom-color: var(--ciano);
+  text-shadow: 0 0 18px rgba(0, 174, 239, 0.55);
+}
+
+/* Botões principais em degradê ciano, como no portfólio */
+.botao--primario,
+.botao--claro {
+  border-color: transparent;
+  background: linear-gradient(135deg, #35d2f7 0%, #12abdb 48%, #0a7fc0 100%);
+  color: var(--navy);
+  box-shadow: 0 10px 26px -12px rgba(18, 171, 219, 0.9);
+  transition: box-shadow 0.2s ease, transform 0.2s ease, filter 0.2s ease;
+}
+
+.botao--primario:not(:disabled):hover,
+.botao--claro:not(:disabled):hover {
+  background: linear-gradient(135deg, #5ddcf9 0%, #22b6e3 48%, #0d8ad0 100%);
+  box-shadow: 0 14px 32px -12px rgba(18, 171, 219, 1);
+  transform: translateY(-1px);
+}
+
+.botao--secundario {
+  border-color: rgba(46, 167, 224, 0.5);
+}
+
+.botao--secundario:not(:disabled):hover {
+  box-shadow: 0 0 0 1px rgba(0, 174, 239, 0.35), 0 8px 22px -14px rgba(0, 174, 239, 0.9);
+}
+
+.estado-chip--pausado {
+  color: var(--navy);
+}
+
+/* Campos de formulário escuros */
+input:not([type='radio']):not([type='checkbox']):not([type='range']),
+select,
+textarea {
+  background-color: rgba(255, 255, 255, 0.04);
+  border-color: var(--linha-forte);
+  color: var(--texto);
+}
+
+select option {
+  background: var(--superficie-solida);
+  color: var(--texto);
+}
+
+/* Painéis de lista e detalhe */
+.lista {
+  border-right: 1px solid var(--linha);
+}
+
+/* Seções da peça viram cartões de vidro, com o fio ciano no canto */
+.bloco {
+  position: relative;
+  margin: 0 0 18px;
+  padding: 22px 24px;
+  border: 1px solid var(--linha);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.015));
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.bloco:last-child {
+  border-bottom: 1px solid var(--linha);
+}
+
+.bloco::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 18px;
+  width: 72px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--ciano), transparent);
+  pointer-events: none;
+}
+
+/* Brilho que acompanha o cursor dentro das caixas (posição vem do efeitos.js) */
+.bloco,
+.item,
+.config,
+.categoria,
+.percurso__passo {
+  --mx: 50%;
+  --my: 50%;
+}
+
+.bloco:hover,
+.config:hover,
+.categoria:hover {
+  border-color: rgba(18, 171, 219, 0.38);
+  background-image:
+    radial-gradient(420px circle at var(--mx) var(--my), rgba(18, 171, 219, 0.11), transparent 60%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.015));
+  box-shadow: 0 18px 40px -28px rgba(0, 174, 239, 0.65);
+}
+
+.item:hover,
+.percurso__passo:hover {
+  background-image: radial-gradient(260px circle at var(--mx) var(--my), rgba(18, 171, 219, 0.13), transparent 65%);
+}
+
+.item[aria-current='true'] {
+  box-shadow: inset 3px 0 0 var(--ciano);
+}
+
+.arte__imagem {
+  box-shadow: 0 0 0 1px var(--linha), 0 30px 60px -30px rgba(0, 0, 0, 0.8), 0 0 60px -30px rgba(18, 171, 219, 0.5);
+}
+
+/* Janelas, barra de ações e avisos */
+.dialogo {
+  border: 1px solid var(--linha-forte);
+  background: var(--superficie-solida);
+  box-shadow: 0 40px 90px -30px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(18, 171, 219, 0.08);
+}
+
+.acoes {
+  background: rgba(0, 17, 44, 0.86);
+  box-shadow: 0 -12px 30px -18px rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(12px);
+}
+
+.aviso__item {
+  border: 1px solid var(--linha-forte);
+  background: #0a2245;
+}
+
+.aviso__item--erro,
+.aviso__item--sucesso {
+  color: var(--navy);
+}
+
+/* Abertura: aparece uma vez por sessão, por pouco mais de um segundo */
+.abertura {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 14px;
+  background:
+    radial-gradient(700px 380px at 50% 45%, rgba(0, 112, 173, 0.35), transparent 70%),
+    var(--navy);
+  text-align: center;
+  transition: opacity 0.6s ease, visibility 0.6s ease;
+}
+
+.abertura[hidden] {
+  display: none;
+}
+
+.abertura--saindo {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.abertura__titulo {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(2rem, 5vw, 3.4rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  opacity: 0;
+  transform: translateY(14px);
+  animation: abertura-subir 0.8s 0.15s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+.abertura__linha {
+  width: 0;
+  height: 2px;
+  margin: 0 auto;
+  background: linear-gradient(90deg, transparent, var(--ciano), transparent);
+  animation: abertura-linha 1.1s 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+.abertura__sub {
+  margin: 0;
+  color: var(--texto-3);
+  font-size: var(--t-2);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0;
+  animation: abertura-subir 0.8s 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+@keyframes abertura-subir {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes abertura-linha {
+  to {
+    width: min(420px, 70vw);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .abertura {
+    display: none;
+  }
+
+  .botao--primario:not(:disabled):hover,
+  .botao--claro:not(:disabled):hover {
+    transform: none;
+  }
+}
+
+/* =====================================================================
+   Peça em abas: uma parte de cada vez
+   ===================================================================== */
+
+/* Decisão das travas em uma linha, no topo da peça */
+.decisao {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin: 2px 0 18px;
+  padding: 12px 16px;
+  border: 1px solid var(--linha);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.decisao__selo {
+  flex: none;
+  padding: 5px 12px;
+  border-radius: 999px;
+  color: var(--navy);
+  font-size: var(--t-1);
+  font-weight: 700;
+}
+
+.decisao--bloqueada .decisao__selo {
+  background: var(--vermelho);
+}
+
+.decisao--humano .decisao__selo {
+  background: var(--ambar-forte);
+}
+
+.decisao--publicavel .decisao__selo {
+  background: var(--verde);
+}
+
+.decisao__texto {
+  flex: 1 1 280px;
+  color: var(--texto-2);
+}
+
+.decisao__ver {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--azul);
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.decisao__ver:hover {
+  color: var(--azul-escuro);
+  text-decoration: underline;
+}
+
+/* Abas da peça */
+.sub-abas {
+  display: flex;
+  gap: 4px;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 0 20px;
+  padding: 4px;
+  overflow-x: auto;
+  border: 1px solid var(--linha);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.sub-aba {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  color: var(--texto-3);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.sub-aba:hover {
+  color: #fff;
+}
+
+.sub-aba[aria-selected='true'] {
+  background: rgba(18, 171, 219, 0.18);
+  color: #fff;
+  box-shadow: inset 0 0 0 1px rgba(18, 171, 219, 0.45);
+}
+
+.sub-aba__contador {
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--ambar-forte);
+  color: var(--navy);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
+}
+
+.painel-peca[hidden] {
+  display: none;
+}
+
+.painel-peca > .regua {
+  margin-bottom: 18px;
+}
+
+/* "Salvar textos" só aparece quando há alteração para salvar, em qualquer tela */
+.acoes .botao[data-acao='salvar-textos']:disabled {
+  display: none;
+}
+
+/* Topo enxuto: agenda e contagem do dia ficam atrás de "Detalhes" */
+.topo__mais {
+  padding: 3px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background: none;
+  color: #c9d8e8;
+  font-size: var(--t-1);
+  cursor: pointer;
+}
+
+.topo__mais:hover {
+  border-color: rgba(0, 174, 239, 0.6);
+  color: #fff;
+}
+
+.topo__extra:empty {
+  display: none;
+}
+
+/* Caixas que abrem ao clicar (textos da arte) */
+.bloco--recolhivel {
+  padding: 0;
+}
+
+.bloco--recolhivel > details > summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 24px;
+  list-style: none;
+  cursor: pointer;
+}
+
+.bloco--recolhivel > details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.bloco--recolhivel > details > summary .bloco__titulo {
+  margin: 0;
+}
+
+.recolhivel__dica {
+  margin-left: auto;
+  color: var(--azul);
+  font-size: var(--t-1);
+  font-weight: 500;
+}
+
+.bloco--recolhivel > details > summary::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--texto-3);
+  border-bottom: 2px solid var(--texto-3);
+  transform: rotate(45deg) translateY(-2px);
+  transition: transform 0.2s ease;
+}
+
+.bloco--recolhivel > details[open] > summary::after {
+  transform: rotate(-135deg) translateY(-2px);
+}
+
+.editar__conteudo {
+  padding: 0 24px 22px;
+}
+
+/* No celular, as abas da peça dividem a largura em partes iguais, sem rolar para o lado. */
+@media (max-width: 560px) {
+  .sub-abas {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    width: 100%;
+    gap: 2px;
+    padding: 3px;
+  }
+
+  .sub-aba {
+    justify-content: center;
+    gap: 4px;
+    padding: 8px 4px;
+    font-size: var(--t-1);
+  }
+
+  .sub-aba__contador {
+    min-width: 16px;
+    padding: 0 4px;
+  }
+}
+
+/* =====================================================================
+   Fila em gaveta: a lista só aparece quando a pessoa clica em "Fila de revisão"
+   ===================================================================== */
+
+.area-pecas {
+  grid-template-columns: 1fr;
+}
+
+.lista {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 60;
+  width: min(400px, 90vw);
+  border-right: 1px solid var(--linha-forte);
+  background: var(--superficie-solida);
+  box-shadow: 30px 0 70px -30px rgba(0, 0, 0, 0.9);
+  transform: translateX(-102%);
+  visibility: hidden;
+  transition: transform 0.32s cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0.32s;
+}
+
+.area-pecas[data-gaveta='aberta'] .lista {
+  transform: none;
+  visibility: visible;
+}
+
+.gaveta-fundo {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  background: rgba(0, 8, 22, 0.62);
+  backdrop-filter: blur(3px);
+}
+
+.gaveta-fundo[hidden] {
+  display: none;
+}
+
+.gaveta__topo {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 16px 14px;
+  border-bottom: 1px solid var(--linha);
+  background: var(--superficie-solida);
+}
+
+.gaveta__titulo {
+  margin: 0;
+  font-size: var(--t-3);
+}
+
+.gaveta__fechar {
+  padding: 6px 12px;
+  border: 1px solid var(--linha-forte);
+  border-radius: 999px;
+  background: none;
+  color: var(--texto-2);
+  font-size: var(--t-1);
+  cursor: pointer;
+}
+
+.gaveta__fechar:hover {
+  border-color: var(--ciano);
+  color: #fff;
+}
+
+/* Botão que abre a fila */
+.peca__navegacao {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 14px;
+}
+
+.peca__navegacao .voltar {
+  margin: 0;
+}
+
+.abrir-fila {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border: 1px solid rgba(18, 171, 219, 0.45);
+  border-radius: 999px;
+  background: rgba(18, 171, 219, 0.1);
+  color: #fff;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.abrir-fila:hover {
+  background: rgba(18, 171, 219, 0.2);
+  box-shadow: 0 8px 22px -14px rgba(0, 174, 239, 0.9);
+}
+
+.abrir-fila svg,
+.abrir-fila--grande svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.abrir-fila__contador {
+  min-width: 22px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--ciano-2);
+  color: var(--navy);
+  font-size: var(--t-1);
+  font-weight: 700;
+  text-align: center;
+}
+
+.abrir-fila--grande {
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 22px;
+}
+
+.abrir-fila--grande .abrir-fila__contador {
+  background: var(--navy);
+  color: #fff;
+}
+
+/* Peça e tela inicial usam a largura toda, com limite para leitura confortável */
+.detalhe > .peca,
+.detalhe > .boas-vindas {
+  max-width: 1240px;
+  margin-inline: auto;
+}
+
+/* Resumo da fila na tela inicial */
+.fila-resumo {
+  position: relative;
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  margin: 0 0 34px;
+  padding: 30px 32px;
+  border: 1px solid var(--linha);
+  border-radius: 18px;
+  background:
+    radial-gradient(520px 260px at 100% 0%, rgba(18, 171, 219, 0.16), transparent 70%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015));
+}
+
+.fila-resumo::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 24px;
+  width: 96px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--ciano), transparent);
+}
+
+.fila-resumo__rotulo {
+  margin: 0;
+  color: var(--texto-3);
+  font-size: var(--t-1);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.fila-resumo__total {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(3rem, 6vw, 4.5rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.fila-resumo__texto {
+  margin: 0 0 8px;
+  color: var(--texto-2);
+}
+
+.fila-resumo__numeros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--texto-2);
+  font-size: var(--t-1);
+}
+
+.fila-resumo__numero {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fila-resumo__numero::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.fila-resumo__numero b {
+  color: #fff;
+}
+
+.fila-resumo__numero--verde::before {
+  background: var(--verde);
+}
+
+.fila-resumo__numero--ambar::before {
+  background: var(--ambar-forte);
+}
+
+.fila-resumo__numero--vermelho::before {
+  background: var(--vermelho);
+}
+
+/* No celular, a peça e a tela inicial sempre aparecem; a lista vive só na gaveta. */
+@media (max-width: 760px) {
+  .area-pecas[data-vista='detalhe'] .lista,
+  .area-pecas[data-vista='lista'] .lista {
+    display: block;
+  }
+
+  .area-pecas[data-vista='lista'] .detalhe {
+    display: block;
+  }
+
+  .fila-resumo {
+    padding: 24px 20px;
+  }
+}
+
+/* =====================================================================
+   Régua de comunicação
+   ===================================================================== */
+
+.regua {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 28px var(--margem) 60px;
+}
+
+.regua__nome {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  letter-spacing: -0.02em;
+}
+
+.regua__botoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.regua__escolher {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--texto-3);
+  font-size: var(--t-1);
+}
+
+.regua__resumo .fatos {
+  margin: 0;
+}
+
+.regua__linha {
+  position: relative;
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Fio da linha do tempo, ligando as datas */
+.regua__linha::before {
+  content: '';
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  left: 58px;
+  width: 2px;
+  background: linear-gradient(180deg, var(--ciano), rgba(18, 171, 219, 0.08));
+}
+
+.regua__item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 118px 1fr auto;
+  gap: 22px;
+  padding: 20px 22px;
+  border: 1px solid var(--linha);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.015));
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.regua__item:hover {
+  border-color: rgba(18, 171, 219, 0.38);
+  box-shadow: 0 18px 40px -28px rgba(0, 174, 239, 0.65);
+}
+
+.regua__data {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 2px;
+  padding: 10px 6px;
+  border-radius: 12px;
+  background: var(--superficie-solida);
+  box-shadow: 0 0 0 1px rgba(18, 171, 219, 0.35);
+  text-align: center;
+}
+
+.regua__numero {
+  color: var(--ciano);
+  font-size: var(--t-1);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.regua__data b {
+  color: #fff;
+  font-size: 1.5rem;
+  line-height: 1.1;
+}
+
+.regua__data > span:not(.regua__numero) {
+  color: var(--texto-3);
+  font-size: var(--t-1);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.regua__mudar-data {
+  position: relative;
+  margin-top: 6px;
+  color: var(--azul);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+/* O seletor de data fica invisível por cima do texto "Mudar data" */
+.regua__mudar-data input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.regua__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.regua__titulo {
+  margin: 0 0 6px;
+  color: #fff;
+  font-size: var(--t-3);
+  line-height: 1.3;
+}
+
+.regua__gancho {
+  margin: 0 0 8px;
+  color: #bfeeff;
+  font-style: italic;
+}
+
+.regua__mensagem,
+.regua__cta,
+.regua__obs {
+  margin: 0 0 6px;
+  color: var(--texto-2);
+  font-size: var(--t-2);
+}
+
+.regua__obs {
+  color: var(--ambar);
+}
+
+.regua__provas {
+  margin: 4px 0 8px;
+  color: var(--texto-2);
+  font-size: var(--t-1);
+}
+
+.regua__provas summary {
+  color: var(--azul);
+  cursor: pointer;
+}
+
+.regua__provas ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
+.regua__acoes-item {
+  display: grid;
+  align-content: start;
+  justify-items: end;
+  gap: 8px;
+}
+
+@media (max-width: 760px) {
+  .regua {
+    padding: 20px 16px 40px;
+  }
+
+  .regua__linha::before {
+    display: none;
+  }
+
+  .regua__item {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .regua__data {
+    grid-auto-flow: column;
+    justify-content: start;
+    align-items: baseline;
+    gap: 10px;
+    padding: 8px 12px;
+  }
+
+  .regua__acoes-item {
+    justify-items: start;
+  }
 }

@@ -172,6 +172,29 @@ async function iaSimulada({ ferramenta, conteudo, sistema, ferramentasServidor =
       const extras = pedeSlides ? { slides: slidesSimulados(pedeSlides.minItems), fechamento: 'Proteja quem você ama: compartilhe.' } : {};
       return { ...TEXTOS, ...extras, ...roteiro.textos };
     },
+    planejar_regua: () => {
+      const esquema = ferramenta.input_schema.properties.itens;
+      const props = esquema.items.properties;
+      return {
+        nome: 'Série de teste',
+        objetivo: 'Testar a régua.',
+        narrativa: 'Abertura, aprofundamento e convite.',
+        itens: Array.from({ length: esquema.minItems }, (_, i) => ({
+          titulo: `Tema ${i + 1}`,
+          categoria: props.categoria.enum[i % props.categoria.enum.length],
+          segmento: props.segmento.enum[0],
+          etapa_funil: i === esquema.minItems - 1 ? 'converter' : 'engajar',
+          formato: i % 2 ? 'carrossel' : 'post',
+          gancho: `Gancho ${i + 1}`,
+          mensagem: `Mensagem ${i + 1}`,
+          provas: [],
+          cta: 'Vamos conversar?',
+          ja_produzido: i === 0,
+          observacoes: '',
+        })),
+        ...roteiro.regua,
+      };
+    },
     reescrever_textos: () => {
       const pedeSlides = ferramenta.input_schema.properties.slides;
       const extras = pedeSlides ? { slides: slidesSimulados(pedeSlides.minItems), fechamento: 'Proteja quem você ama: compartilhe.' } : {};
@@ -1016,6 +1039,53 @@ await caso('Base de conhecimento: números só da base, sem preços, e PDF do ca
   const pdf = await motor.pdfDaPeca(car.id);
   assert.equal(pdf.subarray(0, 5).toString(), '%PDF-');
   assert.equal((pdf.toString('latin1').match(/\/Type \/Page /g) || []).length, 4, 'uma página por imagem');
+});
+
+await caso('Régua de comunicação: calendário sem feriados, montagem com IA, post gerado e PDF', async () => {
+  const { distribuirDatas, pascoa } = await import('./regua.js');
+  assert.equal(pascoa(2026).toISOString().slice(0, 10), '2026-04-05');
+  const { datas, pulados } = distribuirDatas({ inicio: '2026-11-17', diasSemana: [2, 4, 5], total: 4 });
+  assert.deepEqual(datas, ['2026-11-17', '2026-11-19', '2026-11-24', '2026-11-26']);
+  assert.equal(pulados[0].motivo, 'Dia da Consciência Negra');
+
+  const regua = await motor.criarRegua('Diogo', { objetivo: 'Teste', total: 5, inicio: '2026-11-03', dias_semana: [2, 4], obrigatorios: 'Reconhecimento' });
+  assert.equal(regua.itens.length, 5);
+  assert.deepEqual(regua.itens.map((i) => i.data), ['2026-11-03', '2026-11-05', '2026-11-10', '2026-11-12', '2026-11-17']);
+  const pedido = chamadas.filter((c) => c.ferramenta === 'planejar_regua').at(-1);
+  assert.equal(pedido.schema.properties.itens.minItems, 5);
+  assert.ok(pedido.conteudo.includes('Reconhecimento'), 'itens obrigatórios chegam à IA');
+  assert.equal((await motor.listarReguas())[0].id, regua.id);
+
+  // Gerar o post de um item: vira peça com a orientação do item e fica ligada à régua.
+  const item = regua.itens[1];
+  const { regua: depois, peca } = await motor.gerarPecaDaRegua(regua.id, item.id, 'Diogo');
+  await aguardarProcessamento(peca.id);
+  const gerada = await motor.detalhe(peca.id);
+  assert.equal(gerada.peca.origem, 'regua');
+  assert.ok(gerada.peca.orientacao.texto.includes('Tema 2'));
+  assert.equal(gerada.peca.orientacao.categoria, item.categoria);
+  const ligado = (await motor.obterRegua(regua.id)).itens.find((i) => i.id === item.id);
+  assert.equal(ligado.peca.id, peca.id);
+  assert.ok(depois.itens.find((i) => i.id === item.id).peca_id);
+
+  // Mudar a data reordena a régua.
+  const ultimo = regua.itens[4];
+  const reordenada = await motor.atualizarItemRegua(regua.id, ultimo.id, { data: '2026-11-01' });
+  assert.equal(reordenada.itens[0].id, ultimo.id);
+  await assert.rejects(motor.atualizarItemRegua(regua.id, ultimo.id, { data: '01/11/2026' }), /Data inválida/);
+
+  const pdf = await motor.pdfDaRegua(regua.id);
+  assert.equal(pdf.subarray(0, 5).toString(), '%PDF-');
+
+  // Régua pronta (sugerida) também entra, com as datas recalculadas.
+  const importada = await motor.importarRegua('Diogo', {
+    nome: 'Sugerida',
+    cadencia: { inicio: '2026-11-17', dias_semana: [2, 4, 5] },
+    itens: [{ titulo: 'A' }, { titulo: 'B' }, { titulo: 'C' }],
+  });
+  assert.deepEqual(importada.itens.map((i) => i.data), ['2026-11-17', '2026-11-19', '2026-11-24']);
+  await motor.excluirRegua(importada.id);
+  assert.ok(!(await motor.listarReguas()).some((r) => r.id === importada.id));
 });
 
 await caso('Estado do painel com métricas por categoria e configuração ativa', async () => {

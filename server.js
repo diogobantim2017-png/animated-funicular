@@ -1,8 +1,10 @@
 import express from 'express';
 import cron from 'node-cron';
 import path from 'node:path';
+import fs from 'node:fs';
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { env, raiz, politica, pendenciasDeConfiguracao } from './config.js';
+import { proximoDia } from './regua.js';
 import { verificarConexaoInstagram } from './instagram.js';
 
 /* Conexão com o Instagram, conferida no início quando a publicação é real. */
@@ -54,8 +56,17 @@ if (autenticacaoAtiva) {
   });
 }
 
-/* Interface do painel: só estes três arquivos são servidos. O restante da pasta é código do servidor. */
-const arquivosDoPainel = { '/': 'index.html', '/index.html': 'index.html', '/estilo.css': 'estilo.css', '/app.js': 'app.js' };
+/* Interface do painel: só estes arquivos são servidos. O restante da pasta é código do servidor. */
+const arquivosDoPainel = {
+  '/': 'index.html',
+  '/index.html': 'index.html',
+  '/estilo.css': 'estilo.css',
+  '/app.js': 'app.js',
+  '/efeitos.js': 'efeitos.js',
+  '/fontes/Ubuntu-Regular.ttf': 'Ubuntu-Regular.ttf',
+  '/fontes/Ubuntu-Medium.ttf': 'Ubuntu-Medium.ttf',
+  '/fontes/Ubuntu-Bold.ttf': 'Ubuntu-Bold.ttf',
+};
 for (const [rota, arquivo] of Object.entries(arquivosDoPainel)) {
   app.get(rota, (req, res) => res.sendFile(path.join(raiz, arquivo)));
 }
@@ -121,6 +132,62 @@ app.get('/api/pecas', async (req, res) => {
   const bruto = String(req.query.status || '').trim();
   const status = bruto ? (bruto.includes(',') ? bruto.split(',').map((s) => s.trim()) : bruto) : undefined;
   res.json(await motor.listar({ status }));
+});
+
+/* Régua de comunicação */
+app.get('/api/reguas', async (req, res) => {
+  res.json(await motor.listarReguas());
+});
+
+app.post('/api/reguas', async (req, res) => {
+  const b = req.body || {};
+  const pedido = {
+    objetivo: String(b.objetivo || '').slice(0, 600),
+    publico: String(b.publico || '').slice(0, 60),
+    obrigatorios: String(b.obrigatorios || '').slice(0, 1500),
+    ja_produzido: String(b.ja_produzido || '').slice(0, 4000),
+    observacoes: String(b.observacoes || '').slice(0, 800),
+    total: Number(b.total) || 9,
+    inicio: String(b.inicio || ''),
+    dias_semana: Array.isArray(b.dias_semana) ? b.dias_semana.map(Number) : [2, 4],
+  };
+  res.json(await motor.criarRegua(quem(req), pedido));
+});
+
+app.post('/api/reguas/sugerida', async (req, res) => {
+  const arquivo = path.join(raiz, 'regua-inicial.json');
+  if (!fs.existsSync(arquivo)) return res.status(404).json({ erro: 'Não há régua sugerida neste perfil.' });
+  const modelo = JSON.parse(fs.readFileSync(arquivo, 'utf8'));
+  const dias = modelo.cadencia?.dias_semana || [2, 4];
+  // Se a data planejada já passou, a série começa no próximo dia de publicação.
+  const hojeIso = new Date().toISOString().slice(0, 10);
+  const inicio = req.body?.inicio || (modelo.cadencia?.inicio > hojeIso ? modelo.cadencia.inicio : proximoDia(dias[0]));
+  modelo.cadencia = { ...modelo.cadencia, inicio: String(inicio) };
+  res.json(await motor.importarRegua(quem(req), modelo));
+});
+
+app.get('/api/reguas/:id', async (req, res) => {
+  res.json(await motor.obterRegua(req.params.id));
+});
+
+app.delete('/api/reguas/:id', async (req, res) => {
+  res.json(await motor.excluirRegua(req.params.id));
+});
+
+app.patch('/api/reguas/:id/itens/:item', async (req, res) => {
+  const b = req.body || {};
+  res.json(await motor.atualizarItemRegua(req.params.id, req.params.item, { data: b.data, titulo: b.titulo, ja_produzido: b.ja_produzido }));
+});
+
+app.post('/api/reguas/:id/itens/:item/gerar', async (req, res) => {
+  res.json(await motor.gerarPecaDaRegua(req.params.id, req.params.item, quem(req)));
+});
+
+app.get('/api/reguas/:id/pdf', async (req, res) => {
+  const pdf = await motor.pdfDaRegua(req.params.id);
+  res.set('Content-Type', 'application/pdf');
+  res.set('Content-Disposition', `attachment; filename="regua-${req.params.id.slice(0, 8)}.pdf"`);
+  res.send(pdf);
 });
 
 app.get('/api/pecas/:id/pdf', async (req, res) => {

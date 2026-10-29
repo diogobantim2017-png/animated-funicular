@@ -403,6 +403,9 @@ export async function escreverTextos({
 - Slide final: "fechamento" com uma frase curta de conclusão e a chamada da arte no botão.
 - O conteúdo principal fica nos slides. A legenda complementa: 1 ou 2 parágrafos curtos com contexto e a chamada para ação, até ${(politica.limites.legenda_slides_max || LIMITES_SLIDE.legenda)} caracteres, sem repetir os slides.${regrasDaPista}`;
 
+  const exemplo = politica.exemplo_de_post
+    ? `\n\nPost aprovado da série, como referência de tom, ritmo e estrutura. Não copie frases nem o tema:\n\"\"\"\n${politica.exemplo_de_post}\n\"\"\"`
+    : '';
   const sistema = `${politica.canal?.orientacao ? `${politica.canal.orientacao}\n\n` : ''}Você é redator do perfil ${marca.nome}. Escreva em português do Brasil, com acentuação completa.
 Tom de voz: ${marca.tom_de_voz}
 
@@ -423,7 +426,7 @@ ${(politica.regras_de_redacao?.length
 - Não use estes termos: ${politica.termos_proibidos.join(', ')}.
 - Evite construções típicas de texto gerado por IA: "não é só X, é Y", "mais do que um X", travessões, perguntas retóricas em sequência e trios de adjetivos.
 - A legenda termina com a chamada para ação. Sem hashtags no corpo da legenda.
-- Hashtags sem espaços, começando com #.`;
+- Hashtags sem espaços, começando com #.${exemplo}`;
 
   if (pedido) {
     ferramenta.input_schema.properties.resumo_da_mudanca = {
@@ -592,4 +595,88 @@ Pedido da equipe: "${direcao}"`;
 
   const r = await ia({ modelo: env.modeloIa, sistema, conteudo, ferramenta, maxTokens: 900 });
   return { dados: r.dados, modelo: r.modelo };
+}
+
+/* -------------------------------------------------------- régua de comunicação */
+
+export const ETAPAS_DO_FUNIL = { atrair: 'Atrair atenção', engajar: 'Gerar conversa', converter: 'Convidar para conversa' };
+
+/**
+ * Planeja uma série de posts (régua de comunicação) a partir da base de conhecimento.
+ * A IA define a ordem e o conteúdo de cada post; as datas são calculadas pelo sistema.
+ */
+export async function planejarRegua({ ia, pedido, total }) {
+  const categorias = Object.entries(politica.categorias).map(([id, c]) => ({ id, nome: c.nome }));
+  const ferramenta = {
+    name: 'planejar_regua',
+    description: 'Registra a régua de comunicação: a série de posts, em ordem de publicação.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        nome: { type: 'string', description: 'Nome curto da série, em até 60 caracteres.' },
+        objetivo: { type: 'string', description: 'O que a série quer provocar no público, em uma frase.' },
+        narrativa: { type: 'string', description: 'Por que os posts estão nessa ordem, em 2 ou 3 frases.' },
+        itens: {
+          type: 'array',
+          minItems: total,
+          maxItems: total,
+          items: {
+            type: 'object',
+            properties: {
+              titulo: { type: 'string', description: 'Tema do post, em até 90 caracteres.' },
+              categoria: { type: 'string', enum: categorias.map((c) => c.id) },
+              segmento: { type: 'string', enum: segmentos.map((s) => s.id) },
+              etapa_funil: { type: 'string', enum: Object.keys(ETAPAS_DO_FUNIL) },
+              formato: { type: 'string', enum: ['post', 'carrossel', 'flashcards'] },
+              gancho: { type: 'string', description: 'A primeira linha do post, que aparece antes do "ver mais".' },
+              mensagem: { type: 'string', description: 'A ideia central do post, em até 2 frases.' },
+              provas: {
+                type: 'array',
+                maxItems: 4,
+                items: { type: 'string' },
+                description: 'Fatos da base de conhecimento que sustentam o post, copiados palavra por palavra. Vazio se o post não usa números nem casos.',
+              },
+              cta: { type: 'string', description: 'Como o post termina: a pergunta ou o convite.' },
+              ja_produzido: { type: 'boolean', description: 'true só para o post que a equipe já produziu.' },
+              observacoes: { type: 'string', description: 'Cuidados para a aprovação (ex.: usar o selo oficial). Vazio se não houver.' },
+            },
+            required: ['titulo', 'categoria', 'segmento', 'etapa_funil', 'formato', 'gancho', 'mensagem', 'provas', 'cta', 'ja_produzido', 'observacoes'],
+          },
+        },
+      },
+      required: ['nome', 'objetivo', 'narrativa', 'itens'],
+    },
+  };
+
+  const sistema = `Você é o estrategista de conteúdo do perfil ${marca.nome}.
+${marca.descricao}
+${politica.canal?.orientacao ? `${politica.canal.orientacao}\n` : ''}
+Monte uma régua de comunicação: uma série de ${total} posts que conta uma história do começo ao fim.
+
+Como montar:
+- Arco da série: abrir com uma provocação, dar credibilidade, aprofundar um tema por post, mostrar prova (casos e números) e terminar com um convite para conversa.
+- Os itens obrigatórios da equipe entram na série, no lugar que fizer mais sentido no arco.
+- Um post já produzido pela equipe entra como item com ja_produzido true, normalmente como abertura. Mantenha o tema dele.
+- Varie categorias e formatos: evite duas vezes seguidas a mesma categoria e use carrossel quando o tema tiver partes.
+- Provas só da base de conhecimento, copiadas palavra por palavra. Nunca cite clientes pelo nome nem preços.
+- Cada post termina com uma pergunta ou um convite, sem tom de venda.
+- Português do Brasil com acentuação completa.`;
+
+  const base = { ...(conhecimento || {}) };
+  delete base.observacao;
+  const conteudo = `Pedido da equipe:
+- Objetivo da série: ${pedido.objetivo || 'gerar interesse de executivos por uma conversa sobre o tema'}
+- Público principal: ${pedido.publico ? segmentos.find((s) => s.id === pedido.publico)?.nome || pedido.publico : 'variado, entre os públicos abaixo'}
+- Itens obrigatórios: ${pedido.obrigatorios || 'nenhum'}
+${pedido.ja_produzido ? `- Post já produzido pela equipe (entra na série):\n"""\n${pedido.ja_produzido}\n"""\n` : ''}${pedido.observacoes ? `- Observações: ${pedido.observacoes}\n` : ''}
+Categorias:
+${categorias.map((c) => `- ${c.id}: ${c.nome}`).join('\n')}
+
+Públicos:
+${segmentos.map((s) => `- ${s.id}: ${s.nome}. ${s.descricao}`).join('\n')}
+${conhecimento ? `\nBase de conhecimento:\n${JSON.stringify(base, null, 1)}` : ''}`;
+
+  const r = await ia({ modelo: env.modeloIa, sistema, conteudo, ferramenta, maxTokens: 6000 });
+  const dados = { ...r.dados, itens: (r.dados.itens || []).slice(0, total) };
+  return { dados, modelo: r.modelo };
 }

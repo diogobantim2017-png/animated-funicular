@@ -67,6 +67,16 @@ alter table public.estado_categorias enable row level security;
 alter table public.controle enable row level security;
 alter table public.programacao enable row level security;
 
+-- Réguas de comunicação: séries de posts com calendário, uma linha por série.
+create table if not exists public.reguas (
+  id             text primary key,
+  dados          jsonb not null default '{}'::jsonb,
+  criada_em      timestamptz not null default now(),
+  atualizada_em  timestamptz not null default now()
+);
+
+alter table public.reguas enable row level security;
+
 -- Bucket das imagens. Precisa ser público: o Instagram baixa a arte pela URL no momento da
 -- publicação. Os nomes dos arquivos começam com o UUID da peça.
 insert into storage.buckets (id, name, public)
