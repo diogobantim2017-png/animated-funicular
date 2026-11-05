@@ -110,39 +110,6 @@ export async function criarArmazenamentoLocal({ diretorio, urlPublica }) {
       await salvar();
     },
 
-    // Radar de visibilidade em IA: configuração e rodadas.
-    async obterGeoConfig() {
-      return copiar(estado.geo?.config || null);
-    },
-
-    async salvarGeoConfig(config) {
-      estado.geo ||= { config: null, rodadas: [] };
-      estado.geo.config = { ...config, atualizada_em: new Date().toISOString() };
-      await salvar();
-      return copiar(estado.geo.config);
-    },
-
-    async listarRodadasGeo() {
-      return copiar((estado.geo?.rodadas || []).slice().sort((a, b) => String(b.criada_em).localeCompare(String(a.criada_em))));
-    },
-
-    async obterRodadaGeo(id) {
-      return copiar((estado.geo?.rodadas || []).find((r) => r.id === id) || null);
-    },
-
-    async salvarRodadaGeo(rodada) {
-      estado.geo ||= { config: null, rodadas: [] };
-      estado.geo.rodadas = estado.geo.rodadas.filter((r) => r.id !== rodada.id).concat([rodada]);
-      await salvar();
-      return copiar(rodada);
-    },
-
-    async excluirRodadaGeo(id) {
-      if (!estado.geo) return;
-      estado.geo.rodadas = estado.geo.rodadas.filter((r) => r.id !== id);
-      await salvar();
-    },
-
     async salvarProgramacao(dados, por) {
       estado.programacao = { dados, atualizado_em: new Date().toISOString(), atualizado_por: por };
       await salvar();
