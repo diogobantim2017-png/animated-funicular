@@ -605,8 +605,12 @@ export async function interpretarAjusteVisual({ ia, peca, direcao, designAtual }
             contador: { type: 'boolean', description: 'Contador de posição no topo (ex.: 2/6) e a etiqueta "cartão 1 de 3".' },
             pontos: { type: 'boolean', description: 'Pontinhos de navegação no rodapé.' },
             texto_maior: { type: 'boolean', description: 'Letras maiores nos títulos e textos.' },
+            cor: {
+              type: 'string',
+              description: 'Cor do fundo em hexadecimal (#RRGGBB) quando o pedido fala de cor de fundo; o degradê é montado com ela. Vazio volta ao degradê da marca. Sem pedido de cor, repita a cor atual.',
+            },
           },
-          required: ['formas', 'fundo', 'numeros_grandes', 'contador', 'pontos', 'texto_maior'],
+          required: ['formas', 'fundo', 'numeros_grandes', 'contador', 'pontos', 'texto_maior', 'cor'],
         },
         trocar_imagem: {
           type: 'boolean',
@@ -643,7 +647,8 @@ export async function interpretarAjusteVisual({ ia, peca, direcao, designAtual }
 
 Regras:
 - Mude só o que o pedido pede. O que não for mencionado volta igual ao estado atual.
-- As cores são sempre as da marca. Pedidos de cor viram escolha entre fundo claro e escuro.
+- Pedido de cor de fundo vira o campo cor, em hexadecimal; o degradê é montado com essa cor. Pedido de voltar às cores da marca deixa cor vazio. Cores da marca, se o pedido citar alguma: ${Object.entries(marca.cores || {}).filter(([, v]) => typeof v === 'string' && v.startsWith('#')).map(([k, v]) => `${k} ${v}`).join(', ')}.
+- Fundo claro ou escuro continua no campo fundo; a cor muda o tom do degradê.
 - ${sobreImagem}
 - Textos não mudam aqui. Palavras, títulos, numeração escrita nos títulos e legenda vão para fora_do_visual, para a equipe editar.
 - Se o pedido for vago ("ficou ruim", "tenta de novo"), marque trocar_imagem como true e mantenha o layout.`;

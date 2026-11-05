@@ -52,6 +52,8 @@ export function normalizarDesign(bruto = {}) {
   const design = { ...DESIGN_PADRAO };
   for (const [campo, opcoes] of Object.entries(OPCOES_DESIGN)) if (opcoes.includes(bruto?.[campo])) design[campo] = bruto[campo];
   for (const campo of ['contador', 'pontos', 'texto_maior']) if (typeof bruto?.[campo] === 'boolean') design[campo] = bruto[campo];
+  // Cor de fundo pedida pela equipe (#RRGGBB). Sem ela, vale o degradê da marca.
+  if (typeof bruto?.cor === 'string' && /^#[0-9a-f]{6}$/i.test(bruto.cor.trim())) design.cor = bruto.cor.trim().toUpperCase();
   return design;
 }
 

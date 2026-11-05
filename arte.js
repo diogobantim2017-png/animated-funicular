@@ -1360,7 +1360,24 @@ export async function renderizarRegua(regua, rotulos) {
 
 const PB = { u: 45, margem: 90 };
 
-function paletaPb() {
+/** Paleta do playbook. Com uma cor pedida pela equipe, o degradê vai do tom escuro dessa cor ao tom claro. */
+function paletaPb(cor = null) {
+  const base = paletaDaMarcaPb();
+  if (!cor) return base;
+  const escuro = '#0A0F24';
+  const meio = luminanciaPb(cor) > 0.5 ? mistura(cor, escuro, 0.35) : cor;
+  return { ...base, midnight: mistura(cor, escuro, 0.65), azul: meio, claro: mistura(cor, '#FFFFFF', 0.5), turquesa: mistura(cor, '#FFFFFF', 0.72) };
+}
+
+function luminanciaPb(hex) {
+  const [r, g, b] = rgbDe(hex).map((v) => {
+    const x = v / 255;
+    return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function paletaDaMarcaPb() {
   const c = marca.cores;
   return {
     midnight: c.midnight || '#121A38',
@@ -1381,16 +1398,14 @@ const hexDe = (rgb) => `#${rgb.map((v) => Math.round(Math.max(0, Math.min(255, v
 const mistura = (a, b, t) => hexDe(rgbDe(a).map((v, i) => v + (rgbDe(b)[i] - v) * t));
 
 /** Cor do degradê comum (Midnight → Capgemini Blue → Light Blue) num ponto de 0 a 1. */
-function corNoDegradePb(t) {
-  const p = paletaPb();
+function corNoDegradePb(t, p = paletaPb()) {
   return t < 0.62 ? mistura(p.midnight, p.azul, t / 0.62) : mistura(p.azul, p.claro, (t - 0.62) / 0.38);
 }
 
 /** Posição (0 a 1) no degradê do fundo, para o ponto (x, y). Mesmo eixo usado em pintarFundoPb. */
 const posicaoNoDegradePb = (x, y) => Math.max(0, Math.min(1, (x * 0.35 * LARGURA + y * ALTURA) / ((0.35 * LARGURA) ** 2 + ALTURA ** 2)));
 
-function pintarFundoPb(ctx, tema) {
-  const p = paletaPb();
+function pintarFundoPb(ctx, tema, p = paletaPb()) {
   if (tema === 'claro') ctx.fillStyle = '#FFFFFF';
   else if (tema === 'escuro') ctx.fillStyle = p.midnight;
   else {
@@ -1409,7 +1424,8 @@ function pintarFundoPb(ctx, tema) {
  * Fica sempre abaixo de 10% da área da peça, como o playbook pede.
  */
 function pixelarPb(ctx, tema, semente, quantidade = 'padrao') {
-  if (quantidade === 'nenhuma') return 0;
+  // Desligada por padrão: a equipe preferiu só o degradê. Volta se marca.playbook.pixelizacao for true.
+  if (marca.playbook?.pixelizacao !== true || quantidade === 'nenhuma') return 0;
   const r = sorteador(semente + 29);
   const p = paletaPb();
   const { u } = PB;
@@ -1533,8 +1549,7 @@ function desenharManchetePb(ctx, m, x, y, cor, corDestaque) {
  * Barra de progresso: degradê sólido Midnight → Capgemini Blue → Light Blue → Turquoise,
  * com a altura de um quadrado da grade. "fracao" revela só parte da barra (progresso do carrossel).
  */
-function barraPb(ctx, { x, y, largura, fracao = 1, invertida = false }) {
-  const p = paletaPb();
+function barraPb(ctx, { x, y, largura, fracao = 1, invertida = false, p = paletaPb() }) {
   const g = ctx.createLinearGradient(x - largura * 0.2, 0, x + largura * 1.2, 0);
   // Sobre degradê, o playbook permite a sequência ao contrário, para a barra não sumir no fundo claro.
   const cores = invertida ? [p.turquesa, p.claro, p.azul, p.midnight] : [p.midnight, p.azul, p.claro, p.turquesa];
@@ -1552,55 +1567,76 @@ async function logoPb(ctx, tema, x, y, altura) {
   else await assinatura(ctx, tema === 'claro' ? 'horizontal_claro' : 'horizontal_escuro', x, y, altura, 'esquerda', tema === 'claro' ? paletaPb().azul : '#FFFFFF');
 }
 
-function coresDoTemaPb(tema) {
-  const p = paletaPb();
+function coresDoTemaPb(tema, p = paletaPb()) {
   return tema === 'claro'
-    ? { texto: p.azul, destaque: p.claro, apoio: p.g6, linha: 'rgba(0, 88, 171, 0.25)', cursor: p.claro }
+    ? { texto: p.azul, destaque: p.claro, apoio: p.g6, linha: `${p.azul}40`, cursor: p.claro }
     : { texto: p.g1, destaque: p.claro, apoio: 'rgba(243, 244, 247, 0.86)', linha: 'rgba(243, 244, 247, 0.35)', cursor: p.claro };
 }
 
+/** Foto recortada para a área, com a borda se dissolvendo no fundo (embaixo ou à esquerda). */
+async function fotoComTransicao(fundo, w, h, lado = 'baixo') {
+  const img = await loadImage(fundo);
+  const c = createCanvas(w, h);
+  const x = c.getContext('2d');
+  const escala = Math.max(w / img.width, h / img.height);
+  x.drawImage(img, (w - img.width * escala) / 2, (h - img.height * escala) / 2, img.width * escala, img.height * escala);
+  x.globalCompositeOperation = 'destination-in';
+  const g = lado === 'baixo' ? x.createLinearGradient(0, 0, 0, h) : x.createLinearGradient(0, 0, w, 0);
+  if (lado === 'baixo') {
+    g.addColorStop(0, 'rgba(0,0,0,1)');
+    g.addColorStop(0.6, 'rgba(0,0,0,1)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+  } else {
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    g.addColorStop(0.32, 'rgba(0,0,0,1)');
+    g.addColorStop(1, 'rgba(0,0,0,1)');
+  }
+  x.fillStyle = g;
+  x.fillRect(0, 0, w, h);
+  return c;
+}
+
 /** Post único e capa de carrossel. */
-async function capaPb({ fundo, textos, d, semente, cta, fracao = 1, tema }) {
+async function capaPb({ fundo, textos, d, semente, cta, fracao = 1, tema, p = paletaPb() }) {
   const canvas = createCanvas(LARGURA, ALTURA);
   const ctx = canvas.getContext('2d');
   const { margem, u } = PB;
-  const cores = coresDoTemaPb(tema);
-  pintarFundoPb(ctx, tema);
-  let topoTexto = 330;
-  if (fundo) {
-    // Foto real (licenciada) no alto, com a pixelização fazendo a transição para o degradê.
-    const img = await loadImage(fundo);
-    const alturaFoto = 14 * u;
-    const escala = Math.max(LARGURA / img.width, alturaFoto / img.height);
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(0, 0, LARGURA, alturaFoto);
-    ctx.clip();
-    ctx.drawImage(img, (LARGURA - img.width * escala) / 2, (alturaFoto - img.height * escala) / 2, img.width * escala, img.height * escala);
-    ctx.restore();
-    const r = sorteador(semente + 5);
-    for (let cx = 0; cx < LARGURA / u; cx++) {
-      for (let k = 0; k < 2; k++) {
-        if (r() < (k === 0 ? 0.55 : 0.25)) {
-          ctx.fillStyle = corNoDegradePb(posicaoNoDegradePb(cx * u, alturaFoto + k * u));
-          ctx.fillRect(cx * u, alturaFoto - (k + 1) * u, u, u);
-        }
-      }
+  const cores = coresDoTemaPb(tema, p);
+  const yBarra = ALTURA - margem - u;
+  const limite = yBarra - (cta ? 90 : 40);
+  const largura = LARGURA - margem * 2;
+
+  // Mede antes de desenhar: diminui as letras até caber; com foto, se ainda não couber, a foto fica menor.
+  let alturaFoto = fundo ? 14 * u : 0;
+  let m;
+  let sub;
+  let topoTexto;
+  const cabe = () => m.coube && sub.coube && topoTexto + m.altura + 70 + alturaBloco(sub) <= limite;
+  for (let tentativa = 0; tentativa < 5; tentativa++) {
+    topoTexto = fundo ? alturaFoto + u * 2 : 330;
+    for (let maximo = fundo ? (d.texto_maior ? 84 : 76) : d.texto_maior ? 104 : 94; maximo >= 46; maximo -= 4) {
+      m = manchetePb(ctx, textos.titulo, textos.titulo_destaque, { largura, maximo, minimo: Math.min(52, maximo), maxLinhas: fundo ? 3 : 6 });
+      sub = ajustarBloco(ctx, textos.subtitulo, {
+        familia: 'Marca Texto',
+        maximo: Math.min(d.texto_maior ? 40 : 36, Math.round(maximo * 0.48)),
+        minimo: 24,
+        maxLinhas: 4,
+        entrelinha: 1.32,
+        largura: 15 * u,
+      });
+      if (cabe()) break;
     }
-    topoTexto = alturaFoto + u * 2;
-  } else {
-    pixelarPb(ctx, tema, semente, d.formas);
+    if (!fundo || cabe() || alturaFoto <= 9 * u) break;
+    alturaFoto -= u;
   }
+
+  pintarFundoPb(ctx, tema, p);
+  if (fundo) ctx.drawImage(await fotoComTransicao(fundo, LARGURA, alturaFoto, 'baixo'), 0, 0);
+  else pixelarPb(ctx, tema, semente, d.formas);
   await logoPb(ctx, fundo ? 'escuro' : tema, margem, margem, 54);
 
   const rotulo = textos.rotulo_arte || marca.playbook?.rotulo_padrao || '';
   if (rotulo) rotuloPb(ctx, rotulo, margem, topoTexto - 70, cores.texto, cores.cursor);
-  const m = manchetePb(ctx, textos.titulo, textos.titulo_destaque, {
-    largura: LARGURA - margem * 2,
-    maximo: fundo ? (d.texto_maior ? 84 : 76) : d.texto_maior ? 104 : 94,
-    minimo: 52,
-    maxLinhas: fundo ? 3 : 6,
-  });
   let y = desenharManchetePb(ctx, m, margem, topoTexto, cores.texto, cores.destaque);
 
   // Linha fina e texto de apoio com o cursor, como no "basic with logo" do playbook.
@@ -1608,15 +1644,13 @@ async function capaPb({ fundo, textos, d, semente, cta, fracao = 1, tema }) {
   ctx.fillStyle = cores.linha;
   ctx.fillRect(margem, y, 8 * u, 2);
   y += 26;
-  const sub = ajustarBloco(ctx, textos.subtitulo, { familia: 'Marca Texto', maximo: d.texto_maior ? 40 : 36, minimo: 26, maxLinhas: 4, entrelinha: 1.32, largura: 15 * u });
   cursorPb(ctx, margem, y + 6, 24, cores.cursor);
   desenharBloco(ctx, sub, margem + 30, y, cores.apoio);
   const fimTexto = y + alturaBloco(sub);
 
-  const yBarra = ALTURA - margem - u;
   if (cta) rotuloPb(ctx, cta, margem, yBarra - 70, cores.texto, cores.cursor, 22);
-  barraPb(ctx, { x: margem, y: yBarra, largura: LARGURA - margem, fracao, invertida: tema === 'gradiente' && !fundo });
-  const transbordou = !m.coube || !sub.coube || fimTexto > yBarra - (cta ? 90 : 40);
+  barraPb(ctx, { x: margem, y: yBarra, largura: LARGURA - margem, fracao, invertida: tema === 'gradiente' && !fundo, p });
+  const transbordou = !m.coube || !sub.coube || fimTexto > limite;
   return { canvas, ajustes: { tamanho_titulo: m.tamanho, tamanho_subtitulo: sub.tamanho, altura_card: Math.round(fimTexto - topoTexto), transbordou } };
 }
 
@@ -1624,20 +1658,19 @@ async function renderizarArtePlaybook({ fundo, textos, oferta, design, semente =
   registrarFontes();
   const d = normalizarDesign(design);
   const tema = d.fundo === 'claro' ? 'claro' : d.fundo === 'escuro' ? 'escuro' : 'gradiente';
-  const { canvas, ajustes } = await capaPb({ fundo, textos, d, semente, cta: textos.cta_arte, tema });
+  const { canvas, ajustes } = await capaPb({ fundo, textos, d, semente, cta: textos.cta_arte, tema, p: paletaPb(d.cor) });
   if (oferta?.texto_legal) ajustes.transbordou = true;
   return { buffer: await canvas.encode('jpeg', 92), largura: LARGURA, altura: ALTURA, ajustes };
 }
 
 /** Slide de conteúdo (fundo branco por padrão) ou cartão de estudo (Midnight Blue por padrão). */
-async function slidePb({ titulo, texto, numero, total, d, mostrarNumero, cartao = null, cartoes = 0, semente }) {
+async function slidePb({ titulo, texto, numero, total, d, mostrarNumero, cartao = null, cartoes = 0, semente, p = paletaPb() }) {
   const canvas = createCanvas(LARGURA, ALTURA);
   const ctx = canvas.getContext('2d');
   const { margem, u } = PB;
-  const p = paletaPb();
   const tema = cartao ? (d.fundo === 'claro' ? 'claro' : 'escuro') : d.fundo === 'escuro' ? 'escuro' : d.fundo === 'gradiente' ? 'gradiente' : 'claro';
-  const cores = coresDoTemaPb(tema);
-  pintarFundoPb(ctx, tema);
+  const cores = coresDoTemaPb(tema, p);
+  pintarFundoPb(ctx, tema, p);
   pixelarPb(ctx, tema, semente + numero * 7, d.formas === 'nenhuma' ? 'nenhuma' : 'poucas');
   await logoPb(ctx, tema, margem, margem, 44);
   if (d.contador) {
@@ -1673,24 +1706,24 @@ async function slidePb({ titulo, texto, numero, total, d, mostrarNumero, cartao 
   const corpo = ajustarBloco(ctx, texto, { familia: 'Marca Texto', maximo: d.texto_maior ? 44 : 40, minimo: 28, maxLinhas: 8, entrelinha: 1.36, largura: LARGURA - margem * 2 });
   desenharBloco(ctx, corpo, margem, y, cores.apoio);
   const fim = y + alturaBloco(corpo);
-  if (d.pontos) barraPb(ctx, { x: margem, y: ALTURA - margem - u, largura: LARGURA - margem, fracao: numero / total, invertida: tema === 'gradiente' });
+  if (d.pontos) barraPb(ctx, { x: margem, y: ALTURA - margem - u, largura: LARGURA - margem, fracao: numero / total, invertida: tema === 'gradiente', p });
   return { buffer: await canvas.encode('jpeg', 92), coube: m.coube && corpo.coube && fim <= limite };
 }
 
-async function finalPb({ textos, d, total, semente }) {
+async function finalPb({ textos, d, total, semente, p = paletaPb() }) {
   const tema = d.fundo === 'claro' ? 'claro' : d.fundo === 'escuro' ? 'escuro' : 'gradiente';
-  const cores = coresDoTemaPb(tema);
+  const cores = coresDoTemaPb(tema, p);
   const canvas = createCanvas(LARGURA, ALTURA);
   const ctx = canvas.getContext('2d');
   const { margem, u } = PB;
-  pintarFundoPb(ctx, tema);
+  pintarFundoPb(ctx, tema, p);
   pixelarPb(ctx, tema, semente + 101, d.formas);
   await logoPb(ctx, tema, margem, margem, 54);
   const m = manchetePb(ctx, textos.fechamento, textos.fechamento_destaque, { largura: LARGURA - margem * 2, maximo: d.texto_maior ? 96 : 88, minimo: 50, maxLinhas: 6 });
   const fim = desenharManchetePb(ctx, m, margem, 330, cores.texto, cores.destaque);
   const yBarra = ALTURA - margem - u;
   if (textos.cta_arte) rotuloPb(ctx, textos.cta_arte, margem, yBarra - 70, cores.texto, cores.cursor, 22);
-  barraPb(ctx, { x: margem, y: yBarra, largura: LARGURA - margem, fracao: 1, invertida: tema === 'gradiente' });
+  barraPb(ctx, { x: margem, y: yBarra, largura: LARGURA - margem, fracao: 1, invertida: tema === 'gradiente', p });
   return { buffer: await canvas.encode('jpeg', 92), coube: m.coube && fim <= yBarra - 110 };
 }
 
@@ -1702,7 +1735,8 @@ async function renderizarCarrosselPlaybook({ fundo, textos, formato, design, sem
   const mostrarNumero =
     d.numeros_grandes === 'sim' || (d.numeros_grandes === 'auto' && formato !== 'flashcards' && !miolo.some((s) => temNumeracaoPropria(s.titulo)));
   const temaCapa = d.fundo === 'claro' ? 'claro' : d.fundo === 'escuro' ? 'escuro' : 'gradiente';
-  const capa = await capaPb({ fundo, textos, d, semente, cta: 'Deslize para o lado', fracao: d.pontos ? 1 / total : 1, tema: temaCapa });
+  const p = paletaPb(d.cor);
+  const capa = await capaPb({ fundo, textos, d, semente, cta: 'Deslize para o lado', fracao: d.pontos ? 1 / total : 1, tema: temaCapa, p });
   const slides = [await capa.canvas.encode('jpeg', 92)];
   let coube = !capa.ajustes.transbordou;
   for (const [i, item] of miolo.entries()) {
@@ -1713,12 +1747,13 @@ async function renderizarCarrosselPlaybook({ fundo, textos, formato, design, sem
       d,
       mostrarNumero,
       semente,
+      p,
       ...(formato === 'flashcards' ? { cartao: i + 1, cartoes: miolo.length } : {}),
     });
     slides.push(r.buffer);
     coube &&= r.coube;
   }
-  const final = await finalPb({ textos, d, total, semente });
+  const final = await finalPb({ textos, d, total, semente, p });
   slides.push(final.buffer);
   coube &&= final.coube;
   return { slides, largura: LARGURA, altura: ALTURA, ajustes: { ...capa.ajustes, slides: total, transbordou: !coube } };
@@ -1735,12 +1770,12 @@ export async function renderizarCapaArtigo({ fundo = null, textos, design, semen
   const d = normalizarDesign(design);
   const canvas = createCanvas(CAPA_L, CAPA_A);
   const ctx = canvas.getContext('2d');
-  const p = paletaPb();
+  const p = paletaPb(d.cor);
   const margem = 96;
   const u = PB.u;
   const playbook = marca.layout === 'playbook';
   const tema = d.fundo === 'claro' ? 'claro' : d.fundo === 'escuro' ? 'escuro' : 'gradiente';
-  const cores = playbook ? coresDoTemaPb(tema) : { texto: '#FFFFFF', destaque: marca.cores.secundaria, apoio: 'rgba(255,255,255,0.86)', linha: 'rgba(255,255,255,0.35)', cursor: marca.cores.secundaria };
+  const cores = playbook ? coresDoTemaPb(tema, p) : { texto: '#FFFFFF', destaque: marca.cores.secundaria, apoio: 'rgba(255,255,255,0.86)', linha: 'rgba(255,255,255,0.35)', cursor: marca.cores.secundaria };
 
   // Fundo
   if (!playbook) ctx.fillStyle = marca.cores.primaria;
@@ -1756,43 +1791,9 @@ export async function renderizarCapaArtigo({ fundo = null, textos, design, semen
   ctx.fillRect(0, 0, CAPA_L, CAPA_A);
 
   const xImagem = Math.round((CAPA_L * 0.55) / u) * u;
-  const r = sorteador(semente + 41);
   if (fundo) {
-    const img = await loadImage(fundo);
-    const w = CAPA_L - xImagem;
-    const escala = Math.max(w / img.width, CAPA_A / img.height);
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(xImagem, 0, w, CAPA_A);
-    ctx.clip();
-    ctx.drawImage(img, xImagem + (w - img.width * escala) / 2, (CAPA_A - img.height * escala) / 2, img.width * escala, img.height * escala);
-    ctx.restore();
-    // Transição pixelada da imagem para o fundo, em duas colunas da grade.
-    for (let cy = 0; cy < CAPA_A / u; cy++) {
-      for (let k = 0; k < 2; k++) {
-        if (r() < (k === 0 ? 0.6 : 0.28)) {
-          const t = Math.min(1, (cy * u) / CAPA_A * 0.8 + 0.25);
-          ctx.fillStyle = playbook ? (tema === 'claro' ? '#FFFFFF' : tema === 'escuro' ? p.midnight : corNoDegradePb(t)) : marca.cores.primaria;
-          ctx.fillRect(xImagem + k * u, cy * u, u, u);
-        }
-      }
-    }
-  } else if (playbook && d.formas !== 'nenhuma') {
-    // Pixelização no canto superior direito, abaixo de 10% da capa.
-    const colunas = CAPA_L / u;
-    const raio = d.formas === 'poucas' ? 6 : 9;
-    let n = 0;
-    const limite = Math.floor((colunas * (CAPA_A / u)) * 0.1);
-    for (let cy = 0; cy < 10 && n < limite; cy++) {
-      for (let cx = colunas - 1; cx >= colunas - 14 && n < limite; cx--) {
-        const dist = Math.hypot(colunas - 1 - cx, cy) / raio;
-        if (dist >= 1 || r() > (1 - dist) ** 1.6 * 0.95) continue;
-        const base = tema === 'claro' ? '#FFFFFF' : tema === 'escuro' ? p.midnight : corNoDegradePb(Math.min(1, (cx * u * 0.55 + cy * u * 1.25) / (CAPA_L * 0.55 + CAPA_A * 1.25)));
-        ctx.fillStyle = mistura(base, r() < 0.7 ? p.claro : p.azul, 0.15 + r() * 0.45 * (1 - dist * 0.6));
-        ctx.fillRect(cx * u, cy * u, u, u);
-        n++;
-      }
-    }
+    // Foto à direita, se dissolvendo no fundo do lado do texto.
+    ctx.drawImage(await fotoComTransicao(fundo, CAPA_L - xImagem, CAPA_A, 'esquerda'), xImagem, 0);
   }
 
   // Logo, rótulo, manchete e linha fina
@@ -1821,7 +1822,7 @@ export async function renderizarCapaArtigo({ fundo = null, textos, design, semen
   const fim = y + alturaBloco(sub);
 
   if (textos.cta_arte) rotuloPb(ctx, textos.cta_arte, margem, yBarra - 70, cores.texto, cores.cursor, 22);
-  if (playbook) barraPb(ctx, { x: margem, y: yBarra, largura: (fundo ? xImagem : CAPA_L) - margem, fracao: 1, invertida: tema === 'gradiente' && !fundo });
+  if (playbook) barraPb(ctx, { x: margem, y: yBarra, largura: (fundo ? xImagem : CAPA_L) - margem, fracao: 1, invertida: tema === 'gradiente' && !fundo, p });
   const transbordou = !m.coube || !sub.coube || fim > limite;
   return {
     buffer: await canvas.encode('jpeg', 92),
