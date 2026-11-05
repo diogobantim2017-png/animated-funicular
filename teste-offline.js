@@ -153,6 +153,20 @@ function validarSchema(schema, valor, caminho = 'raiz') {
   }
 }
 
+/** Campos do artigo do LinkedIn, quando o redator pede esse formato. */
+function artigoSimulado(ferramenta) {
+  const secoes = ferramenta.input_schema.properties.secoes;
+  if (!secoes) return {};
+  return {
+    secoes: Array.from({ length: secoes.minItems }, (_, i) => ({
+      intertitulo: `Parte ${i + 1} do raciocínio`,
+      texto: `Primeiro parágrafo da seção ${i + 1}, com contexto.\n\nSegundo parágrafo, com um exemplo prático.`,
+    })),
+    conclusao: 'A ideia principal, em poucas frases.',
+    chamada_final: 'Como esse tema aparece na sua organização?',
+  };
+}
+
 const chamadas = [];
 async function iaSimulada({ ferramenta, conteudo, sistema, ferramentasServidor = [] }) {
   chamadas.push({ ferramenta: ferramenta.name, schema: ferramenta.input_schema, conteudo, sistema, servidor: ferramentasServidor });
@@ -170,8 +184,12 @@ async function iaSimulada({ ferramenta, conteudo, sistema, ferramentasServidor =
     escrever_textos: () => {
       const pedeSlides = ferramenta.input_schema.properties.slides;
       const extras = pedeSlides ? { slides: slidesSimulados(pedeSlides.minItems), fechamento: 'Proteja quem você ama: compartilhe.' } : {};
-      return { ...TEXTOS, ...extras, ...roteiro.textos };
+      return { ...TEXTOS, ...extras, ...artigoSimulado(ferramenta), ...roteiro.textos };
     },
+    escolher_imagem_do_banco: () => ({ indice: roteiro.banco?.indice ?? 0, motivo: roteiro.banco?.motivo || 'Combina com o tema do post.' }),
+    descrever_fotos: () => ({
+      fotos: conteudo.filter((b) => b.type === 'image').map((_, i) => ({ indice: i, descricao: `Foto ${i + 1} descrita pela IA`, temas: ['equipe', 'escritório', 'tecnologia'] })),
+    }),
     planejar_regua: () => {
       const esquema = ferramenta.input_schema.properties.itens;
       const props = esquema.items.properties;
@@ -197,7 +215,9 @@ async function iaSimulada({ ferramenta, conteudo, sistema, ferramentasServidor =
     },
     reescrever_textos: () => {
       const pedeSlides = ferramenta.input_schema.properties.slides;
-      const extras = pedeSlides ? { slides: slidesSimulados(pedeSlides.minItems), fechamento: 'Proteja quem você ama: compartilhe.' } : {};
+      const extras = pedeSlides
+        ? { slides: slidesSimulados(pedeSlides.minItems), fechamento: 'Proteja quem você ama: compartilhe.' }
+        : artigoSimulado(ferramenta);
       return { ...TEXTOS, ...extras, resumo_da_mudanca: 'Textos ajustados.', ...roteiro.reescrita };
     },
     ajustar_visual: () => ({
@@ -1140,6 +1160,149 @@ await caso('Playbook da Capgemini: degradê, destaque por cor, barra de progress
   } finally {
     politica.visuais_permitidos = guardadoV;
   }
+});
+
+await caso('Artigo do LinkedIn: seções, capa 1920 x 1080, travas e formato só quando liberado', async () => {
+  const guardado = politica.formatos_extras;
+  politica.formatos_extras = ['artigo'];
+  try {
+    const peca = await gerarPeca({ orientacao: { formato: 'artigo', visual: 'design' } });
+    assert.equal(peca.formato, 'artigo');
+    assert.equal(peca.textos.secoes.length, 3);
+    assert.ok(peca.textos.conclusao && peca.textos.chamada_final);
+    assert.equal(peca.arte.largura, 1920);
+    assert.equal(peca.arte.altura, 1080);
+    const pedido = chamadas.filter((c) => c.ferramenta === 'escrever_textos').at(-1);
+    assert.ok(pedido.schema.properties.secoes, 'o redator recebe o esquema do artigo');
+    assert.match(pedido.sistema, /artigo do LinkedIn/);
+    const travas = peca.governanca.regras;
+    assert.ok(travas.find((r) => r.id === 'campos_obrigatorios').ok, 'artigo completo passa na trava de campos');
+    // Uma seção com termo proibido aparece na trava, como em qualquer outro texto.
+    const proibido = politica.termos_proibidos[0];
+    if (proibido) {
+      const { avaliarRegras } = await import('./regras.js');
+      const r = avaliarRegras({ textos: { ...peca.textos, secoes: [{ intertitulo: 'Seção', texto: `Texto com ${proibido}.` }, ...peca.textos.secoes.slice(1)] }, categoriaId: peca.categoria, segmentoId: peca.segmento_id, arte: peca.arte, hoje: '2026-11-04', modoPublicacao: 'simulacao' });
+      assert.equal(r.find((x) => x.id === 'termos_proibidos').ok, false);
+    }
+    // Na edição manual, a quantidade de seções não muda.
+    await assert.rejects(motor.editarTextos(peca.id, 'teste', { secoes: peca.textos.secoes.slice(0, 2) }), /quantidade de seções/);
+    const editada = await motor.editarTextos(peca.id, 'teste', { secoes: peca.textos.secoes.map((sc, i) => (i === 0 ? { ...sc, intertitulo: 'Novo intertítulo' } : sc)) });
+    const final = await aguardarProcessamento(editada.id);
+    assert.equal(final.textos.secoes[0].intertitulo, 'Novo intertítulo');
+    assert.equal(final.arte.largura, 1920);
+
+    // Capa no layout do playbook também cabe.
+    const { renderizarCapaArtigo } = await import('./arte.js');
+    const guardadoMarca = { layout: marca.layout, logos: marca.logos, cores: marca.cores, playbook: marca.playbook };
+    Object.assign(marca, { layout: 'playbook', logos: perfilAtivo.marca.logos, cores: perfilAtivo.marca.cores, playbook: perfilAtivo.marca.playbook });
+    try {
+      const capa = await renderizarCapaArtigo({ textos: { ...peca.textos, titulo_destaque: 'decisões', rotulo_arte: 'Artigo' }, design: {} });
+      assert.equal(capa.ajustes.transbordou, false);
+    } finally {
+      Object.assign(marca, guardadoMarca);
+    }
+  } finally {
+    politica.formatos_extras = guardado;
+  }
+  // Sem a liberação na política, o pedido de artigo vira post único.
+  const comum = await gerarPeca({ orientacao: { formato: 'artigo', visual: 'design' } });
+  assert.equal(comum.formato, 'post');
+});
+
+await caso('Banco de imagens: a IA escolhe a foto, o Novo visual troca e sem foto cai no design', async () => {
+  const fsp = await import('node:fs/promises');
+  const os = await import('node:os');
+  const pasta = await fsp.mkdtemp(path.join(os.tmpdir(), 'banco-'));
+  for (const [nome, cor] of [['banco-fabrica.jpg', '#3a6ea5'], ['banco-reuniao.jpg', '#a5703a']]) {
+    const c = createCanvas(800, 600);
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = cor;
+    ctx.fillRect(0, 0, 800, 600);
+    await fsp.writeFile(path.join(pasta, nome), await c.encode('jpeg', 80));
+  }
+  await fsp.writeFile(path.join(pasta, 'nao-entra.jpg'), 'x');
+  await fsp.writeFile(path.join(pasta, 'banco-imagens.json'), JSON.stringify([{ arquivo: 'banco-reuniao.jpg', descricao: 'Equipe em reunião', tags: ['reunião'], credito: 'Banco de imagens da marca' }]));
+  const antes = process.env.BANCO_DIR;
+  const guardadoV = politica.visuais_permitidos;
+  process.env.BANCO_DIR = pasta;
+  politica.visuais_permitidos = undefined;
+  try {
+    const { listarBanco, descreverPendentes, catalogoCompleto, caminhoDoBanco } = await import('./banco.js');
+    const lista = await listarBanco();
+    assert.deepEqual(lista.map((f) => f.arquivo), ['banco-fabrica.jpg', 'banco-reuniao.jpg']);
+    assert.equal(lista[1].descricao, 'Equipe em reunião');
+    assert.equal(caminhoDoBanco('../segredo.jpg'), null);
+    assert.equal(caminhoDoBanco('banco-imagens/../motor.js'), null);
+
+    roteiro.banco = { indice: 1, motivo: 'Mostra uma equipe em reunião.' };
+    const peca = await gerarPeca({ orientacao: { visual: 'banco' } });
+    assert.equal(peca.imagem.origem, 'banco');
+    assert.equal(peca.imagem.arquivo, 'banco-reuniao.jpg');
+    const escolha = chamadas.filter((c) => c.ferramenta === 'escolher_imagem_do_banco').at(-1);
+    assert.equal(escolha.conteudo.filter((b) => b.type === 'image').length, 2, 'a IA vê as duas fotos');
+    const { legenda_final } = await motor.detalhe(peca.id);
+    assert.match(legenda_final, /Foto: Banco de imagens da marca/);
+    assert.ok(!peca.governanca.gate.motivos.some((m) => m.id === 'foto_editorial'), 'foto do banco não leva o alerta de banco livre');
+
+    // Novo visual: a foto já usada sai da lista, e a IA escolhe entre as outras.
+    roteiro.banco = { indice: 0 };
+    await motor.regenerarImagem(peca.id, 'teste');
+    const trocada = await aguardarProcessamento(peca.id);
+    assert.equal(trocada.imagem.arquivo, 'banco-fabrica.jpg');
+
+    // Pasta banco-imagens: fotos com qualquer nome, descritas pela IA de uma vez e guardadas no catálogo.
+    await fsp.mkdir(path.join(pasta, 'banco-imagens'));
+    for (const nome of ['IMG_0001.jpg', 'foto evento 2.jpg']) {
+      const c = createCanvas(400, 300);
+      c.getContext('2d').fillRect(0, 0, 400, 300);
+      await fsp.writeFile(path.join(pasta, 'banco-imagens', nome), await c.encode('jpeg', 70));
+    }
+    const comPasta = await listarBanco();
+    assert.equal(comPasta.length, 4);
+    assert.ok(comPasta.some((f) => f.arquivo === 'banco-imagens/foto evento 2.jpg' && f.url === '/banco/banco-imagens/foto%20evento%202.jpg'));
+    const r = await descreverPendentes({ ia: iaSimulada, modelo: 'modelo-simulado' });
+    assert.equal(r.descritas, 3, 'descreve só as fotos sem descrição');
+    assert.equal(r.faltam, 0);
+    const descritas = await listarBanco();
+    assert.ok(descritas.find((f) => f.arquivo === 'banco-imagens/IMG_0001.jpg').descrita_pela_ia);
+    assert.equal(descritas.find((f) => f.arquivo === 'banco-reuniao.jpg').descricao, 'Equipe em reunião', 'a descrição do catálogo é mantida');
+    const catalogo = await catalogoCompleto();
+    assert.equal(catalogo.imagens.length, 4);
+    assert.ok(catalogo.imagens.every((f) => f.descricao));
+
+    // Nenhuma foto combina: a peça sai só com o design da marca.
+    roteiro.banco = { indice: -1, motivo: 'Nenhuma combina.' };
+    const semFoto = await gerarPeca({ orientacao: { visual: 'banco' } });
+    assert.equal(semFoto.imagem, null);
+    assert.ok(semFoto.arte?.url);
+  } finally {
+    roteiro.banco = undefined;
+    politica.visuais_permitidos = guardadoV;
+    // Banco vazio: também cai no design.
+    process.env.BANCO_DIR = await fsp.mkdtemp(path.join(os.tmpdir(), 'banco-vazio-'));
+    const vazio = await gerarPeca({ orientacao: { visual: 'banco' } });
+    assert.equal(vazio.imagem, null);
+    if (antes === undefined) delete process.env.BANCO_DIR;
+    else process.env.BANCO_DIR = antes;
+  }
+});
+
+await caso('Programação: o calendário mostra horários salvos e datas da régua', async () => {
+  const prog = await motor.salvarProgramacao({ horarios: [{ dia: 2, hora: '10:00' }, { dia: 4, hora: '10:00' }], gerar_automaticamente: false }, 'teste');
+  assert.ok(prog.calendario, 'a programação traz o calendário');
+  assert.ok(prog.calendario.horarios.length >= 16, 'dois meses de horários de terça e quinta');
+  assert.ok(prog.calendario.horarios.every((h) => [2, 4].includes(new Date(h.para).getUTCDay())));
+  const regua = await motor.importarRegua('teste', {
+    nome: 'Série do calendário',
+    objetivo: 'Testar o calendário.',
+    narrativa: 'Um post.',
+    cadencia: { inicio: '2026-11-17', dias_semana: [2, 4] },
+    itens: [{ titulo: 'Post da régua no calendário', categoria: Object.keys(politica.categorias)[0], segmento: 'x', etapa_funil: 'atrair', formato: 'post', gancho: 'g', mensagem: 'm', provas: [], cta: 'c', ja_produzido: false, observacoes: '' }],
+  });
+  const depois = await motor.programacao();
+  assert.ok(depois.calendario.regua.some((i) => i.titulo === 'Post da régua no calendário' && i.data === '2026-11-17'));
+  await motor.excluirRegua(regua.id);
+  await motor.salvarProgramacao({ horarios: [], gerar_automaticamente: false }, 'teste');
 });
 
 await caso('Estado do painel com métricas por categoria e configuração ativa', async () => {

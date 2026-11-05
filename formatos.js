@@ -1,7 +1,17 @@
 /** Formatos de post, tipos de imagem e limites de texto dos slides. */
 
-export const FORMATOS = { post: 'Post único', carrossel: 'Carrossel', flashcards: 'Flashcards', pista: 'Carrossel em pista' };
-export const VISUAIS = { ia: 'Imagem criada por IA', foto: 'Foto real de banco de imagens', design: 'Só design, sem imagem' };
+export const FORMATOS = { post: 'Post único', carrossel: 'Carrossel', flashcards: 'Flashcards', pista: 'Carrossel em pista', artigo: 'Artigo do LinkedIn' };
+/** Formatos que só aparecem quando a política do perfil libera (em "formatos_extras"). */
+export const FORMATOS_OPCIONAIS = ['artigo'];
+export const VISUAIS = {
+  ia: 'Imagem criada por IA',
+  foto: 'Foto real de banco de imagens',
+  banco: 'Foto do banco de imagens da marca',
+  design: 'Só design, sem imagem',
+};
+
+/** Limites do artigo do LinkedIn: seções com intertítulo, conclusão, chamada final e o post de divulgação. */
+export const LIMITES_ARTIGO = { secoes_min: 3, secoes_max: 6, intertitulo: 90, texto: 1600, conclusao: 700, chamada_final: 250, legenda: 1300 };
 
 export const SLIDES_MIN = 3;
 export const SLIDES_MAX = 10;
@@ -19,7 +29,7 @@ export function normalizarFormato({ formato, visual, num_slides } = {}) {
   return {
     formato: f,
     visual: v,
-    num_slides: f === 'post' ? 1 : Number.isFinite(n) ? Math.min(SLIDES_MAX, Math.max(SLIDES_MIN, n)) : SLIDES_PADRAO,
+    num_slides: f === 'post' || f === 'artigo' ? 1 : Number.isFinite(n) ? Math.min(SLIDES_MAX, Math.max(SLIDES_MIN, n)) : SLIDES_PADRAO,
   };
 }
 

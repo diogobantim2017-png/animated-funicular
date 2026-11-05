@@ -1723,3 +1723,110 @@ async function renderizarCarrosselPlaybook({ fundo, textos, formato, design, sem
   coube &&= final.coube;
   return { slides, largura: LARGURA, altura: ALTURA, ajustes: { ...capa.ajustes, slides: total, transbordou: !coube } };
 }
+
+/* ------------------------------------------------------- capa do artigo */
+// Capa do artigo do LinkedIn (1920 x 1080). No playbook: texto à esquerda sobre o degradê e, se houver,
+// a imagem à direita com a transição pixelada. Em outros layouts, uma capa simples nas cores da marca.
+const CAPA_L = 1920;
+const CAPA_A = 1080;
+
+export async function renderizarCapaArtigo({ fundo = null, textos, design, semente = 1 }) {
+  registrarFontes();
+  const d = normalizarDesign(design);
+  const canvas = createCanvas(CAPA_L, CAPA_A);
+  const ctx = canvas.getContext('2d');
+  const p = paletaPb();
+  const margem = 96;
+  const u = PB.u;
+  const playbook = marca.layout === 'playbook';
+  const tema = d.fundo === 'claro' ? 'claro' : d.fundo === 'escuro' ? 'escuro' : 'gradiente';
+  const cores = playbook ? coresDoTemaPb(tema) : { texto: '#FFFFFF', destaque: marca.cores.secundaria, apoio: 'rgba(255,255,255,0.86)', linha: 'rgba(255,255,255,0.35)', cursor: marca.cores.secundaria };
+
+  // Fundo
+  if (!playbook) ctx.fillStyle = marca.cores.primaria;
+  else if (tema === 'claro') ctx.fillStyle = '#FFFFFF';
+  else if (tema === 'escuro') ctx.fillStyle = p.midnight;
+  else {
+    const g = ctx.createLinearGradient(0, 0, CAPA_L * 0.55, CAPA_A * 1.25);
+    g.addColorStop(0, p.midnight);
+    g.addColorStop(0.62, p.azul);
+    g.addColorStop(1, p.claro);
+    ctx.fillStyle = g;
+  }
+  ctx.fillRect(0, 0, CAPA_L, CAPA_A);
+
+  const xImagem = Math.round((CAPA_L * 0.55) / u) * u;
+  const r = sorteador(semente + 41);
+  if (fundo) {
+    const img = await loadImage(fundo);
+    const w = CAPA_L - xImagem;
+    const escala = Math.max(w / img.width, CAPA_A / img.height);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(xImagem, 0, w, CAPA_A);
+    ctx.clip();
+    ctx.drawImage(img, xImagem + (w - img.width * escala) / 2, (CAPA_A - img.height * escala) / 2, img.width * escala, img.height * escala);
+    ctx.restore();
+    // Transição pixelada da imagem para o fundo, em duas colunas da grade.
+    for (let cy = 0; cy < CAPA_A / u; cy++) {
+      for (let k = 0; k < 2; k++) {
+        if (r() < (k === 0 ? 0.6 : 0.28)) {
+          const t = Math.min(1, (cy * u) / CAPA_A * 0.8 + 0.25);
+          ctx.fillStyle = playbook ? (tema === 'claro' ? '#FFFFFF' : tema === 'escuro' ? p.midnight : corNoDegradePb(t)) : marca.cores.primaria;
+          ctx.fillRect(xImagem + k * u, cy * u, u, u);
+        }
+      }
+    }
+  } else if (playbook && d.formas !== 'nenhuma') {
+    // Pixelização no canto superior direito, abaixo de 10% da capa.
+    const colunas = CAPA_L / u;
+    const raio = d.formas === 'poucas' ? 6 : 9;
+    let n = 0;
+    const limite = Math.floor((colunas * (CAPA_A / u)) * 0.1);
+    for (let cy = 0; cy < 10 && n < limite; cy++) {
+      for (let cx = colunas - 1; cx >= colunas - 14 && n < limite; cx--) {
+        const dist = Math.hypot(colunas - 1 - cx, cy) / raio;
+        if (dist >= 1 || r() > (1 - dist) ** 1.6 * 0.95) continue;
+        const base = tema === 'claro' ? '#FFFFFF' : tema === 'escuro' ? p.midnight : corNoDegradePb(Math.min(1, (cx * u * 0.55 + cy * u * 1.25) / (CAPA_L * 0.55 + CAPA_A * 1.25)));
+        ctx.fillStyle = mistura(base, r() < 0.7 ? p.claro : p.azul, 0.15 + r() * 0.45 * (1 - dist * 0.6));
+        ctx.fillRect(cx * u, cy * u, u, u);
+        n++;
+      }
+    }
+  }
+
+  // Logo, rótulo, manchete e linha fina
+  if (playbook) await logoPb(ctx, tema, margem, 84, 56);
+  else await assinatura(ctx, 'horizontal_escuro', margem, 84, 56, 'esquerda', '#FFFFFF');
+  const larguraTexto = (fundo ? xImagem : CAPA_L) - margem * 2 - (fundo ? 0 : 280);
+  const rotulo = textos.rotulo_arte || marca.playbook?.rotulo_padrao || 'Artigo';
+  rotuloPb(ctx, rotulo, margem, 300, cores.texto, cores.cursor, 26);
+  // Mede antes de desenhar: diminui o título e o subtítulo até tudo caber acima da barra de progresso.
+  const yBarra = CAPA_A - margem - u;
+  const limite = yBarra - (textos.cta_arte ? 90 : 40);
+  let m;
+  let sub;
+  for (let maximo = d.texto_maior ? 96 : 88; maximo >= 48; maximo -= 6) {
+    m = manchetePb(ctx, textos.titulo, textos.titulo_destaque, { largura: larguraTexto, maximo, minimo: Math.min(48, maximo), maxLinhas: 4 });
+    sub = ajustarBloco(ctx, textos.subtitulo, { familia: 'Marca Texto', maximo: Math.min(38, Math.round(maximo * 0.45)), minimo: 24, maxLinhas: 3, entrelinha: 1.3, largura: Math.min(larguraTexto, 15 * u) });
+    if (m.coube && sub.coube && 360 + m.altura + 66 + alturaBloco(sub) <= limite) break;
+  }
+  let y = desenharManchetePb(ctx, m, margem, 360, cores.texto, cores.destaque);
+  y += 40;
+  ctx.fillStyle = cores.linha;
+  ctx.fillRect(margem, y, 8 * u, 2);
+  y += 26;
+  cursorPb(ctx, margem, y + 6, 24, cores.cursor);
+  desenharBloco(ctx, sub, margem + 30, y, cores.apoio);
+  const fim = y + alturaBloco(sub);
+
+  if (textos.cta_arte) rotuloPb(ctx, textos.cta_arte, margem, yBarra - 70, cores.texto, cores.cursor, 22);
+  if (playbook) barraPb(ctx, { x: margem, y: yBarra, largura: (fundo ? xImagem : CAPA_L) - margem, fracao: 1, invertida: tema === 'gradiente' && !fundo });
+  const transbordou = !m.coube || !sub.coube || fim > limite;
+  return {
+    buffer: await canvas.encode('jpeg', 92),
+    largura: CAPA_L,
+    altura: CAPA_A,
+    ajustes: { tamanho_titulo: m.tamanho, tamanho_subtitulo: sub.tamanho, altura_card: Math.round(fim - 360), transbordou },
+  };
+}

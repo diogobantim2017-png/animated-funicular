@@ -8,6 +8,12 @@
 
 > **Imagens:** o playbook não permite imagem gerada por IA, por isso `"visuais_permitidos": ["design"]` em `politica.json`; as outras opções aparecem desativadas no painel. Quando a biblioteca oficial de fotos licenciadas estiver disponível, basta incluir `"foto"` nessa lista: o layout já tem a composição com foto no alto e a transição pixelada para o degradê.
 
+> **Novidades:**
+> - **Artigo do LinkedIn:** formato liberado por `"formatos_extras": ["artigo"]` em `politica.json`. O redator escreve título, linha fina, de 3 a 6 seções, conclusão, chamada final e o post de divulgação. A capa sai em 1920 x 1080 no padrão do playbook, e o painel copia o artigo com os intertítulos.
+> - **Banco de imagens da marca:** fotos autorizadas na pasta `banco-imagens/` do projeto, com qualquer nome (ou na pasta principal com o nome começando por `banco-`). Na aba Banco de imagens, o botão "Descrever as fotos com IA" escreve descrição e temas de todas as fotos de uma vez, e "Baixar catálogo" gera o `banco-imagens.json`, que deve ser subido no projeto para guardar as descrições de vez. Ao gerar com "Foto do banco de imagens", a IA olha as fotos e escolhe a que combina com o post; sem foto adequada, a peça sai só com o design. As fotos de exemplo do Visual Identity Playbook não entram: o próprio playbook diz que são licenciadas da Stills e da Getty Images só para ilustração.
+> - **Imagem criada por IA liberada pela equipe:** `"visuais_permitidos": ["design", "ia", "banco"]`. O estilo das imagens segue fotografia documental em tons azuis, sem brilhos ou rastros de luz. O playbook pede imagens a partir de fotos reais, então vale validar com a área de marca.
+> - **Programação:** ao salvar, o dia e o horário escolhidos entram mesmo sem clicar em "Adicionar horário"; os próximos horários aparecem em prévia antes de salvar; e o calendário do mês mostra horários livres, posts agendados, publicados e as datas das réguas.
+
 > **Publicação e conteúdo:** os posts são consultivos e publicados à mão pelos executivos (botões "Copiar texto do post" e "Baixar PDF"). Todo fato vem de `conhecimento.json`, e a aba Régua monta séries com calendário e PDF para aprovação.
 
 MVP de um motor que percebe a necessidade de um post, define público e objetivo, escreve os textos, gera a imagem com IA, monta a arte no template da marca, passa a peça pelas travas de governança e então publica no Instagram ou manda para revisão humana.

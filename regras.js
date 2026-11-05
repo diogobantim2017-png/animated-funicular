@@ -1,7 +1,7 @@
 import { marca, politica, segmentos, conhecimento, MARCADOR_PENDENTE, temPendencia } from './config.js';
 import { ofertaPorId, ofertaTemPendencia } from './sinais.js';
 import { contemTermo, contraste, normalizar } from './util.js';
-import { LIMITES_SLIDE } from './formatos.js';
+import { LIMITES_SLIDE, LIMITES_ARTIGO } from './formatos.js';
 
 /** Padrões de números financeiros que só podem vir do catálogo oficial, nunca da IA. */
 const NUMEROS_FINANCEIROS = [
@@ -30,6 +30,14 @@ function textosDaIa(textos) {
       ]),
     ),
     ...(textos.fechamento !== undefined ? { fechamento: textos.fechamento || '' } : {}),
+    ...Object.fromEntries(
+      (textos.secoes || []).flatMap((s, i) => [
+        [`seção ${i + 1} (intertítulo)`, s.intertitulo || ''],
+        [`seção ${i + 1} (texto)`, s.texto || ''],
+      ]),
+    ),
+    ...(textos.conclusao !== undefined ? { conclusão: textos.conclusao || '' } : {}),
+    ...(textos.chamada_final !== undefined ? { 'chamada final': textos.chamada_final || '' } : {}),
   };
 }
 
@@ -79,6 +87,11 @@ export function avaliarRegras({ textos, categoriaId, segmentoId, ofertaId, arte,
     if (!String(s.titulo || '').trim() || !String(s.texto || '').trim()) vazios.push(`slide ${i + 2}`);
   });
   if (textos.fechamento !== undefined && !String(textos.fechamento || '').trim()) vazios.push('fechamento');
+  (textos.secoes || []).forEach((s, i) => {
+    if (!String(s.intertitulo || '').trim() || !String(s.texto || '').trim()) vazios.push(`seção ${i + 1} do artigo`);
+  });
+  if (textos.secoes !== undefined && (textos.secoes || []).length < LIMITES_ARTIGO.secoes_min) vazios.push(`pelo menos ${LIMITES_ARTIGO.secoes_min} seções no artigo`);
+  if (textos.conclusao !== undefined && !String(textos.conclusao || '').trim()) vazios.push('conclusão do artigo');
   r.push(resultado('campos_obrigatorios', 'Textos obrigatórios preenchidos', vazios.length === 0, 'bloqueio',
     vazios.length ? `Faltando: ${vazios.join(', ')}.` : 'Título, subtítulo, chamada e legenda presentes.'));
 
@@ -86,7 +99,15 @@ export function avaliarRegras({ textos, categoriaId, segmentoId, ofertaId, arte,
   if ((textos.titulo || '').length > l.titulo_max) excessos.push(`título com ${textos.titulo.length} de ${l.titulo_max}`);
   if ((textos.subtitulo || '').length > l.subtitulo_max) excessos.push(`subtítulo com ${textos.subtitulo.length} de ${l.subtitulo_max}`);
   if ((textos.cta_arte || '').length > l.cta_max) excessos.push(`chamada com ${textos.cta_arte.length} de ${l.cta_max}`);
-  if ((textos.legenda || '').length > l.legenda_max) excessos.push(`legenda com ${textos.legenda.length} de ${l.legenda_max}`);
+  const legendaMax = textos.secoes ? LIMITES_ARTIGO.legenda : l.legenda_max;
+  if ((textos.legenda || '').length > legendaMax) excessos.push(`${textos.secoes ? 'texto de divulgação' : 'legenda'} com ${textos.legenda.length} de ${legendaMax}`);
+  (textos.secoes || []).forEach((s, i) => {
+    if ((s.intertitulo || '').length > LIMITES_ARTIGO.intertitulo) excessos.push(`intertítulo da seção ${i + 1} com ${s.intertitulo.length} de ${LIMITES_ARTIGO.intertitulo}`);
+    if ((s.texto || '').length > LIMITES_ARTIGO.texto) excessos.push(`texto da seção ${i + 1} com ${s.texto.length} de ${LIMITES_ARTIGO.texto}`);
+  });
+  if ((textos.secoes || []).length > LIMITES_ARTIGO.secoes_max) excessos.push(`${textos.secoes.length} seções de ${LIMITES_ARTIGO.secoes_max}`);
+  if ((textos.conclusao || '').length > LIMITES_ARTIGO.conclusao) excessos.push(`conclusão com ${textos.conclusao.length} de ${LIMITES_ARTIGO.conclusao}`);
+  if ((textos.chamada_final || '').length > LIMITES_ARTIGO.chamada_final) excessos.push(`chamada final com ${textos.chamada_final.length} de ${LIMITES_ARTIGO.chamada_final}`);
   if ((textos.hashtags || []).length > l.hashtags_max) excessos.push(`${textos.hashtags.length} hashtags de ${l.hashtags_max}`);
   (textos.slides || []).forEach((s, i) => {
     if ((s.titulo || '').length > LIMITES_SLIDE.titulo) excessos.push(`título do slide ${i + 2} com ${s.titulo.length} de ${LIMITES_SLIDE.titulo}`);

@@ -46,15 +46,15 @@
     "horizontal_escuro": "logo-capgemini-branco.png"
   },
   "estilos_visuais": {
-    "abstrato_tecnologico": "Abstract technology visual: flowing light lines, data particles and connected nodes, deep navy and blue tones, cinematic depth, plenty of negative space",
-    "fotografia_corporativa": "Editorial corporate photography of diverse professionals collaborating in a modern Brazilian office, natural light, candid moment, shallow depth of field",
-    "ilustracao_3d": "Clean 3D render of abstract shapes representing data, journeys and growth, soft studio light, blue palette, minimal background"
+    "fotografia_documental": "Documentary-style photograph of an authentic, candid moment of professionals at work in a real modern office, natural light, cool blue color grading that matches deep navy and Capgemini blue, shadows lifted to midnight blue instead of pure black, subtle film grain, calm negative space",
+    "ambientes_e_tecnologia": "Documentary photograph of real places where technology meets business, such as data centers, factories, logistics hubs, retail floors or city infrastructure, natural light, cool blue color grading, realistic and understated",
+    "detalhe_humano": "Close, natural photograph of hands, tools or a person thinking or collaborating, shallow depth of field, soft natural light, blue-tinted grading, minimal and uncluttered composition"
   },
-  "restricoes_visuais_en": "Absolutely no text, letters, numbers, words, signage, readable screens, charts with labels, logos, brand marks or watermarks, and no real public figures.",
+  "restricoes_visuais_en": "Absolutely no text, letters, numbers, words, signage, readable screens, charts with labels, logos, brand marks or watermarks, and no real public figures. No glowing effects, lens flares, light trails, neon, holograms or futuristic overlays.",
   "diretrizes_de_cena": [
     "A cena precisa funcionar sem nenhum texto: nada de telas legíveis, gráficos com números, letreiros ou logotipos.",
-    "Prefira visuais abstratos de dados e conexões, ou cenas de trabalho em equipe em ambiente corporativo brasileiro, com diversidade.",
-    "A metade de baixo da imagem recebe um painel de texto. Coloque o assunto principal na metade de cima."
+    "Prefira fotografia em estilo documental: pessoas e ambientes reais, luz natural e tons azuis. Evite rastros de luz, brilhos, hologramas e visuais futuristas, que o playbook da Capgemini não usa.",
+    "Mostre trabalho em equipe, decisões e ambientes de negócio, sem caricatura de tecnologia."
   ],
   "playbook": {
     "fonte": "Capgemini Visual Identity Playbook 2026",

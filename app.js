@@ -56,9 +56,10 @@ const CAMPOS = [
   { id: 'hashtags', rotulo: 'Hashtags, separadas por espaço', limite: 'hashtags_max' },
 ];
 
-const FORMATOS = { post: 'Post único', carrossel: 'Carrossel', flashcards: 'Flashcards', pista: 'Carrossel em pista' };
-const VISUAIS = { ia: 'imagem criada por IA', foto: 'foto real', design: 'só design' };
+const FORMATOS = { post: 'Post único', carrossel: 'Carrossel', flashcards: 'Flashcards', pista: 'Carrossel em pista', artigo: 'Artigo do LinkedIn' };
+const VISUAIS = { ia: 'imagem criada por IA', foto: 'foto real', banco: 'foto do banco de imagens', design: 'só design' };
 const LIMITES_SLIDE = { titulo: 60, texto: 240, fechamento: 90, legenda: 700 };
+const LIMITES_ARTIGO = { intertitulo: 90, texto: 1600, conclusao: 700, chamada_final: 250, legenda: 1300 };
 
 const emPlaybook = () => ui.estado?.config?.layout === 'playbook';
 const CAMPOS_PLAYBOOK = [
@@ -69,6 +70,27 @@ const CAMPOS_PLAYBOOK = [
 /** Campos editáveis conforme o formato: post único ou capa, slides e slide final. */
 function camposDaPeca(p) {
   const t = p?.textos || {};
+  if (Array.isArray(t.secoes)) {
+    const campos = [
+      { id: 'titulo', rotulo: 'Título do artigo', limite: 'titulo_max', grupo: 'Título e capa' },
+      ...(emPlaybook() ? CAMPOS_PLAYBOOK : []),
+      { id: 'subtitulo', rotulo: 'Linha fina', limite: 'subtitulo_max', linhas: 2 },
+      { id: 'cta_arte', rotulo: 'Chamada na capa', limite: 'cta_max' },
+    ];
+    t.secoes.forEach((_, i) => {
+      campos.push(
+        { id: `secao_${i}_intertitulo`, rotulo: 'Intertítulo', max: LIMITES_ARTIGO.intertitulo, grupo: `Seção ${i + 1}` },
+        { id: `secao_${i}_texto`, rotulo: 'Texto (deixe uma linha em branco entre os parágrafos)', max: LIMITES_ARTIGO.texto, linhas: 8 },
+      );
+    });
+    campos.push(
+      { id: 'conclusao', rotulo: 'Conclusão', max: LIMITES_ARTIGO.conclusao, linhas: 4, grupo: 'Fechamento do artigo' },
+      { id: 'chamada_final', rotulo: 'Chamada final', max: LIMITES_ARTIGO.chamada_final, linhas: 2 },
+      { id: 'legenda', rotulo: 'Texto do post que divulga o artigo', max: LIMITES_ARTIGO.legenda, linhas: 5, grupo: 'Divulgação no feed' },
+      { id: 'hashtags', rotulo: 'Hashtags, separadas por espaço', limite: 'hashtags_max' },
+    );
+    return campos;
+  }
   if (!Array.isArray(t.slides)) {
     if (!emPlaybook()) return CAMPOS;
     return CAMPOS.flatMap((c) => (c.id === 'titulo' ? [c, ...CAMPOS_PLAYBOOK] : c.id === 'cta_arte' ? [{ ...c, rotulo: 'Chamada no pé da arte' }] : [c]));
@@ -102,13 +124,18 @@ function formParaTextos(r, t = {}) {
   if (t.fechamento !== undefined) saida.fechamento = r.fechamento;
   for (const campo of ['titulo_destaque', 'rotulo_arte', 'fechamento_destaque']) if (r[campo] !== undefined) saida[campo] = r[campo];
   if (Array.isArray(t.slides)) saida.slides = t.slides.map((_, i) => ({ titulo: r[`slide_${i}_titulo`], texto: r[`slide_${i}_texto`] }));
+  if (Array.isArray(t.secoes)) {
+    saida.secoes = t.secoes.map((_, i) => ({ intertitulo: r[`secao_${i}_intertitulo`], texto: r[`secao_${i}_texto`] }));
+    saida.conclusao = r.conclusao;
+    saida.chamada_final = r.chamada_final;
+  }
   return saida;
 }
 
 function descreverFormato(p) {
   const formato = p.formato || 'post';
   const n = p.slides_arte?.length || p.slides || p.num_slides;
-  const nome = formato === 'post' ? 'Post único' : `${FORMATOS[formato]} de ${n} imagens`;
+  const nome = formato === 'post' ? 'Post único' : formato === 'artigo' ? 'Artigo do LinkedIn com capa' : `${FORMATOS[formato]} de ${n} imagens`;
   return `${nome}, ${VISUAIS[p.visual || 'ia']}`;
 }
 
@@ -237,7 +264,7 @@ async function carregarEstado() {
 }
 
 async function carregarLista() {
-  if (ui.aba === 'autonomia' || ui.aba === 'programacao') return;
+  if (ui.aba === 'autonomia' || ui.aba === 'programacao' || ui.aba === 'banco') return;
   const status = ui.aba === 'fila' ? 'gerando,em_revisao,aprovada,agendada' : ui.filtro;
   const [pecas, historico] = await Promise.all([
     api(`/api/pecas${status ? `?status=${encodeURIComponent(status)}` : ''}`),
@@ -503,6 +530,13 @@ const textosParaForm = (t = {}) => ({
       [`slide_${i}_texto`, sl.texto || ''],
     ]),
   ),
+  ...Object.fromEntries(
+    (t.secoes || []).flatMap((sc, i) => [
+      [`secao_${i}_intertitulo`, sc.intertitulo || ''],
+      [`secao_${i}_texto`, sc.texto || ''],
+    ]),
+  ),
+  ...(t.secoes ? { conclusao: t.conclusao || '', chamada_final: t.chamada_final || '' } : {}),
 });
 
 function rascunhoAlterado() {
@@ -622,18 +656,26 @@ function figura(d) {
   const temFundo = Boolean(p.imagem?.url);
   const fundo = ui.verFundo && temFundo;
   const ehFoto = p.imagem?.origem === 'foto';
-  const nomeFundo = !temFundo ? 'Sem imagem de fundo' : ehFoto ? 'Foto do banco de imagens' : 'Fundo gerado por IA';
+  const ehBanco = p.imagem?.origem === 'banco';
+  const ehArtigo = p.formato === 'artigo';
+  const nomeFundo = !temFundo ? 'Sem imagem de fundo' : ehBanco ? 'Foto do banco da marca' : ehFoto ? 'Foto do banco de imagens' : 'Fundo gerado por IA';
   const indice = Math.min(ui.slideAtual || 0, (slides?.length || 1) - 1);
   const url = fundo ? p.imagem.url : slides ? slides[indice].url : p.arte.url;
   const alt = fundo
-    ? ehFoto
+    ? ehBanco
+      ? `Foto do banco de imagens da marca: ${p.imagem.arquivo}`
+      : ehFoto
       ? `Foto real de ${p.imagem.credito?.autor || 'autor não informado'}`
       : `Fundo gerado por IA. Cena pedida: ${p.brief?.cena_visual || ''}`
     : slides
       ? `Slide ${indice + 1} de ${slides.length}`
       : `Arte final. Título: ${p.textos?.titulo || ''}`;
   let legenda;
-  if (fundo && ehFoto) {
+  if (fundo && ehBanco) {
+    legenda = `Foto ${esc(p.imagem.arquivo)}, escolhida no banco de imagens da marca. ${esc(p.imagem.motivo || '')}`;
+  } else if (ehArtigo && !fundo) {
+    legenda = `Capa do artigo, 1920 × 1080 px, no tamanho que o LinkedIn recomenda. ${ehBanco ? 'Usa uma foto do banco de imagens da marca.' : p.visual === 'ia' && temFundo ? 'Usa uma imagem criada por IA.' : 'Feita só com o design da marca.'}`;
+  } else if (fundo && ehFoto) {
     legenda = `Foto de ${esc(p.imagem.credito?.autor || 'autor não informado')} no ${esc(p.imagem.credito?.fonte || 'Pexels')}, buscada por "${esc(p.imagem.consulta || '')}". É esta imagem que o revisor confere: sem texto, marcas ou dinheiro.`;
   } else if (fundo) {
     legenda = `Gerado com ${esc(p.imagem.modelo)} (${esc(PROVEDORES[p.imagem.provedor] || p.imagem.provedor)}) em ${esc(p.imagem.segundos)} s. É esta imagem que o revisor confere: sem texto, marcas, dinheiro ou pessoas deformadas.`;
@@ -664,7 +706,7 @@ function figura(d) {
       <button type="button" data-acao="ver-arte" aria-pressed="${!fundo}">${slides ? 'Slides' : 'Arte final'}</button>
       <button type="button" data-acao="ver-fundo" aria-pressed="${Boolean(fundo)}" ${temFundo ? '' : 'disabled'}>${nomeFundo}</button>
     </div>
-    <a class="arte__link" href="${esc(url)}" target="_blank" rel="noopener"><img class="arte__imagem ${fundo ? 'arte__imagem--fundo' : ''}" src="${esc(url)}" alt="${esc(alt)}"></a>
+    <a class="arte__link" href="${esc(url)}" target="_blank" rel="noopener"><img class="arte__imagem ${fundo ? 'arte__imagem--fundo' : ehArtigo ? 'arte__imagem--capa' : ''}" src="${esc(url)}" alt="${esc(alt)}"></a>
     ${navegacao}
     <figcaption class="arte__legenda">${legenda}</figcaption>
   </figure>`;
@@ -719,26 +761,76 @@ function publico(d) {
   );
 }
 
+/** Parágrafos do texto de uma seção (separados por linha em branco). */
+const paragrafos = (texto = '') =>
+  String(texto)
+    .split(/\n\s*\n/)
+    .map((t) => t.trim())
+    .filter(Boolean);
+
+/** O corpo do artigo em HTML (para colar no editor de artigos do LinkedIn) e em texto simples. */
+function corpoDoArtigo(t) {
+  const html = [
+    t.subtitulo ? `<p><em>${esc(t.subtitulo)}</em></p>` : '',
+    ...(t.secoes || []).map((sc) => `<h2>${esc(sc.intertitulo)}</h2>${paragrafos(sc.texto).map((pg) => `<p>${esc(pg)}</p>`).join('')}`),
+    t.conclusao ? `<h2>Conclusão</h2>${paragrafos(t.conclusao).map((pg) => `<p>${esc(pg)}</p>`).join('')}` : '',
+    t.chamada_final ? `<p><strong>${esc(t.chamada_final)}</strong></p>` : '',
+  ].join('');
+  const texto = [
+    t.subtitulo,
+    ...(t.secoes || []).map((sc) => `${sc.intertitulo}\n\n${paragrafos(sc.texto).join('\n\n')}`),
+    t.conclusao ? `Conclusão\n\n${t.conclusao}` : '',
+    t.chamada_final,
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+  return { html, texto };
+}
+
+function artigoHtml(p) {
+  const t = p.textos;
+  const palavras = [t.subtitulo, ...(t.secoes || []).map((sc) => `${sc.intertitulo} ${sc.texto}`), t.conclusao, t.chamada_final].join(' ').split(/\s+/).filter(Boolean).length;
+  return bloco(
+    'Artigo para o LinkedIn',
+    `<article class="artigo">
+      <h3 class="artigo__titulo">${esc(t.titulo)}</h3>
+      ${t.subtitulo ? `<p class="artigo__fina">${esc(t.subtitulo)}</p>` : ''}
+      ${(t.secoes || [])
+        .map((sc) => `<h4 class="artigo__intertitulo">${esc(sc.intertitulo)}</h4>${paragrafos(sc.texto).map((pg) => `<p>${esc(pg)}</p>`).join('')}`)
+        .join('')}
+      ${t.conclusao ? `<h4 class="artigo__intertitulo">Conclusão</h4>${paragrafos(t.conclusao).map((pg) => `<p>${esc(pg)}</p>`).join('')}` : ''}
+      ${t.chamada_final ? `<p class="artigo__chamada">${esc(t.chamada_final)}</p>` : ''}
+    </article>
+    <div class="baixar">
+      <button type="button" class="botao botao--secundario" data-acao="copiar-titulo-artigo">Copiar título</button>
+      <button type="button" class="botao botao--primario" data-acao="copiar-artigo">Copiar artigo</button>
+      ${p.arte?.url ? `<a class="botao botao--secundario" href="${esc(p.arte.url)}" download>Baixar capa</a>` : ''}
+    </div>
+    <p class="dica">Cerca de ${palavras} palavras. No LinkedIn: clique em “Escrever artigo”, cole o título no campo de título, cole o artigo no corpo e suba a capa.</p>`,
+  );
+}
+
 function textos(d) {
   const p = d.peca;
   if (!p.textos) return '';
   const editavel = p.status === 'em_revisao' && !d.processando;
   const manual = canalManual();
+  const ehArtigo = Array.isArray(p.textos.secoes);
   const baixar =
     d.legenda_final && p.arte
       ? `<div class="baixar">
-          <button type="button" class="botao botao--secundario" data-acao="copiar-texto">Copiar texto do post</button>
-          <a class="botao botao--secundario" href="/api/pecas/${esc(p.id)}/pdf" download>Baixar PDF${p.slides_arte?.length ? ' (carrossel)' : ''}</a>
-          ${p.arte?.url ? `<a class="botao botao--texto" href="${esc(p.arte.url)}" target="_blank" rel="noopener">Abrir imagem</a>` : ''}
+          <button type="button" class="botao botao--secundario" data-acao="copiar-texto">${ehArtigo ? 'Copiar texto de divulgação' : 'Copiar texto do post'}</button>
+          ${ehArtigo ? '' : `<a class="botao botao--secundario" href="/api/pecas/${esc(p.id)}/pdf" download>Baixar PDF${p.slides_arte?.length ? ' (carrossel)' : ''}</a>`}
+          ${p.arte?.url ? `<a class="botao botao--texto" href="${esc(p.arte.url)}" target="_blank" rel="noopener">${ehArtigo ? 'Abrir capa' : 'Abrir imagem'}</a>` : ''}
         </div>`
       : '';
   // Primeiro o texto final do post, com copiar e baixar; os textos de cada imagem ficam numa caixa que abre ao clicar.
-  const textoFinal = d.legenda_final
+  const textoFinal = (ehArtigo ? artigoHtml(p) : '') + (d.legenda_final
     ? bloco(
-        manual ? `Texto do post para o ${esc(manual.nome)}` : 'Legenda como será publicada',
+        ehArtigo ? 'Post de divulgação do artigo' : manual ? `Texto do post para o ${esc(manual.nome)}` : 'Legenda como será publicada',
         `<p class="legenda-final">${esc(d.legenda_final)}</p>${baixar}<p class="dica">Rótulo de imagem criada com IA (só quando a imagem é de IA), crédito da foto e hashtags entram automaticamente.${editavel ? ' Atualiza quando você salvar.' : ''}</p>`,
       )
-    : '';
+    : '');
   const recolhivel = (resumo, dica, conteudo, aberto) =>
     `<section class="bloco bloco--recolhivel"><details class="editar"${aberto ? ' open' : ''}><summary><span class="bloco__titulo">${resumo}</span><span class="recolhivel__dica">${dica}</span></summary><div class="editar__conteudo">${conteudo}</div></details></section>`;
 
@@ -752,6 +844,7 @@ function textos(d) {
           ['Título', p.textos.titulo],
           ['Subtítulo', p.textos.subtitulo],
           ...(p.textos.slides || []).map((sl, i) => [p.formato === 'flashcards' ? `Cartão ${i + 1}` : `Slide ${i + 2}`, `${sl.titulo}. ${sl.texto}`]),
+          ...(p.textos.secoes || []).map((sc, i) => [`Seção ${i + 1}`, sc.intertitulo]),
           ['Fechamento', p.textos.fechamento],
           ['Chamada', p.textos.cta_arte],
         ]),
@@ -1158,6 +1251,14 @@ function abrirGerar() {
   opcaoFoto.disabled = !temFotos;
   const fontesDeFotos = ui.estado?.config?.fontes_de_fotos || [];
   opcaoFoto.textContent = temFotos ? `Foto real (${fontesDeFotos.join(' e ') || 'banco de imagens'})` : 'Foto real (falta a chave PEXELS_API_KEY)';
+  opcaoFoto.dataset.base = opcaoFoto.textContent;
+  // Formatos do perfil: o artigo do LinkedIn só aparece quando a política libera.
+  const formatos = ui.estado?.config?.formatos?.map((f) => f.id);
+  for (const opcao of $('#gerar-formato').options) {
+    const ok = !formatos || formatos.includes(opcao.value);
+    opcao.hidden = !ok;
+    opcao.disabled = !ok;
+  }
   atualizarDialogoGerar();
   dialogo.returnValue = '';
   dialogo.showModal();
@@ -1166,8 +1267,9 @@ function abrirGerar() {
 function atualizarDialogoGerar() {
   const formato = $('#gerar-formato').value;
   const n = Number($('#gerar-slides').value) || 6;
-  $('#gerar-slides-campo').hidden = formato === 'post';
+  $('#gerar-slides-campo').hidden = formato === 'post' || formato === 'artigo';
   const notas = {
+    artigo: 'Artigo de 700 a 1.200 palavras, com seções, conclusão e capa no tamanho do LinkedIn. Vem com o post que divulga o artigo no feed.',
     post: 'Uma imagem com título, subtítulo e botão. A legenda aprofunda o assunto.',
     carrossel: `Capa, ${n - 2} slides de conteúdo e um slide final com a chamada. O conteúdo principal vai nos slides, e a legenda fica mais curta.`,
     flashcards: `Capa, ${n - 2} cartões de estudo (termo e explicação) e um slide final. Bom para ensinar conceitos.`,
@@ -1185,16 +1287,21 @@ function atualizarDialogoGerar() {
     visual.value = visual.dataset.antes || 'ia';
     delete visual.dataset.antes;
   }
-  // Tipos de imagem que a marca permite (o playbook da Capgemini não aceita imagem gerada por IA).
+  // Tipos de imagem que a marca permite, e o banco de imagens só quando já tem fotos.
   const permitidos = ui.estado?.config?.visuais_permitidos;
-  if (permitidos?.length) {
-    for (const opcao of visual.options) {
-      const ok = permitidos.includes(opcao.value);
-      opcao.disabled = !ok;
-      opcao.textContent = opcao.textContent.replace(/ \(fora do brandbook\)$/, '') + (ok ? '' : ' (fora do brandbook)');
-    }
-    if (!permitidos.includes(visual.value)) visual.value = permitidos[0];
+  const fotosNoBanco = ui.estado?.config?.banco_de_imagens || 0;
+  for (const opcao of visual.options) {
+    opcao.dataset.base ??= opcao.textContent;
+    const permitido = !permitidos?.length || permitidos.includes(opcao.value);
+    const semFotos = opcao.value === 'banco' && !fotosNoBanco;
+    const semChave = opcao.value === 'foto' && !ui.estado?.config?.fotos_disponiveis;
+    opcao.disabled = !permitido || semFotos || semChave;
+    opcao.textContent =
+      opcao.value === 'banco' && fotosNoBanco
+        ? `Foto do banco de imagens da marca (${fotosNoBanco} ${fotosNoBanco === 1 ? 'foto' : 'fotos'})`
+        : `${opcao.dataset.base}${!permitido ? ' (fora das regras da marca)' : semFotos ? ' (o banco ainda não tem fotos)' : ''}`;
   }
+  if (visual.selectedOptions[0]?.disabled) visual.value = [...visual.options].find((o) => !o.disabled)?.value || 'design';
 }
 
 $('#dlg-gerar').addEventListener('close', async () => {
@@ -1296,6 +1403,118 @@ function situacaoDoHorario(h) {
   return 'Livre. Aprove uma peça para ocupar este horário.';
 }
 
+/* Datas no fuso do sistema, para a prévia e o calendário. */
+function partesNoFuso(data, fuso) {
+  const f = new Intl.DateTimeFormat('en-CA', { timeZone: fuso, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+  const o = Object.fromEntries(f.formatToParts(data).map((x) => [x.type, x.value]));
+  return { dia: `${o.year}-${o.month}-${o.day}`, hora: `${o.hour}:${o.minute}` };
+}
+const somarDiasIso = (iso, n) => {
+  const [a, m, d] = iso.split('-').map(Number);
+  return new Date(Date.UTC(a, m - 1, d + n, 12)).toISOString().slice(0, 10);
+};
+const diaDaSemanaIso = (iso) => {
+  const [a, m, d] = iso.split('-').map(Number);
+  return new Date(Date.UTC(a, m - 1, d, 12)).getUTCDay();
+};
+const NOMES_DOS_MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+const DIAS_DO_CALENDARIO = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+/** Próximas ocorrências dos horários do rascunho (para a prévia antes de salvar). */
+function horariosDoRascunho(horarios, fuso, dias = 62) {
+  const agora = partesNoFuso(new Date(), fuso);
+  const lista = [];
+  for (let k = 0; k < dias; k++) {
+    const dia = somarDiasIso(agora.dia, k);
+    const semana = diaDaSemanaIso(dia);
+    for (const h of horarios) if (h.dia === semana && (k > 0 || h.hora > agora.hora)) lista.push({ dia, hora: h.hora });
+  }
+  return lista.sort((a, b) => `${a.dia}${a.hora}`.localeCompare(`${b.dia}${b.hora}`));
+}
+
+/** Eventos do calendário por dia: horários, agendados, publicados e posts da régua. */
+function eventosDoCalendario(p, previa) {
+  const porDia = new Map();
+  const add = (dia, ev) => {
+    if (!porDia.has(dia)) porDia.set(dia, []);
+    porDia.get(dia).push(ev);
+  };
+  const cal = p.calendario || { horarios: [], publicadas: [], regua: [] };
+  if (previa) {
+    for (const h of horariosDoRascunho(ui.progRascunho.horarios, p.fuso)) add(h.dia, { tipo: 'previa', hora: h.hora, texto: 'horário (prévia)' });
+  } else {
+    for (const h of cal.horarios) {
+      const { dia, hora } = partesNoFuso(new Date(h.para), p.fuso);
+      if (h.peca) add(dia, { tipo: h.peca.status === 'agendada' ? 'agendado' : 'aguardando', hora, texto: h.peca.titulo || 'peça', id: h.peca.id });
+      else add(dia, { tipo: 'horario', hora, texto: 'horário livre' });
+    }
+  }
+  const nosHorarios = new Set(cal.horarios.filter((h) => h.peca).map((h) => h.peca.id));
+  for (const a of p.agendadas) {
+    if (!previa && nosHorarios.has(a.id)) continue;
+    const { dia, hora } = partesNoFuso(new Date(a.para), p.fuso);
+    add(dia, { tipo: 'agendado', hora, texto: a.titulo || 'peça', id: a.id });
+  }
+  for (const a of cal.publicadas) {
+    const { dia, hora } = partesNoFuso(new Date(a.para), p.fuso);
+    add(dia, { tipo: 'publicado', hora, texto: a.titulo || 'peça', id: a.id });
+  }
+  for (const i of cal.regua) {
+    add(i.data, { tipo: 'regua', hora: '', texto: i.titulo, id: i.peca_id, regua: i.regua, status: i.status, ja_produzido: i.ja_produzido });
+  }
+  for (const lista of porDia.values()) lista.sort((a, b) => (a.hora || '99').localeCompare(b.hora || '99'));
+  return porDia;
+}
+
+function calendarioHtml(p, previa) {
+  const hoje = partesNoFuso(new Date(), p.fuso).dia;
+  ui.calMes ??= hoje.slice(0, 7);
+  const [ano, mes] = ui.calMes.split('-').map(Number);
+  const primeiro = `${ui.calMes}-01`;
+  const inicio = somarDiasIso(primeiro, -diaDaSemanaIso(primeiro));
+  const eventos = eventosDoCalendario(p, previa);
+  const ROTULO = { horario: 'Livre', previa: 'Prévia', agendado: 'Agendado', aguardando: 'Esperando aprovação', publicado: 'Publicado', regua: 'Régua' };
+  const celulas = [];
+  for (let k = 0; k < 42; k++) {
+    const dia = somarDiasIso(inicio, k);
+    if (k === 35 && dia.slice(0, 7) !== ui.calMes) break;
+    const doMes = dia.slice(0, 7) === ui.calMes;
+    const lista = eventos.get(dia) || [];
+    const itens = lista
+      .slice(0, 3)
+      .map((ev) => {
+        const texto = `${ev.hora ? `${esc(ev.hora)} ` : ''}${esc(ev.texto)}`;
+        const titulo = `${ROTULO[ev.tipo]}${ev.regua ? ` · ${ev.regua}` : ''}: ${ev.hora ? `${ev.hora} ` : ''}${ev.texto}`;
+        const acao = ev.id ? `data-acao="abrir-da-programacao" data-id="${esc(ev.id)}"` : ev.tipo === 'regua' ? 'data-acao="abrir-regua-do-calendario"' : '';
+        return acao
+          ? `<button type="button" class="cal__evento cal__evento--${ev.tipo}" ${acao} title="${esc(titulo)}">${texto}</button>`
+          : `<span class="cal__evento cal__evento--${ev.tipo}" title="${esc(titulo)}">${texto}</span>`;
+      })
+      .join('');
+    const mais = lista.length > 3 ? `<span class="cal__mais">+${lista.length - 3}</span>` : '';
+    celulas.push(
+      `<div class="cal__dia${doMes ? '' : ' cal__dia--fora'}${dia === hoje ? ' cal__dia--hoje' : ''}"><span class="cal__numero">${Number(dia.slice(8))}</span>${itens}${mais}</div>`,
+    );
+  }
+  const legenda = ['horario', 'agendado', 'aguardando', 'publicado', 'regua']
+    .map((t) => `<span class="cal__legenda-item"><span class="cal__marca cal__evento--${t}"></span>${ROTULO[t]}</span>`)
+    .join('');
+  return `<section class="config cal">
+      <div class="cal__topo">
+        <h3 class="config__titulo">Calendário</h3>
+        <div class="cal__navegar">
+          <button type="button" class="botao botao--texto" data-acao="cal-mes" data-passo="-1" aria-label="Mês anterior">‹</button>
+          <span class="cal__mes">${NOMES_DOS_MESES[mes - 1].replace(/^./, (l) => l.toUpperCase())} de ${ano}</span>
+          <button type="button" class="botao botao--texto" data-acao="cal-mes" data-passo="1" aria-label="Próximo mês">›</button>
+          <button type="button" class="botao botao--texto" data-acao="cal-mes" data-passo="0">Hoje</button>
+        </div>
+      </div>
+      ${previa ? '<p class="programacao__nota">Mostrando a prévia dos horários que você ainda não salvou.</p>' : ''}
+      <div class="cal__grade">${DIAS_DO_CALENDARIO.map((d) => `<span class="cal__semana">${d}</span>`).join('')}${celulas.join('')}</div>
+      <div class="cal__legenda">${legenda}</div>
+    </section>`;
+}
+
 function renderProgramacao() {
   const p = ui.programacao;
   const alvo = $('#area-programacao');
@@ -1333,10 +1552,11 @@ function renderProgramacao() {
         .join('')}</ul>`
     : '<p class="programacao__vazio">Nenhum horário ainda. Adicione o primeiro abaixo.</p>';
 
+  ui.progNovo ??= { dia: 1, hora: '12:00', tocado: false };
   const novo = `<div class="horarios__novo">
       <label class="campo"><span class="campo__rotulo">Dia</span>
-        <select id="prog-dia">${dias.map((d, i) => `<option value="${i}" ${i === 1 ? 'selected' : ''}>${esc(d)}</option>`).join('')}</select></label>
-      <label class="campo"><span class="campo__rotulo">Horário</span><input type="time" id="prog-hora" value="12:00" step="300"></label>
+        <select id="prog-dia">${dias.map((d, i) => `<option value="${i}" ${i === ui.progNovo.dia ? 'selected' : ''}>${esc(d)}</option>`).join('')}</select></label>
+      <label class="campo"><span class="campo__rotulo">Horário</span><input type="time" id="prog-hora" value="${esc(ui.progNovo.hora)}" step="300"></label>
       <button type="button" class="botao botao--secundario" data-acao="prog-adicionar">Adicionar horário</button>
     </div>`;
 
@@ -1349,26 +1569,45 @@ function renderProgramacao() {
         ).join('')}</select></label>
       <div class="campos-linha campos-linha--tres">
         <label class="campo"><span class="campo__rotulo">Formato</span>
-          <select id="prog-formato" ${r.gerar_automaticamente ? '' : 'disabled'}>${Object.entries(FORMATOS)
-            .map(([v, t]) => `<option value="${v}" ${v === r.formato_padrao ? 'selected' : ''}>${t}</option>`)
+          <select id="prog-formato" ${r.gerar_automaticamente ? '' : 'disabled'}>${(ui.estado?.config?.formatos || Object.entries(FORMATOS).map(([id, nome]) => ({ id, nome })))
+            .map((f) => `<option value="${f.id}" ${f.id === r.formato_padrao ? 'selected' : ''}>${esc(f.nome)}</option>`)
             .join('')}</select></label>
         <label class="campo"><span class="campo__rotulo">Imagens</span>
-          <select id="prog-slides" ${r.gerar_automaticamente && r.formato_padrao !== 'post' ? '' : 'disabled'}>${[3, 4, 5, 6, 7, 8, 9, 10]
+          <select id="prog-slides" ${r.gerar_automaticamente && r.formato_padrao !== 'post' && r.formato_padrao !== 'artigo' ? '' : 'disabled'}>${[3, 4, 5, 6, 7, 8, 9, 10]
             .map((n) => `<option value="${n}" ${n === r.slides_padrao ? 'selected' : ''}>${n}</option>`)
             .join('')}</select></label>
         <label class="campo"><span class="campo__rotulo">Tipo de imagem</span>
           <select id="prog-visual" ${r.gerar_automaticamente ? '' : 'disabled'}>${[
             ['ia', 'Criada por IA'],
             ['foto', 'Foto real'],
+            ['banco', 'Banco de imagens'],
             ['design', 'Só design'],
           ]
-            .map(([v, t]) => `<option value="${v}" ${v === r.visual_padrao ? 'selected' : ''}>${t}</option>`)
+            .map(([v, t]) => {
+              const permitidos = ui.estado?.config?.visuais_permitidos;
+              const bloqueado =
+                (permitidos?.length && !permitidos.includes(v)) ||
+                (v === 'banco' && !ui.estado?.config?.banco_de_imagens) ||
+                (v === 'foto' && !ui.estado?.config?.fotos_disponiveis);
+              return `<option value="${v}" ${v === r.visual_padrao ? 'selected' : ''} ${bloqueado ? 'disabled' : ''}>${t}</option>`;
+            })
             .join('')}</select></label>
       </div>
       <p class="programacao__nota">A peça gerada entra na fila de revisão. Enquanto a categoria estiver em aprovação humana, nada sai sem você aprovar.</p>
     </div>`;
 
-  const proximos = p.proximos.length
+  const previa = alterado && JSON.stringify(r.horarios) !== JSON.stringify(p.horarios);
+  const proximos = previa
+    ? r.horarios.length
+      ? `<p class="programacao__nota">Prévia: estes horários passam a valer quando você clicar em “Salvar programação”.</p><ul class="proximos">${horariosDoRascunho(r.horarios, p.fuso)
+          .slice(0, 10)
+          .map((h) => {
+            const [a, m, d] = h.dia.split('-');
+            return `<li class="proximos__item proximos__item--previa"><span class="proximos__quando">${DIAS_DO_CALENDARIO[diaDaSemanaIso(h.dia)]}, ${d}/${m}/${a} às ${esc(h.hora)}</span><span>Ainda não salvo</span></li>`;
+          })
+          .join('')}</ul>`
+      : '<p class="programacao__vazio">Sem horários. Adicione um e salve a programação.</p>'
+    : p.proximos.length
     ? `<ul class="proximos">${p.proximos
         .map((h) => `<li class="proximos__item"><span class="proximos__quando">${esc(dataHora(h.para, { diaSemana: true }))}</span><span>${situacaoDoHorario(h)}</span></li>`)
         .join('')}</ul>`
@@ -1401,8 +1640,8 @@ function renderProgramacao() {
           ${novo}
           ${automatico}
           <div class="programacao__salvar">
-            <button type="button" class="botao botao--primario" data-acao="prog-salvar" ${alterado && !p.indisponivel ? '' : 'disabled'}>Salvar programação</button>
-            <span class="programacao__nota">${alterado ? 'Há alterações não salvas.' : p.atualizado_em ? `Salva por ${esc(ator(`humano:${p.atualizado_por || 'equipe'}`))} em ${esc(dataHora(p.atualizado_em))}.` : ''}</span>
+            <button type="button" class="botao botao--primario" data-acao="prog-salvar" ${(alterado || ui.progNovo.tocado || !r.horarios.length) && !p.indisponivel ? '' : 'disabled'}>Salvar programação</button>
+            <span class="programacao__nota">${alterado ? 'Há alterações não salvas.' : ui.progNovo.tocado ? 'Clique em “Adicionar horário” ou salve para incluir o horário escolhido.' : p.atualizado_em ? `Salva por ${esc(ator(`humano:${p.atualizado_por || 'equipe'}`))} em ${esc(dataHora(p.atualizado_em))}.` : ''}</span>
           </div>
         </section>
         <section class="config">
@@ -1411,6 +1650,7 @@ function renderProgramacao() {
           ${outros}
         </section>
       </div>
+      ${calendarioHtml(p, previa)}
     </div>`,
   );
 }
@@ -1485,14 +1725,81 @@ function trocarAba(aba) {
     b.setAttribute('aria-selected', String(b.dataset.aba === aba));
     b.tabIndex = b.dataset.aba === aba ? 0 : -1;
   }
-  $('#area-pecas').hidden = aba === 'autonomia' || aba === 'programacao' || aba === 'regua';
+  $('#area-pecas').hidden = aba === 'autonomia' || aba === 'programacao' || aba === 'regua' || aba === 'banco';
   $('#area-autonomia').hidden = aba !== 'autonomia';
   $('#area-programacao').hidden = aba !== 'programacao';
   $('#area-regua').hidden = aba !== 'regua';
+  $('#area-banco').hidden = aba !== 'banco';
   if (aba === 'autonomia') renderAutonomia();
+  else if (aba === 'banco') carregarBanco().catch((erro) => avisar(erro.message, 'erro'));
   else if (aba === 'programacao') carregarProgramacao().catch((erro) => avisar(erro.message, 'erro'));
   else if (aba === 'regua') carregarRegua().catch((erro) => avisar(erro.message, 'erro'));
   else carregarLista().catch((erro) => avisar(erro.message, 'erro'));
+}
+
+/* ---------------------------------------------------------- banco de imagens */
+
+async function carregarBanco() {
+  if (!ui.banco) pintar($('#area-banco'), 'banco', '<div class="autonomia"><p>Carregando o banco de imagens…</p></div>');
+  ui.banco = await api('/api/banco');
+  renderBanco();
+}
+
+function renderBanco() {
+  const fotos = ui.banco || [];
+  const semDescricao = fotos.filter((f) => !f.descricao).length;
+  const pelaIa = fotos.filter((f) => f.descrita_pela_ia).length;
+  const grade = fotos.length
+    ? `<ul class="banco__grade">${fotos
+        .map(
+          (f) => `<li class="banco__item">
+            <img src="${esc(f.url)}" alt="${esc(f.descricao || f.arquivo)}" loading="lazy">
+            <span class="banco__nome">${esc(f.arquivo.replace(/^banco-imagens\//, ''))}</span>
+            <span class="banco__descricao">${f.descricao ? esc(f.descricao) : 'Ainda sem descrição.'}</span>
+            ${f.tags.length ? `<span class="banco__temas">${f.tags.map(esc).join(' · ')}</span>` : ''}
+            ${f.descrita_pela_ia ? '<span class="banco__credito">Descrita pela IA</span>' : ''}
+            ${f.credito ? `<span class="banco__credito">Crédito: ${esc(f.credito)}</span>` : ''}
+          </li>`,
+        )
+        .join('')}</ul>`
+    : '<p class="programacao__vazio">O banco ainda não tem fotos. Siga os passos ao lado para colocar as primeiras.</p>';
+  const acoes = fotos.length
+    ? `<div class="banco__acoes">
+        ${semDescricao ? `<button type="button" class="botao botao--primario" data-acao="banco-descrever">Descrever as fotos com IA (${semDescricao} sem descrição)</button>` : '<span class="programacao__nota">Todas as fotos têm descrição.</span>'}
+        ${pelaIa ? `<a class="botao botao--secundario" href="/api/banco/catalogo" download="banco-imagens.json">Baixar catálogo (banco-imagens.json)</a>` : ''}
+      </div>
+      ${pelaIa ? `<p class="programacao__nota">${pelaIa} ${pelaIa === 1 ? 'foto foi descrita' : 'fotos foram descritas'} pela IA. Para não precisar descrever de novo quando o servidor reiniciar, baixe o catálogo e suba esse arquivo no GitHub (passo 7).</p>` : ''}`
+    : '';
+  pintar(
+    $('#area-banco'),
+    'banco',
+    `<div class="autonomia banco">
+      <h2 class="autonomia__titulo">Banco de imagens da marca</h2>
+      <div class="autonomia__intro">
+        <p>Fotos já autorizadas para uso. Ao gerar uma peça com “Foto do banco de imagens”, a IA olha as fotos e escolhe a que mais combina com o post. Se nenhuma combinar, a peça sai só com o design da marca. Pedir “Novo visual” troca por outra foto do banco.</p>
+      </div>
+      <div class="programacao__grade">
+        <section class="config">
+          <h3 class="config__titulo">${fotos.length} ${fotos.length === 1 ? 'foto' : 'fotos'} no banco</h3>
+          ${acoes}
+          ${grade}
+        </section>
+        <section class="config">
+          <h3 class="config__titulo">Como colocar fotos no banco</h3>
+          <ol class="banco__passos">
+            <li>No seu computador, crie uma pasta chamada <strong>banco-imagens</strong> e coloque nela as fotos autorizadas. Não precisa renomear nem descrever.</li>
+            <li>No GitHub, abra o projeto, clique em “Add file” e depois em “Upload files”.</li>
+            <li>Arraste a pasta <strong>banco-imagens</strong> inteira para a página. Cabem até 100 fotos por vez; se tiver mais, repita em partes.</li>
+            <li>Clique em “Commit changes” e espere uns 5 minutos.</li>
+            <li>Volte aqui, atualize a página e clique em “Descrever as fotos com IA”. Ela olha cada foto e escreve a descrição e os temas.</li>
+            <li>Quando terminar, clique em “Baixar catálogo”.</li>
+            <li>No GitHub, suba o arquivo <strong>banco-imagens.json</strong> que baixou (“Add file”, “Upload files”, “Commit changes”). Ele substitui o que já existe.</li>
+          </ol>
+          <p class="programacao__nota">Se quiser corrigir uma descrição ou colocar o crédito de uma foto, abra o banco-imagens.json no GitHub e edite.</p>
+        </section>
+      </div>
+    </div>`,
+  );
 }
 
 /* -------------------------------------------------------------------- régua */
@@ -1783,6 +2090,31 @@ const acoesPorNome = {
     await carregarRegua();
   },
 
+  'copiar-titulo-artigo': async () => {
+    try {
+      await navigator.clipboard.writeText(ui.detalhe?.peca?.textos?.titulo || '');
+      avisar('Título copiado. Cole no campo de título do artigo.', 'sucesso');
+    } catch {
+      avisar('Não consegui copiar. Selecione o título e use Ctrl+C.', 'erro');
+    }
+  },
+
+  'copiar-artigo': async () => {
+    const { html, texto } = corpoDoArtigo(ui.detalhe?.peca?.textos || {});
+    try {
+      if (window.ClipboardItem && navigator.clipboard?.write) {
+        await navigator.clipboard.write([
+          new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }), 'text/plain': new Blob([texto], { type: 'text/plain' }) }),
+        ]);
+      } else {
+        await navigator.clipboard.writeText(texto);
+      }
+      avisar('Artigo copiado, com os intertítulos. Cole no corpo do artigo no LinkedIn.', 'sucesso');
+    } catch {
+      avisar('Não consegui copiar. Selecione o texto do artigo e use Ctrl+C.', 'erro');
+    }
+  },
+
   'copiar-texto': async () => {
     try {
       await navigator.clipboard.writeText(ui.detalhe?.legenda_final || '');
@@ -1897,12 +2229,44 @@ const acoesPorNome = {
       return;
     }
     const r = ui.progRascunho;
+    ui.progNovo = { dia, hora, tocado: false };
     if (r.horarios.some((h) => h.dia === dia && h.hora === hora)) {
       avisar('Esse horário já está na lista.');
       return;
     }
     r.horarios = [...r.horarios, { dia, hora }].sort((a, b) => a.dia - b.dia || a.hora.localeCompare(b.hora));
+    avisar(`${ui.programacao.dias_da_semana[dia]}, ${hora} entrou na lista. Clique em “Salvar programação” para valer.`);
     renderProgramacao();
+  },
+
+  'cal-mes': (alvo) => {
+    const passo = Number(alvo.dataset.passo);
+    if (!passo) ui.calMes = null;
+    else {
+      const [a, m] = (ui.calMes || new Date().toISOString().slice(0, 7)).split('-').map(Number);
+      const data = new Date(Date.UTC(a, m - 1 + passo, 1));
+      ui.calMes = data.toISOString().slice(0, 7);
+    }
+    renderProgramacao();
+  },
+
+  'abrir-regua-do-calendario': () => trocarAba('regua'),
+
+  'banco-descrever': async (alvo) => {
+    await executar(alvo, 'Descrevendo as fotos…', async () => {
+      let r = { faltam: 1 };
+      let total = 0;
+      // Descreve em partes, para não estourar o tempo de uma chamada.
+      for (let volta = 0; volta < 30 && r.faltam > 0; volta++) {
+        r = await api('/api/banco/descrever', { metodo: 'POST', corpo: {} });
+        total += r.descritas;
+        alvo.textContent = `Descrevendo as fotos… (${total} prontas, ${r.faltam} faltam)`;
+        if (!r.descritas) break;
+      }
+      ui.banco = await api('/api/banco');
+      renderBanco();
+      avisar(r.faltam ? `${total} fotos descritas. Clique de novo para continuar.` : `${total} fotos descritas. Agora baixe o catálogo e suba no GitHub.`, 'sucesso');
+    });
   },
 
   'prog-remover': (alvo) => {
@@ -1913,10 +2277,20 @@ const acoesPorNome = {
 
   'prog-salvar': async (alvo) => {
     if (!exigirNome()) return;
+    // Se a pessoa escolheu dia e horário mas não clicou em "Adicionar horário", o horário entra junto.
+    const r = ui.progRascunho;
+    let incluido = null;
+    const dia = Number($('#prog-dia')?.value);
+    const hora = $('#prog-hora')?.value;
+    if (hora && (ui.progNovo?.tocado || !r.horarios.length) && !r.horarios.some((h) => h.dia === dia && h.hora === hora)) {
+      r.horarios = [...r.horarios, { dia, hora }].sort((a, b) => a.dia - b.dia || a.hora.localeCompare(b.hora));
+      incluido = `${ui.programacao.dias_da_semana[dia]}, ${hora}`;
+    }
     await executar(alvo, 'Salvando…', async () => {
       ui.programacao = await api('/api/programacao', { metodo: 'PUT', corpo: rascunhoDaProgramacao() });
       ui.progRascunho = null;
-      avisar('Programação salva.', 'sucesso');
+      ui.progNovo = { dia, hora: hora || '12:00', tocado: false };
+      avisar(incluido ? `Programação salva, com ${incluido}.` : 'Programação salva.', 'sucesso');
       renderProgramacao();
     });
   },
@@ -1998,6 +2372,11 @@ document.addEventListener('input', (evento) => {
 document.addEventListener('change', (evento) => {
   if (evento.target.id === 'gerar-formato' || evento.target.id === 'gerar-slides') {
     atualizarDialogoGerar();
+    return;
+  }
+  if (evento.target.id === 'prog-dia' || evento.target.id === 'prog-hora') {
+    ui.progNovo = { dia: Number($('#prog-dia').value), hora: $('#prog-hora').value || '12:00', tocado: true };
+    renderProgramacao();
     return;
   }
   if (['prog-auto', 'prog-antecedencia', 'prog-formato', 'prog-visual', 'prog-slides'].includes(evento.target.id)) {

@@ -16,6 +16,7 @@ import { criarCanalInstagram } from './instagram.js';
 import { CHECAGENS_VISUAIS, NOTAS } from './juiz.js';
 import { criarMotor } from './motor.js';
 import { criarBancoDeFotos } from './fotos.js';
+import { listarBanco, caminhoDoBanco, descreverPendentes, catalogoCompleto } from './banco.js';
 
 const db = await criarArmazenamento();
 const imagem = criarGeradorImagem();
@@ -225,6 +226,31 @@ app.post('/api/pecas/:id/reagendar', async (req, res) => {
 
 app.post('/api/pecas/:id/cancelar-agendamento', async (req, res) => {
   res.json(await motor.cancelarAgendamento(req.params.id, quem(req)));
+});
+
+// Banco de imagens da marca: fotos banco-*.jpg na pasta do projeto.
+app.get('/api/banco', async (req, res) => {
+  res.json(await listarBanco());
+});
+
+// A IA descreve as fotos que ainda não têm descrição (em partes; o painel chama de novo até acabar).
+app.post('/api/banco/descrever', async (req, res) => {
+  if (!env.anthropicKey) return res.status(400).json({ erro: 'Falta a chave da IA (ANTHROPIC_API_KEY) para descrever as fotos.' });
+  res.json(await descreverPendentes({ ia: chamarFerramenta, modelo: env.modeloIa, limite: 24 }));
+});
+
+// Catálogo completo para baixar e subir no projeto, para não precisar descrever de novo.
+app.get('/api/banco/catalogo', async (req, res) => {
+  res.set('Content-Disposition', 'attachment; filename="banco-imagens.json"');
+  res.type('application/json').send(JSON.stringify(await catalogoCompleto(), null, 2));
+});
+
+app.get('/banco/*caminho', (req, res) => {
+  const relativo = [].concat(req.params.caminho || []).join('/');
+  const caminho = caminhoDoBanco(relativo);
+  if (!caminho || !fs.existsSync(caminho)) return res.status(404).send('Foto não encontrada no banco.');
+  res.set('Cache-Control', 'public, max-age=3600');
+  res.sendFile(caminho);
 });
 
 app.get('/api/programacao', async (req, res) => {

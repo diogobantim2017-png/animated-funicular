@@ -1,5 +1,5 @@
 import { env, marca, politica, segmentos, conhecimento } from './config.js';
-import { LIMITES_SLIDE, FORMATOS, VISUAIS, OPCOES_DESIGN } from './formatos.js';
+import { LIMITES_SLIDE, LIMITES_ARTIGO, FORMATOS, VISUAIS, OPCOES_DESIGN } from './formatos.js';
 import { proximosEventos, ofertasDisponiveis } from './sinais.js';
 
 /** Categorias que o radar pode escolher hoje. Oferta sem catálogo ativo não entra. */
@@ -182,9 +182,11 @@ ${linhas(ativas, (o) => `${o.id}: ${o.produto} (${o.tipo})`)}
 ${linhas(historico, (p) => `${p.criada_em.slice(0, 10)} | ${p.categoria} | ${p.tema} | ${p.status}`)}
 
 Orientação da equipe: ${orientacao?.texto?.trim() || 'nenhuma'}${orientacao?.categoria ? `\nCategoria pedida pela equipe: ${orientacao.categoria}` : ''}${
-    orientacao?.formato && orientacao.formato !== 'post'
-      ? `\nFormato pedido: ${{ flashcards: 'flashcards (cartões de estudo)', pista: 'carrossel em pista (uma volta contínua, trecho a trecho)' }[orientacao.formato] || 'carrossel'} com ${orientacao.num_slides} imagens. Escolha um tema que renda esse número de partes.`
-      : ''
+    orientacao?.formato === 'artigo'
+      ? '\nFormato pedido: artigo do LinkedIn, com texto longo dividido em seções. Escolha um tema que renda uma análise com profundidade, de 700 a 1.200 palavras.'
+      : orientacao?.formato && orientacao.formato !== 'post'
+        ? `\nFormato pedido: ${{ flashcards: 'flashcards (cartões de estudo)', pista: 'carrossel em pista (uma volta contínua, trecho a trecho)' }[orientacao.formato] || 'carrossel'} com ${orientacao.num_slides} imagens. Escolha um tema que renda esse número de partes.`
+        : ''
   }${conhecimento ? `\n\nBase de conhecimento (a única fonte de fatos para os posts):\n${JSON.stringify(baseSemObservacao(), null, 1)}` : ''}`;
 
   const chamar = () =>
@@ -311,6 +313,12 @@ Estilos visuais aprovados: ${estilos.join(', ')}`;
 
 /** Mostra os textos atuais numerados como o leitor vê: capa, slides e slide final. */
 function textosNumerados(t, numSlides) {
+  if (t.secoes) {
+    const linhas = [`Capa do artigo. Título: ${t.titulo} | Subtítulo: ${t.subtitulo} | Chamada da capa: ${t.cta_arte}`];
+    t.secoes.forEach((s, i) => linhas.push(`Seção ${i + 1}. Intertítulo: ${s.intertitulo}\nTexto: ${s.texto}`));
+    linhas.push(`Conclusão: ${t.conclusao}`, `Chamada final: ${t.chamada_final}`, `Texto de divulgação: ${t.legenda}`, `Hashtags: ${(t.hashtags || []).join(' ')}`);
+    return linhas.join('\n');
+  }
   const linhas = [`Capa (slide 1). Título: ${t.titulo} | Subtítulo: ${t.subtitulo}`];
   (t.slides || []).forEach((sl, i) => linhas.push(`Slide ${i + 2}. Título: ${sl.titulo} | Texto: ${sl.texto}`));
   if (t.slides) linhas.push(`Slide final (slide ${numSlides}). Fechamento: ${t.fechamento} | Botão: ${t.cta_arte}`);
@@ -385,6 +393,31 @@ export async function escreverTextos({
     ferramenta.input_schema.properties.legenda.description = `Legenda do post, até ${(politica.limites.legenda_slides_max || LIMITES_SLIDE.legenda)} caracteres, sem hashtags.`;
     ferramenta.input_schema.required.push('slides', 'fechamento');
   }
+  const emArtigo = formato === 'artigo';
+  if (emArtigo) {
+    const props = ferramenta.input_schema.properties;
+    props.titulo.description = `Título do artigo, que também vai na capa, até ${l.titulo_max} caracteres.`;
+    props.subtitulo.description = `Linha fina do artigo, logo abaixo do título e na capa, até ${l.subtitulo_max} caracteres.`;
+    props.cta_arte.description = `Chamada curta na capa, até ${l.cta_max} caracteres (ex.: Leia o artigo).`;
+    props.legenda.description = `Texto do post que divulga o artigo no feed, até ${LIMITES_ARTIGO.legenda} caracteres, sem hashtags.`;
+    props.secoes = {
+      type: 'array',
+      minItems: LIMITES_ARTIGO.secoes_min,
+      maxItems: LIMITES_ARTIGO.secoes_max,
+      description: `De ${LIMITES_ARTIGO.secoes_min} a ${LIMITES_ARTIGO.secoes_max} seções do artigo, na ordem de leitura.`,
+      items: {
+        type: 'object',
+        properties: {
+          intertitulo: { type: 'string', description: `Intertítulo da seção, até ${LIMITES_ARTIGO.intertitulo} caracteres.` },
+          texto: { type: 'string', description: `Texto da seção, de 1 a 3 parágrafos separados por uma linha em branco, até ${LIMITES_ARTIGO.texto} caracteres.` },
+        },
+        required: ['intertitulo', 'texto'],
+      },
+    };
+    props.conclusao = { type: 'string', description: `Parágrafo de conclusão, até ${LIMITES_ARTIGO.conclusao} caracteres.` };
+    props.chamada_final = { type: 'string', description: `Pergunta ou convite que fecha o artigo, até ${LIMITES_ARTIGO.chamada_final} caracteres.` };
+    ferramenta.input_schema.required.push('secoes', 'conclusao', 'chamada_final');
+  }
   // Layout do playbook da Capgemini: destaque só por cor na manchete e rótulo com o cursor.
   if (marca.layout === 'playbook') {
     const props = ferramenta.input_schema.properties;
@@ -407,7 +440,14 @@ export async function escreverTextos({
     formato === 'pista'
       ? `\n- Carrossel em pista: a metade de baixo de cada imagem é a pista, então o texto é mais curto. Títulos com até 40 caracteres e textos com até 150. Cada slide é um trecho da volta, em ordem: pense em curvas, setores, etapas de um fim de semana ou momentos de uma corrida.`
       : '';
-  const regrasDoFormato = !emSlides
+  const regrasDoFormato = emArtigo
+    ? `Formato: artigo do LinkedIn, publicado no editor de artigos e lido com calma.
+- Título forte e linha fina que diz o que a pessoa vai entender ao final. Os dois também vão na capa.
+- De ${LIMITES_ARTIGO.secoes_min} a ${LIMITES_ARTIGO.secoes_max} seções, cada uma com um intertítulo claro e de 1 a 3 parágrafos curtos. Uma ideia por seção, em sequência lógica, do contexto à recomendação.
+- No total, de 700 a 1.200 palavras. Frases diretas, exemplos concretos e nenhum jargão sem explicação.
+- Conclusão com a ideia principal em poucas frases, e uma chamada final com pergunta ou convite para conversar.
+- O texto de divulgação é o post do feed que leva ao artigo: 1 ou 2 parágrafos curtos que despertam o interesse, sem resumir o artigo inteiro.`
+    : !emSlides
     ? `O título e o subtítulo vão na arte e trazem a ideia principal. A legenda aprofunda, com 2 a 4 parágrafos curtos, sem repetir a arte.`
     : formato === 'flashcards'
       ? `Formato: flashcards em carrossel de ${numSlides} imagens.
@@ -460,7 +500,7 @@ ${(politica.regras_de_redacao?.length
 Revisão: a equipe leu a peça e pediu ajustes nos textos.
 - Atenda o pedido e mude só o necessário. O que o pedido não mencionar volta igual, palavra por palavra.
 - As regras acima continuam valendo, mesmo que o pedido diga o contrário. Se alguma parte não puder ser atendida, explique em resumo_da_mudanca.
-- Mantenha a mesma quantidade de slides.`
+- Mantenha a mesma quantidade de slides${formato === 'artigo' ? ' e de seções' : ''}.`
     : '';
 
   let conteudo = `Brief:
@@ -482,13 +522,18 @@ ${
     conteudo += `\nTextos atuais:\n${textosNumerados(textosAtuais || {}, numSlides)}\n\nPedido da equipe: "${pedido}"`;
   }
 
-  const r = await ia({ modelo: env.modeloIa, sistema: sistema + revisao, conteudo, ferramenta, maxTokens: emSlides ? 3000 : 1500 });
+  const r = await ia({ modelo: env.modeloIa, sistema: sistema + revisao, conteudo, ferramenta, maxTokens: emArtigo ? 6000 : emSlides ? 3000 : 1500 });
   const dados = { ...r.dados };
   const resumo = pedido ? String(dados.resumo_da_mudanca || '').trim() : null;
   delete dados.resumo_da_mudanca;
   if (emSlides) {
     dados.slides = (dados.slides || []).slice(0, miolo).map((sl) => ({ titulo: String(sl.titulo || '').trim(), texto: String(sl.texto || '').trim() }));
     dados.fechamento = String(dados.fechamento || '').trim();
+  }
+  if (emArtigo) {
+    dados.secoes = (dados.secoes || []).slice(0, LIMITES_ARTIGO.secoes_max).map((sc) => ({ intertitulo: String(sc.intertitulo || '').trim(), texto: String(sc.texto || '').trim() }));
+    dados.conclusao = String(dados.conclusao || '').trim();
+    dados.chamada_final = String(dados.chamada_final || '').trim();
   }
   dados.hashtags = (dados.hashtags || [])
     .map((h) => String(h).trim().replace(/\s+/g, ''))
@@ -522,6 +567,7 @@ export function montarLegendaFinal({ textos, oferta, visual = 'ia', credito = nu
     const mesmaLicenca = credito.compartilha_igual ? ` Esta arte usa a foto adaptada e é compartilhada sob a mesma licença.` : '';
     partes.push(`Foto: ${credito.autor} / ${credito.fonte || 'Pexels'}${licenca}.${mesmaLicenca}`);
   }
+  if (visual === 'banco' && credito?.texto) partes.push(credito.texto);
   if (textos.hashtags?.length) partes.push(textos.hashtags.join(' '));
   return partes.join('\n\n');
 }
@@ -645,7 +691,7 @@ export async function planejarRegua({ ia, pedido, total }) {
               categoria: { type: 'string', enum: categorias.map((c) => c.id) },
               segmento: { type: 'string', enum: segmentos.map((s) => s.id) },
               etapa_funil: { type: 'string', enum: Object.keys(ETAPAS_DO_FUNIL) },
-              formato: { type: 'string', enum: ['post', 'carrossel', 'flashcards'] },
+              formato: { type: 'string', enum: ['post', 'carrossel', 'flashcards', ...((politica.formatos_extras || []).includes('artigo') ? ['artigo'] : [])] },
               gancho: { type: 'string', description: 'A primeira linha do post, que aparece antes do "ver mais".' },
               mensagem: { type: 'string', description: 'A ideia central do post, em até 2 frases.' },
               provas: {

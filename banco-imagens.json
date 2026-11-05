@@ -1,0 +1,11 @@
+{
+  "observacao": "Opcional. Para cada foto do banco (arquivos que começam com banco-), você pode escrever uma descrição, temas e o crédito. A IA também olha a própria foto, então pode deixar em branco. O exemplo abaixo só vale se existir uma foto com esse nome.",
+  "imagens": [
+    {
+      "arquivo": "banco-exemplo-reuniao.jpg",
+      "descricao": "Equipe reunida numa sala de vidro, conversando sobre um projeto",
+      "tags": ["reunião", "equipe", "estratégia"],
+      "credito": "Banco de imagens Capgemini"
+    }
+  ]
+}

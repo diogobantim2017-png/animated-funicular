@@ -70,21 +70,25 @@ function tipoMime(buffer) {
 export async function avaliarComVisao({ ia, fundo, arte, slides = null, visual = 'ia', formato = 'post', editorial = false, textos, brief, oportunidade, segmento }) {
   const origemFundo = editorial
     ? 'foto editorial real, com licença livre'
-    : visual === 'foto'
-      ? 'foto real de banco de imagens'
-      : 'imagem gerada por IA';
+    : visual === 'banco'
+      ? 'foto do banco de imagens autorizado da marca'
+      : visual === 'foto'
+        ? 'foto real de banco de imagens'
+        : 'imagem gerada por IA';
   const sistema = `Você é o revisor de conteúdo e marca do perfil ${marca.nome}. ${marca.descricao} Avalie com rigor. Na dúvida, aponte o problema: um falso alarme custa uma revisão humana, um erro publicado custa a reputação do perfil.
 
 Tom de voz esperado: ${marca.tom_de_voz}
 
 ${
     fundo
-      ? editorial
+      ? visual === 'banco'
+        ? `A IMAGEM DE FUNDO é uma ${origemFundo}: já foi aprovada para uso, então pode mostrar pessoas e ambientes reais e a própria marca ${marca.nome}. Marque com honestidade o que aparece em elementos_no_fundo e confira se a foto combina com o assunto do post.`
+        : editorial
         ? `A IMAGEM DE FUNDO é uma ${origemFundo} (ex.: Wikimedia Commons). Ela pode mostrar pilotos, carros, números e marcas reais, porque é uma foto de verdade. Marque com honestidade o que aparece em elementos_no_fundo: a equipe revisa essas peças. Confira se a foto combina com o assunto do post e se não é constrangedora para quem aparece nela.`
         : `A IMAGEM DE FUNDO é uma ${origemFundo} e não deve conter nenhum texto, logotipo, dinheiro ou cartão.`
       : 'Esta peça não tem imagem de fundo: foi feita só com o design da marca. Marque todos os itens de elementos_no_fundo como false.'
   }
-${slides?.length ? `As imagens seguintes são os ${slides.length} slides de um ${{ flashcards: 'carrossel de flashcards', pista: 'carrossel em pista, em que a pista desenhada continua de uma imagem para a outra' }[formato] || 'carrossel'}, na ordem. Avalie a legibilidade e a sequência de todos.` : 'A ARTE FINAL é a imagem publicada.'} O texto das artes foi inserido pelo template oficial da marca e é esperado.
+${formato === 'artigo' ? 'A ARTE FINAL é a capa de um artigo do LinkedIn (1920 x 1080). Avalie também o texto completo do artigo: clareza, sequência das seções e se cada afirmação se sustenta.' : slides?.length ? `As imagens seguintes são os ${slides.length} slides de um ${{ flashcards: 'carrossel de flashcards', pista: 'carrossel em pista, em que a pista desenhada continua de uma imagem para a outra' }[formato] || 'carrossel'}, na ordem. Avalie a legibilidade e a sequência de todos.` : 'A ARTE FINAL é a imagem publicada.'} O texto das artes foi inserido pelo template oficial da marca e é esperado.
 
 Risco reputacional alto quando ${
     politica.juiz?.risco_alto_quando ||
@@ -119,6 +123,10 @@ Textos:
 - Legenda: ${textos.legenda}
 - Hashtags: ${(textos.hashtags || []).join(' ')}${(textos.slides || []).map((s, i) => `\n- Slide ${i + 2}: ${s.titulo}. ${s.texto}`).join('')}${
         textos.fechamento ? `\n- Fechamento: ${textos.fechamento}` : ''
+      }${
+        textos.secoes
+          ? `\n\nArtigo completo:\n${textos.secoes.map((s, i) => `Seção ${i + 1}. ${s.intertitulo}\n${s.texto}`).join('\n\n')}\n\nConclusão: ${textos.conclusao}\nChamada final: ${textos.chamada_final}`
+          : ''
       }${
         oportunidade?.fatos?.length
           ? `\n\nFatos confirmados nas fontes (${[...new Set((oportunidade.fontes || []).filter((f) => f.verificada).map((f) => f.veiculo))].join(', ') || 'sem fonte conferida'}):\n${oportunidade.fatos.map((f) => `- ${f}`).join('\n')}`

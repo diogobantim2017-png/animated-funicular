@@ -12,10 +12,11 @@ import {
   planejarRegua,
   ETAPAS_DO_FUNIL,
 } from './agentes.js';
-import { renderizarArte, renderizarCarrossel, renderizarRegua } from './arte.js';
+import { renderizarArte, renderizarCarrossel, renderizarRegua, renderizarCapaArtigo } from './arte.js';
+import { listarBanco, escolherDoBanco } from './banco.js';
 import { distribuirDatas, DIAS_DA_SEMANA as DIAS_DA_REGUA } from './regua.js';
 import { randomUUID } from 'node:crypto';
-import { FORMATOS } from './formatos.js';
+import { FORMATOS, FORMATOS_OPCIONAIS } from './formatos.js';
 import { normalizarFormato, formatoDaPeca, visualDaPeca, normalizarDesign } from './formatos.js';
 import { avaliarRegras } from './regras.js';
 import { montarPdf } from './pdf.js';
@@ -43,7 +44,7 @@ export function erroHttp(status, mensagem) {
   return erro;
 }
 
-const CAMPOS_EDITAVEIS = ['titulo', 'subtitulo', 'cta_arte', 'legenda', 'hashtags', 'fechamento', 'slides', 'titulo_destaque', 'rotulo_arte', 'fechamento_destaque'];
+const CAMPOS_EDITAVEIS = ['titulo', 'subtitulo', 'cta_arte', 'legenda', 'hashtags', 'fechamento', 'slides', 'titulo_destaque', 'rotulo_arte', 'fechamento_destaque', 'secoes', 'conclusao', 'chamada_final'];
 
 export function criarMotor({ db, ia, imagem, fotos = null, canal, sortear = Math.random, agora = () => new Date() }) {
   let emGeracao = null;
@@ -138,6 +139,14 @@ export function criarMotor({ db, ia, imagem, fotos = null, canal, sortear = Math
     const credito = peca.imagem?.credito || null;
     const semente = peca.design_semente || 1;
     const design = normalizarDesign({ ...marca.design_padrao, ...peca.design });
+    if (formato === 'artigo') {
+      const r = await renderizarCapaArtigo({ fundo, textos, design, semente });
+      const salvo = await db.salvarMidia(`${id}-capa-${versao}.jpg`, r.buffer, 'image/jpeg');
+      const registro = { chave: salvo.chave, url: salvo.url, largura: r.largura, altura: r.altura, ajustes: r.ajustes };
+      await db.atualizarPeca(id, { arte: registro, slides_arte: null });
+      await auditar(id, 'arte', 'template', 'Capa do artigo composta com o template da marca', registro);
+      return { arte: r.buffer, slides: null };
+    }
     if (formato === 'post') {
       const r = await renderizarArte({ fundo, textos, oferta, visual, credito, semente, design });
       const salvo = await db.salvarMidia(`${id}-arte-${versao}.jpg`, r.buffer, 'image/jpeg');
@@ -214,6 +223,31 @@ export function criarMotor({ db, ia, imagem, fotos = null, canal, sortear = Math
         registro,
       );
       fundo = foto.buffer;
+    } else if (visual === 'banco') {
+      const segmento = segmentos.find((s) => s.id === peca.segmento_id);
+      const escolha = await escolherDoBanco({ ia, modelo: env.modeloIa, brief, oportunidade: peca.oportunidade, textos, segmento, evitar: evitarFotos, direcao: direcaoExtra });
+      if (escolha.vazio || escolha.nenhuma) {
+        const motivo = escolha.vazio
+          ? 'O banco de imagens ainda não tem fotos. A peça saiu só com o design da marca.'
+          : `Nenhuma foto do banco combinou com o post${escolha.motivo ? ` (${escolha.motivo})` : ''}. A peça saiu só com o design da marca.`;
+        await auditar(id, 'imagem', 'banco:marca', motivo);
+      } else {
+        const extensao = escolha.mime.includes('png') ? 'png' : escolha.mime.includes('webp') ? 'webp' : 'jpg';
+        const salvo = await db.salvarMidia(`${id}-banco-${Date.now()}.${extensao}`, escolha.buffer, escolha.mime);
+        registro = {
+          origem: 'banco',
+          provedor: 'banco da marca',
+          arquivo: escolha.arquivo,
+          foto_id: escolha.arquivo,
+          motivo: escolha.motivo,
+          credito: { texto: escolha.credito ? `Foto: ${escolha.credito}` : null },
+          chave: salvo.chave,
+          url: salvo.url,
+          segundos: Math.round((Date.now() - inicio) / 1000),
+        };
+        await auditar(id, 'imagem', 'banco:marca', `Foto do banco de imagens: ${escolha.arquivo}. ${escolha.motivo}`, registro);
+        fundo = escolha.buffer;
+      }
     } else {
       await auditar(id, 'imagem', 'template', 'Sem imagem: peça feita só com o design da marca');
     }
@@ -261,7 +295,7 @@ export function criarMotor({ db, ia, imagem, fotos = null, canal, sortear = Math
     });
     await auditar(id, 'revisor_ia', 'ia:revisor', `Risco ${juiz.risco_reputacional}; ${juiz.aprovaria_sem_edicao ? 'publicaria como está' : 'editaria antes'}`, juiz);
 
-    const gate = consolidarGate({ regras, juiz, editorial: Boolean(peca.imagem?.editorial) });
+    const gate = consolidarGate({ regras, juiz, editorial: Boolean(peca.imagem?.editorial), banco: peca.imagem?.origem === 'banco' });
     const governanca = {
       regras,
       juiz,
@@ -466,7 +500,11 @@ export function criarMotor({ db, ia, imagem, fotos = null, canal, sortear = Math
   return {
     async gerar({ origem = 'manual', orientacao = null, usuario = 'equipe', aguardar = false, paraHorario = null } = {}) {
       const escolha = normalizarFormato(orientacao || {});
-      // Tipos de imagem que a marca permite (o playbook da Capgemini não aceita imagem gerada por IA).
+      // O artigo do LinkedIn só existe nos perfis que liberam esse formato.
+      if (FORMATOS_OPCIONAIS.includes(escolha.formato) && !(politica.formatos_extras || []).includes(escolha.formato)) {
+        Object.assign(escolha, normalizarFormato({ ...escolha, formato: 'post' }));
+      }
+      // Tipos de imagem que a marca permite.
       const permitidos = politica.visuais_permitidos;
       if (permitidos?.length && !permitidos.includes(escolha.visual)) escolha.visual = permitidos[0];
       verificarChaves(escolha.visual);
@@ -578,7 +616,36 @@ export function criarMotor({ db, ia, imagem, fotos = null, canal, sortear = Math
         .filter((p) => p.status === 'agendada' && p.agendamento?.para)
         .sort((a, b) => a.agendamento.para.localeCompare(b.agendamento.para))
         .map((p) => ({ para: p.agendamento.para, ...resumo(p) }));
-      return { ...prog, dias_da_semana: DIAS_DA_SEMANA, fuso: env.fuso, proximos, agendadas };
+      // Calendário: horários dos próximos dois meses, posts publicados e as datas planejadas nas réguas.
+      const horariosDoMes = proximosHorarios(prog, { agora: agora(), fuso: env.fuso, dias: 62 }).map((h) => ({ para: h.para, peca: resumo(ocupados.get(h.para)) }));
+      const publicadas = pecas
+        .filter((p) => p.status === 'publicada' && p.publicacao?.em)
+        .map((p) => ({ para: p.publicacao.em, ...resumo(p) }));
+      const situacao = new Map(pecas.map((p) => [p.id, p.status]));
+      const reguas = await db.listarReguas().catch(() => []);
+      const doCalendario = reguas.flatMap((r) =>
+        (r.itens || [])
+          .filter((i) => i.data)
+          .map((i) => ({
+            data: i.data,
+            titulo: i.titulo,
+            formato: i.formato || 'post',
+            regua: r.nome,
+            regua_id: r.id,
+            item_id: i.id,
+            peca_id: i.peca_id || null,
+            status: i.peca_id ? situacao.get(i.peca_id) || null : null,
+            ja_produzido: Boolean(i.ja_produzido),
+          })),
+      );
+      return {
+        ...prog,
+        dias_da_semana: DIAS_DA_SEMANA,
+        fuso: env.fuso,
+        proximos,
+        agendadas,
+        calendario: { horarios: horariosDoMes, publicadas, regua: doCalendario },
+      };
     },
 
     async salvarProgramacao(dados, usuario) {
@@ -699,6 +766,15 @@ export function criarMotor({ db, ia, imagem, fotos = null, canal, sortear = Math
           textos.slides = novos.slides.map((sl) => ({ titulo: String(sl?.titulo ?? '').trim(), texto: String(sl?.texto ?? '').trim() }));
           continue;
         }
+        if (campo === 'secoes') {
+          if (!Array.isArray(peca.textos.secoes)) continue;
+          if (!Array.isArray(novos.secoes) || novos.secoes.length !== peca.textos.secoes.length) {
+            throw erroHttp(400, 'A quantidade de seções não muda na edição. Use o ajuste com IA ou gere outro artigo.');
+          }
+          textos.secoes = novos.secoes.map((sc) => ({ intertitulo: String(sc?.intertitulo ?? '').trim(), texto: String(sc?.texto ?? '').trim() }));
+          continue;
+        }
+        if ((campo === 'conclusao' || campo === 'chamada_final') && peca.textos[campo] === undefined) continue;
         if (campo === 'fechamento' && peca.textos.fechamento === undefined) continue;
         textos[campo] =
           campo === 'hashtags'
@@ -909,7 +985,7 @@ export function criarMotor({ db, ia, imagem, fotos = null, canal, sortear = Math
       const peca = await exigirEmRevisao(id);
       const visual = visualDaPeca(peca);
       verificarChaves(visual);
-      const pedido = { ia: 'Nova imagem solicitada', foto: 'Outra foto solicitada', design: 'Novo visual solicitado' }[visual];
+      const pedido = { ia: 'Nova imagem solicitada', foto: 'Outra foto solicitada', banco: 'Outra foto do banco solicitada', design: 'Novo visual solicitado' }[visual];
       await db.atualizarPeca(id, { intervencao_humana: true, status: 'gerando', etapa: 'imagem', erro: null });
       await auditar(id, 'edicao', `humano:${usuario}`, `${pedido}${direcao ? `: ${direcao}` : ''}`);
       emSegundoPlano(id, async () => {
@@ -938,7 +1014,7 @@ export function criarMotor({ db, ia, imagem, fotos = null, canal, sortear = Math
         }
         if (trocarImagem) {
           mudancas.design_semente = (peca.design_semente || 1) + 1;
-          if (visual === 'foto') mudancas.fotos_usadas = usadas;
+          if (visual === 'foto' || visual === 'banco') mudancas.fotos_usadas = usadas;
         }
         const atual = await db.atualizarPeca(id, mudancas);
         let buffers;
@@ -948,7 +1024,7 @@ export function criarMotor({ db, ia, imagem, fotos = null, canal, sortear = Math
             peca: atual,
             textos: peca.textos,
             oferta,
-            direcaoExtra: direcao && !mudancas.cena_ajustada_en && visual === 'ia' ? direcao : null,
+            direcaoExtra: direcao && ((visual === 'ia' && !mudancas.cena_ajustada_en) || visual === 'banco') ? direcao : null,
             evitarFotos: usadas,
           });
         } else {
@@ -1085,6 +1161,10 @@ export function criarMotor({ db, ia, imagem, fotos = null, canal, sortear = Math
           demonstracao: politica.demonstracao === true,
           layout: marca.layout || null,
           visuais_permitidos: politica.visuais_permitidos || null,
+          formatos: Object.entries(FORMATOS)
+            .filter(([id]) => !FORMATOS_OPCIONAIS.includes(id) || (politica.formatos_extras || []).includes(id))
+            .map(([id, nome]) => ({ id, nome })),
+          banco_de_imagens: (await listarBanco()).length,
           canal: politica.canal || null,
           modelo_ia: env.modeloIa,
           modelo_revisor: env.modeloJuiz,
