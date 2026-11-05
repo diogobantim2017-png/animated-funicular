@@ -10,7 +10,8 @@ import { verificarConexaoInstagram } from './instagram.js';
 /* Conexão com o Instagram, conferida no início quando a publicação é real. */
 let statusInstagram = null;
 import { criarArmazenamento } from './index.js';
-import { chamarFerramenta } from './claude.js';
+import { chamarFerramenta, perguntarComBusca } from './claude.js';
+import { criarGeo, motoresDisponiveis } from './geo.js';
 import { criarGeradorImagem } from './gerador.js';
 import { criarCanalInstagram } from './instagram.js';
 import { CHECAGENS_VISUAIS, NOTAS } from './juiz.js';
@@ -23,10 +24,14 @@ const imagem = criarGeradorImagem();
 const canal = criarCanalInstagram();
 const fotos = criarBancoDeFotos();
 const motor = criarMotor({ db, ia: chamarFerramenta, imagem, fotos, canal });
+const geo = criarGeo({ db, motores: motoresDisponiveis({ perguntarClaude: perguntarComBusca }) });
 
 const app = express();
 app.disable('x-powered-by');
-app.use(express.json({ limit: '1mb' }));
+// O histórico do radar de visibilidade pode passar de 1 MB; as outras rotas seguem com o limite menor.
+const jsonPadrao = express.json({ limit: '1mb' });
+const jsonGrande = express.json({ limit: '25mb' });
+app.use((req, res, next) => (req.path === '/api/geo/importar' ? jsonGrande : jsonPadrao)(req, res, next));
 
 /* Rotas públicas: checagem de saúde e imagens (o Instagram precisa baixar a arte sem senha). */
 app.get('/saude', (req, res) => res.json({ ok: true }));
@@ -79,6 +84,19 @@ function quem(req) {
 }
 
 /* ---------------------------------------------------------------- agenda */
+
+// Radar de visibilidade em IA: confere de hora em hora se já passou uma semana desde a última rodada.
+cron.schedule(
+  '23 * * * *',
+  async () => {
+    try {
+      await geo.verificarSemanal();
+    } catch (erro) {
+      console.error('Falha na rodada semanal de visibilidade em IA:', erro.message);
+    }
+  },
+  { timezone: env.fuso, noOverlap: true, name: 'geo' },
+);
 
 let tarefaAgenda = null;
 let avisoAgenda = null;
@@ -226,6 +244,34 @@ app.post('/api/pecas/:id/reagendar', async (req, res) => {
 
 app.post('/api/pecas/:id/cancelar-agendamento', async (req, res) => {
   res.json(await motor.cancelarAgendamento(req.params.id, quem(req)));
+});
+
+// Radar de visibilidade em IA (GEO, em teste).
+app.get('/api/geo', async (req, res) => {
+  res.json({ config: await geo.config(), motores: geo.motores(), situacao: geo.situacao(), rodadas: await geo.listar() });
+});
+
+app.put('/api/geo/config', async (req, res) => {
+  res.json(await geo.salvarConfig(req.body || {}));
+});
+
+app.post('/api/geo/rodar', async (req, res) => {
+  res.json(await geo.rodar(String(req.body?.usuario || 'equipe').slice(0, 80)));
+});
+
+app.get('/api/geo/rodadas/:id', async (req, res) => {
+  const rodada = await geo.obter(req.params.id);
+  if (!rodada) return res.status(404).json({ erro: 'Rodada não encontrada.' });
+  res.json(rodada);
+});
+
+app.get('/api/geo/exportar', async (req, res) => {
+  res.set('Content-Disposition', `attachment; filename="visibilidade-em-ia-${new Date().toISOString().slice(0, 10)}.json"`);
+  res.type('application/json').send(JSON.stringify(await geo.exportar()));
+});
+
+app.post('/api/geo/importar', async (req, res) => {
+  res.json(await geo.importar(req.body));
 });
 
 // Banco de imagens da marca: fotos banco-*.jpg na pasta do projeto.

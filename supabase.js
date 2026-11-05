@@ -136,6 +136,47 @@ export async function criarArmazenamentoSupabase({ url, chave, bucket }) {
       falha('excluir régua', error);
     },
 
+    // Radar de visibilidade em IA: a configuração fica na linha "config" e cada rodada numa linha.
+    async obterGeoConfig() {
+      const { data, error } = await sb.from('geo').select('*').eq('id', 'config').maybeSingle();
+      falha('ler o radar de visibilidade; rode de novo o schema.sql no SQL Editor', error);
+      return data ? data.dados : null;
+    },
+
+    async salvarGeoConfig(config) {
+      const { data, error } = await sb.from('geo').upsert({ id: 'config', tipo: 'config', dados: config }).select().single();
+      falha('gravar o radar de visibilidade; rode de novo o schema.sql no SQL Editor', error);
+      return data.dados;
+    },
+
+    async listarRodadasGeo() {
+      const { data, error } = await sb
+        .from('geo')
+        .select('id, criada_em, por:dados->por, resumo:dados->resumo, motores:dados->motores')
+        .eq('tipo', 'rodada')
+        .order('criada_em', { ascending: false });
+      falha('ler as rodadas do radar; rode de novo o schema.sql no SQL Editor', error);
+      return data;
+    },
+
+    async obterRodadaGeo(id) {
+      const { data, error } = await sb.from('geo').select('*').eq('id', id).maybeSingle();
+      falha('ler rodada do radar', error);
+      return data ? { ...data.dados, id: data.id, criada_em: data.criada_em } : null;
+    },
+
+    async salvarRodadaGeo(rodada) {
+      const { id, criada_em, ...dados } = rodada;
+      const { data, error } = await sb.from('geo').upsert({ id, tipo: 'rodada', dados, criada_em }).select().single();
+      falha('gravar rodada do radar; rode de novo o schema.sql no SQL Editor', error);
+      return { ...data.dados, id: data.id, criada_em: data.criada_em };
+    },
+
+    async excluirRodadaGeo(id) {
+      const { error } = await sb.from('geo').delete().eq('id', id);
+      falha('excluir rodada do radar', error);
+    },
+
     async obterModosCategorias() {
       const { data, error } = await sb.from('estado_categorias').select('*');
       falha('ler categorias', error);

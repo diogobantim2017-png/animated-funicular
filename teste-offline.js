@@ -1305,6 +1305,92 @@ await caso('Programação: o calendário mostra horários salvos e datas da rég
   await motor.salvarProgramacao({ horarios: [], gerar_automaticamente: false }, 'teste');
 });
 
+await caso('Visibilidade em IA: análise das respostas, score, comparação, histórico e rodada semanal', async () => {
+  const { analisarResposta, criarGeo, limparConfig, configPadrao } = await import('./geo.js');
+  const cfg = limparConfig({
+    nomes_da_marca: ['Capgemini', 'Capgemini Invent'],
+    dominios: ['https://www.capgemini.com/br-pt'],
+    concorrentes: ['Accenture', 'Deloitte', 'CI&T'],
+    perguntas: ['Quais as melhores consultorias de CRM?', 'Quem implementa Customer 360?'],
+    repeticoes: 1,
+  });
+  assert.deepEqual(cfg.dominios, ['capgemini.com']);
+
+  // Análise de uma resposta: menção, posição frente aos concorrentes, site citado e pontos.
+  const a = analisarResposta({ texto: 'As mais citadas são Accenture, CAPGEMINI e Deloitte.', fontes: ['https://www.capgemini.com/br-pt/servicos', 'https://exame.com/x'] }, cfg);
+  assert.equal(a.mencionada, true);
+  assert.equal(a.posicao, 2);
+  assert.equal(a.citada, true);
+  assert.equal(a.pontos, 50 + 10 + 30);
+  assert.deepEqual(a.concorrentes, ['Accenture', 'Deloitte']);
+  assert.deepEqual(a.dominios, ['capgemini.com', 'exame.com']);
+  const b = analisarResposta({ texto: 'A CI&T e a capgeminiano não são a mesma coisa.', fontes: [] }, cfg);
+  assert.equal(b.mencionada, false, 'só conta o nome inteiro da marca');
+  assert.deepEqual(b.concorrentes, ['CI&T']);
+  assert.equal(b.pontos, 0);
+  const c = analisarResposta({ texto: 'A Capgemini Invent lidera, seguida pela Accenture.', fontes: [] }, cfg);
+  assert.equal(c.posicao, 1);
+  assert.equal(c.pontos, 70);
+
+  // Rodadas com IAs simuladas: a segunda melhora em uma pergunta.
+  const dbGeo = await criarArmazenamentoLocal({ diretorio: path.join(temporario, 'geo'), urlPublica: '' });
+  let rodada = 1;
+  const motores = [
+    {
+      id: 'ia1',
+      nome: 'IA 1',
+      perguntar: async (p) =>
+        p.includes('CRM')
+          ? { texto: rodada === 1 ? 'Accenture e Deloitte.' : 'Capgemini e Accenture.', fontes: rodada === 1 ? [] : ['https://capgemini.com/a'] }
+          : { texto: 'Capgemini e CI&T.', fontes: [] },
+    },
+    { id: 'ia2', nome: 'IA 2', perguntar: async (p) => (p.includes('CRM') ? { texto: 'Deloitte.', fontes: [] } : (() => { throw new Error('limite de uso'); })()) },
+  ];
+  let relogio = new Date('2026-11-02T12:00:00Z');
+  const geo = criarGeo({ db: dbGeo, motores, agora: () => relogio });
+  assert.ok(configPadrao().perguntas.length >= 1, 'o geo.json traz perguntas iniciais');
+  await geo.salvarConfig(cfg);
+  const r1 = await geo.rodar('teste', { aguardar: true });
+  // Pergunta 1: IA1 0 pontos, IA2 0 → 0. Pergunta 2: IA1 70 (Capgemini antes da CI&T), IA2 erro → 70. Rodada: 35.
+  assert.equal(r1.resumo.score, 35);
+  assert.equal(r1.resumo.respostas_com_erro, 1);
+  assert.equal(r1.resumo.por_motor.find((m) => m.id === 'ia2').erros, 1);
+  relogio = new Date('2026-11-09T12:00:00Z');
+  rodada = 2;
+  const r2 = await geo.rodar('teste', { aguardar: true });
+  // Pergunta 1: IA1 100 (1º e site citado), IA2 0 → 50. Pergunta 2: 70. Rodada: 60.
+  assert.equal(r2.resumo.score, 60);
+  assert.equal(r2.resumo.taxa_citacao, 33.3);
+  const lista = await geo.listar();
+  assert.deepEqual(lista.map((r) => r.id), [r2.id, r1.id], 'a rodada mais nova vem primeiro');
+  assert.ok(!('respostas' in lista[0]), 'a lista não carrega os textos das respostas');
+  const d = await geo.comparar(r2.id, r1.id);
+  assert.equal(d.score, 25);
+  assert.deepEqual(d.por_pergunta, [50, 0]);
+
+  // Rodada semanal: só roda de novo depois de uma semana, e só se estiver ligada.
+  assert.equal(await geo.verificarSemanal(), false, 'desligada');
+  await geo.salvarConfig({ semanal: true });
+  relogio = new Date('2026-11-12T12:00:00Z');
+  assert.equal(await geo.verificarSemanal(), false, 'ainda não passou uma semana');
+  relogio = new Date('2026-11-16T12:30:00Z');
+  assert.equal(await geo.verificarSemanal(), true);
+  assert.equal((await geo.listar()).length, 3);
+
+  // Histórico: baixar e restaurar num armazenamento vazio.
+  const historico = await geo.exportar();
+  const dbNovo = await criarArmazenamentoLocal({ diretorio: path.join(temporario, 'geo-novo'), urlPublica: '' });
+  const geoNovo = criarGeo({ db: dbNovo, motores });
+  assert.deepEqual(await geoNovo.importar(JSON.parse(JSON.stringify(historico))), { novas: 3 });
+  assert.deepEqual(await geoNovo.importar(historico), { novas: 0 }, 'não duplica rodadas');
+  assert.equal((await geoNovo.config()).semanal, true, 'a configuração vem junto quando não havia nenhuma');
+  await assert.rejects(geoNovo.importar({ rodadas: [] }), /Arquivo inválido/);
+
+  // Sem perguntas, não roda.
+  await geo.salvarConfig({ perguntas: [] });
+  await assert.rejects(geo.rodar('teste', { aguardar: true }), /pelo menos uma pergunta/);
+});
+
 await caso('Estado do painel com métricas por categoria e configuração ativa', async () => {
   const e = await motor.estado();
   assert.equal(e.categorias.length, Object.keys(politica.categorias).length);

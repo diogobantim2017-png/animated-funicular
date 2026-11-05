@@ -77,6 +77,16 @@ create table if not exists public.reguas (
 
 alter table public.reguas enable row level security;
 
+-- Radar de visibilidade em IA (GEO): a configuração (id "config") e uma linha por rodada.
+create table if not exists public.geo (
+  id         text primary key,
+  tipo       text not null default 'rodada',
+  dados      jsonb not null default '{}'::jsonb,
+  criada_em  timestamptz not null default now()
+);
+
+alter table public.geo enable row level security;
+
 -- Bucket das imagens. Precisa ser público: o Instagram baixa a arte pela URL no momento da
 -- publicação. Os nomes dos arquivos começam com o UUID da peça.
 insert into storage.buckets (id, name, public)
