@@ -24,7 +24,7 @@ const imagem = criarGeradorImagem();
 const canal = criarCanalInstagram();
 const fotos = criarBancoDeFotos();
 const motor = criarMotor({ db, ia: chamarFerramenta, imagem, fotos, canal });
-const geo = criarGeo({ db, motores: motoresDisponiveis({ perguntarClaude: perguntarComBusca }) });
+const geo = criarGeo({ db, motores: motoresDisponiveis({ perguntarClaude: perguntarComBusca }), ia: env.anthropicKey ? chamarFerramenta : null, modelo: env.modeloIa });
 
 const app = express();
 app.disable('x-powered-by');
@@ -263,6 +263,16 @@ app.get('/api/geo/rodadas/:id', async (req, res) => {
   const rodada = await geo.obter(req.params.id);
   if (!rodada) return res.status(404).json({ erro: 'Rodada não encontrada.' });
   res.json(rodada);
+});
+
+app.post('/api/geo/rodadas/:id/diagnostico', async (req, res) => {
+  res.json(await geo.diagnosticar(req.params.id));
+});
+
+app.get('/api/geo/rodadas/:id/plano', async (req, res) => {
+  const texto = await geo.plano(req.params.id);
+  res.set('Content-Disposition', `attachment; filename="plano-visibilidade-em-ia-${req.params.id.replace(/[^a-z0-9-]/gi, '')}.txt"`);
+  res.type('text/plain; charset=utf-8').send(texto);
 });
 
 app.get('/api/geo/exportar', async (req, res) => {

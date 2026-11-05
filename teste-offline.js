@@ -187,6 +187,21 @@ async function iaSimulada({ ferramenta, conteudo, sistema, ferramentasServidor =
       return { ...TEXTOS, ...extras, ...artigoSimulado(ferramenta), ...roteiro.textos };
     },
     escolher_imagem_do_banco: () => ({ indice: roteiro.banco?.indice ?? 0, motivo: roteiro.banco?.motivo || 'Combina com o tema do post.' }),
+    diagnosticar_geo: () => ({
+      resumo: 'A marca aparece pouco nas respostas sobre CRM.',
+      fragilidades: [
+        { titulo: 'Ausente na pergunta de CRM', evidencia: 'Pergunta 1 com score 0.', impacto: 'alto', perguntas: [1] },
+        { titulo: 'Site não é citado', evidencia: 'Citação 0%.', impacto: 'medio', perguntas: [1, 2] },
+      ],
+      acoes: [
+        { canal: 'site', titulo: 'Página que responde à pergunta de CRM', o_que_fazer: 'Criar a página.', por_que: 'Pergunta 1.', prioridade: 'alta', esforco: 'medio', prazo: 'este mês', o_motor_faz: false, formato: 'nenhum', orientacao_para_o_motor: 'não usar' },
+        { canal: 'linkedin', titulo: 'Artigo sobre como escolher CRM', o_que_fazer: 'Publicar artigo.', por_que: 'Pergunta 1.', prioridade: 'alta', esforco: 'baixo', prazo: 'esta semana', o_motor_faz: true, formato: 'artigo', orientacao_para_o_motor: 'Artigo: como escolher uma consultoria de CRM' },
+        { canal: 'youtube', titulo: 'Vídeo curto', o_que_fazer: 'Gravar vídeo.', por_que: 'Fontes.', prioridade: 'baixa', esforco: 'alto', prazo: 'este trimestre', o_motor_faz: false, formato: 'nenhum', orientacao_para_o_motor: '' },
+        { canal: 'imprensa', titulo: 'Pauta para veículos citados', o_que_fazer: 'Sugerir pauta.', por_que: 'Fontes.', prioridade: 'media', esforco: 'medio', prazo: 'este mês', o_motor_faz: false, formato: 'nenhum', orientacao_para_o_motor: '' },
+      ],
+      vitorias_rapidas: ['Publicar o artigo', 'Conferir o acesso dos robôs ao site'],
+      como_medir: 'Ver se o score da pergunta 1 sobe nas próximas rodadas.',
+    }),
     descrever_fotos: () => ({
       fotos: conteudo.filter((b) => b.type === 'image').map((_, i) => ({ indice: i, descricao: `Foto ${i + 1} descrita pela IA`, temas: ['equipe', 'escritório', 'tecnologia'] })),
     }),
@@ -1385,6 +1400,36 @@ await caso('Visibilidade em IA: análise das respostas, score, comparação, his
   assert.deepEqual(await geoNovo.importar(historico), { novas: 0 }, 'não duplica rodadas');
   assert.equal((await geoNovo.config()).semanal, true, 'a configuração vem junto quando não havia nenhuma');
   await assert.rejects(geoNovo.importar({ rodadas: [] }), /Arquivo inválido/);
+
+  // Sinais de fragilidade calculados dos números da primeira rodada.
+  const { sinaisDeFragilidade } = await import('./geo.js');
+  const sinais = sinaisDeFragilidade(r1.resumo, cfg).map((x) => x.tipo);
+  assert.deepEqual(sinais, ['ausente', 'sem_citacao', 'concorrentes', 'motor']);
+  assert.deepEqual(r1.resumo.sinais.map((x) => x.tipo), sinais, 'os sinais ficam guardados no resumo da rodada');
+  assert.match(sinaisDeFragilidade(r1.resumo, cfg)[2].titulo, /Deloitte/);
+
+  // Diagnóstico e plano de ação pela IA, logo depois da rodada.
+  const dbDiag = await criarArmazenamentoLocal({ diretorio: path.join(temporario, 'geo-diag'), urlPublica: '' });
+  const geoDiag = criarGeo({ db: dbDiag, motores, ia: iaSimulada, modelo: 'modelo-simulado' });
+  await geoDiag.salvarConfig(cfg);
+  const comDiag = await geoDiag.rodar('teste', { aguardar: true });
+  assert.equal(comDiag.diagnostico.fragilidades.length, 2);
+  assert.equal(comDiag.diagnostico.acoes.length, 4);
+  assert.deepEqual(comDiag.diagnostico.acoes.map((a) => a.prioridade), ['alta', 'alta', 'media', 'baixa'], 'o plano vem em ordem de prioridade');
+  assert.equal(comDiag.diagnostico.acoes.find((a) => a.canal === 'site').orientacao_para_o_motor, '', 'só ação que o Motor faz leva orientação');
+  const pedidoDiag = chamadas.filter((c) => c.ferramenta === 'diagnosticar_geo').at(-1);
+  assert.ok(String(pedidoDiag.conteudo).includes('Pergunta 1: "Quais as melhores consultorias de CRM?"'), 'a IA recebe o detalhe de cada pergunta');
+  const plano = await geoDiag.plano(comDiag.id);
+  for (const trecho of ['PLANO DE VISIBILIDADE EM IA', 'SINAIS NOS NÚMEROS', 'FRAGILIDADES', 'SITE DA MARCA', 'LINKEDIN', 'IMPRENSA', 'No Motor: Artigo: como escolher uma consultoria de CRM', 'VITÓRIAS RÁPIDAS', 'COMO MEDIR']) {
+    assert.ok(plano.includes(trecho), `o plano traz ${trecho}`);
+  }
+  // Se a IA falha no diagnóstico, a rodada fica salva com o aviso, e dá para gerar de novo.
+  const geoFalha = criarGeo({ db: dbDiag, motores, ia: async () => { throw new Error('IA fora do ar'); } });
+  const semDiag = await geoFalha.rodar('teste', { aguardar: true });
+  assert.equal(semDiag.diagnostico, undefined);
+  assert.match(semDiag.diagnostico_erro, /IA fora do ar/);
+  const refeito = await geoDiag.diagnosticar(semDiag.id);
+  assert.ok(refeito.diagnostico && !refeito.diagnostico_erro);
 
   // Sem perguntas, não roda.
   await geo.salvarConfig({ perguntas: [] });

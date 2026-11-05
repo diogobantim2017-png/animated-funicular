@@ -13,7 +13,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { env, raiz, marca } from './config.js';
+import { env, raiz, marca, conhecimento } from './config.js';
 import { normalizar } from './util.js';
 
 export const PONTOS = { mencao: 50, primeiro: 20, segundo: 10, depois: 5, citacao: 30 };
@@ -159,6 +159,214 @@ export function compararResumos(atual, anterior) {
   };
 }
 
+/* --------------------------------------------------------------- fragilidades e plano */
+
+/** Sinais de fragilidade calculados direto dos números da rodada (sem IA). */
+export function sinaisDeFragilidade(resumo, config) {
+  const sinais = [];
+  const comRespostas = resumo.por_pergunta.filter((p) => p.respostas);
+  const ausentes = comRespostas.filter((p) => p.mencoes === 0);
+  if (ausentes.length) {
+    sinais.push({ tipo: 'ausente', titulo: `A marca não aparece em ${ausentes.length} de ${comRespostas.length} perguntas`, detalhe: ausentes.map((p) => p.pergunta) });
+  }
+  const fracas = comRespostas.filter((p) => p.mencoes > 0 && p.score !== null && p.score < 40);
+  if (fracas.length) {
+    sinais.push({ tipo: 'fraca', titulo: `Aparece pouco ou atrás dos concorrentes em ${fracas.length} ${fracas.length === 1 ? 'pergunta' : 'perguntas'}`, detalhe: fracas.map((p) => `${p.pergunta} (score ${p.score})`) });
+  }
+  if (resumo.respostas_validas && !resumo.taxa_citacao) {
+    sinais.push({ tipo: 'sem_citacao', titulo: `Nenhuma IA usou ${config.dominios.join(' ou ') || 'um site da marca'} como fonte`, detalhe: [] });
+  }
+  const respostasComMarca = Math.round(((resumo.taxa_mencao || 0) * resumo.respostas_validas) / 100);
+  const fortes = resumo.concorrentes_top.filter((c) => c.vezes > respostasComMarca);
+  if (fortes.length) {
+    sinais.push({
+      tipo: 'concorrentes',
+      titulo: `Concorrentes que aparecem em mais respostas que a marca: ${fortes.map((c) => c.nome).join(', ')}`,
+      detalhe: [`${marca.nome}: ${respostasComMarca} respostas`, ...fortes.map((c) => `${c.nome}: ${c.vezes} respostas`)],
+    });
+  }
+  const motoresSemMarca = resumo.por_motor.filter((m) => m.respostas && !m.taxa_mencao);
+  if (motoresSemMarca.length) {
+    sinais.push({ tipo: 'motor', titulo: `A marca não aparece em nenhuma resposta do ${motoresSemMarca.map((m) => m.nome).join(' nem do ')}`, detalhe: [] });
+  }
+  const daMarca = (d) => config.dominios.some((m) => d === m || d.endsWith(`.${m}`));
+  const fontes = resumo.fontes_top.filter((f) => !daMarca(f.nome)).slice(0, 6);
+  if (fontes.length) {
+    sinais.push({ tipo: 'fontes', titulo: 'Sites que as IAs mais usaram como fonte: vale a marca estar presente neles', detalhe: fontes.map((f) => `${f.nome} (${f.vezes}×)`) });
+  }
+  return sinais;
+}
+
+export const CANAIS = {
+  site: 'Site da marca',
+  linkedin: 'LinkedIn',
+  youtube: 'YouTube',
+  imprensa: 'Imprensa',
+  parceiros: 'Parceiros e marketplaces',
+  avaliacoes: 'Avaliações e diretórios',
+  analistas: 'Analistas de mercado',
+  eventos: 'Eventos e palestras',
+  tecnico: 'Ajuste técnico do site',
+};
+const PRAZOS = ['esta semana', 'este mês', 'este trimestre'];
+
+function ferramentaDiagnostico() {
+  return {
+    name: 'diagnosticar_geo',
+    description: 'Registra o diagnóstico de visibilidade em IA e o plano de ação.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        resumo: { type: 'string', description: 'Duas ou três frases com a situação da marca nas respostas das IAs.' },
+        fragilidades: {
+          type: 'array',
+          minItems: 2,
+          maxItems: 6,
+          items: {
+            type: 'object',
+            properties: {
+              titulo: { type: 'string', description: 'A fragilidade, em uma frase curta.' },
+              evidencia: { type: 'string', description: 'O dado da rodada que mostra a fragilidade (pergunta, score, concorrente ou fonte).' },
+              impacto: { type: 'string', enum: ['alto', 'medio', 'baixo'] },
+              perguntas: { type: 'array', items: { type: 'integer' }, description: 'Números das perguntas ligadas (1 = primeira).' },
+            },
+            required: ['titulo', 'evidencia', 'impacto', 'perguntas'],
+          },
+        },
+        acoes: {
+          type: 'array',
+          minItems: 4,
+          maxItems: 12,
+          items: {
+            type: 'object',
+            properties: {
+              canal: { type: 'string', enum: Object.keys(CANAIS) },
+              titulo: { type: 'string', description: 'A ação, em uma frase curta.' },
+              o_que_fazer: { type: 'string', description: 'O que fazer, de forma concreta, em até três frases.' },
+              por_que: { type: 'string', description: 'Qual fragilidade a ação ataca, com o dado.' },
+              prioridade: { type: 'string', enum: ['alta', 'media', 'baixa'] },
+              esforco: { type: 'string', enum: ['baixo', 'medio', 'alto'] },
+              prazo: { type: 'string', enum: PRAZOS },
+              o_motor_faz: { type: 'boolean', description: 'Verdadeiro só se o Motor de campanhas executa a ação (post, carrossel ou artigo de LinkedIn).' },
+              formato: { type: 'string', enum: ['post', 'carrossel', 'artigo', 'nenhum'] },
+              orientacao_para_o_motor: { type: 'string', description: 'Se o Motor faz: pedido curto ao Motor, com o tema e a pergunta que o conteúdo responde. Senão, vazio.' },
+            },
+            required: ['canal', 'titulo', 'o_que_fazer', 'por_que', 'prioridade', 'esforco', 'prazo', 'o_motor_faz', 'formato', 'orientacao_para_o_motor'],
+          },
+        },
+        vitorias_rapidas: { type: 'array', minItems: 2, maxItems: 4, items: { type: 'string' }, description: 'Ações de baixo esforço para as próximas duas semanas.' },
+        como_medir: { type: 'string', description: 'Como saber, nas próximas rodadas, se o plano funcionou.' },
+      },
+      required: ['resumo', 'fragilidades', 'acoes', 'vitorias_rapidas', 'como_medir'],
+    },
+  };
+}
+
+/** A IA lê a rodada (números, respostas e fontes) e devolve fragilidades e um plano de ação por canal. */
+export async function gerarDiagnostico({ ia, modelo, rodada }) {
+  const { resumo, config, respostas, motores } = rodada;
+  const nomeMotor = (id) => motores.find((m) => m.id === id)?.nome || id;
+  const sinais = resumo.sinais || sinaisDeFragilidade(resumo, config);
+  const perguntas = resumo.por_pergunta
+    .map((p, i) => {
+      const rs = respostas.filter((r) => r.pergunta === i && !r.erro).slice(0, 4);
+      return `Pergunta ${i + 1}: "${p.pergunta}". Score ${p.score ?? 'sem respostas'}; marca em ${p.mencoes} de ${p.respostas} respostas; site da marca citado em ${p.citacoes}.
+${rs
+  .map(
+    (r) =>
+      `  - ${nomeMotor(r.motor)}: ${r.analise.mencionada ? `marca em ${r.analise.posicao}º lugar` : 'marca ausente'}; concorrentes: ${r.analise.concorrentes.join(', ') || 'nenhum'}; fontes: ${r.analise.dominios.slice(0, 6).join(', ') || 'nenhuma'}. Trecho: ${r.texto.slice(0, 280).replace(/\s+/g, ' ')}`,
+  )
+  .join('\n')}`;
+    })
+    .join('\n\n');
+  const ofertas = (conhecimento?.ofertas || []).map((o) => o.nome).filter(Boolean);
+  const reconhecimentos = (conhecimento?.reconhecimentos || []).map((r) => r.nome || r.titulo).filter(Boolean);
+  const conteudo = `Marca: ${marca.nome} (nomes considerados: ${config.nomes_da_marca.join(', ')}). Sites da marca: ${config.dominios.join(', ') || 'não informado'}.
+Concorrentes acompanhados: ${config.concorrentes.join(', ')}.
+${ofertas.length ? `Ofertas da marca (base aprovada): ${ofertas.join('; ')}.` : ''}
+${reconhecimentos.length ? `Reconhecimentos na base aprovada: ${reconhecimentos.join('; ')}.` : ''}
+
+Resultado da rodada: score ${resumo.score}; menção em ${resumo.taxa_mencao}% das respostas; site da marca citado em ${resumo.taxa_citacao}%; presença frente aos concorrentes ${resumo.presenca}%.
+Por IA: ${resumo.por_motor.map((m) => `${m.nome} score ${m.score}, menção ${m.taxa_mencao}%, citação ${m.taxa_citacao}%`).join('; ')}.
+Concorrentes que mais apareceram: ${resumo.concorrentes_top.map((c) => `${c.nome} (${c.vezes})`).join(', ') || 'nenhum'}.
+Fontes que as IAs mais usaram: ${resumo.fontes_top.map((f) => `${f.nome} (${f.vezes})`).join(', ') || 'nenhuma'}.
+Sinais já calculados: ${sinais.map((x) => x.titulo).join('; ') || 'nenhum'}.
+
+Detalhe por pergunta:
+${perguntas}`;
+  const sistema = `Você é especialista em GEO (otimização para aparecer nas respostas de IAs como ChatGPT, Claude, Gemini e Perplexity) e analisa o radar de visibilidade da marca ${marca.nome}.
+Regras:
+1. Cada fragilidade cita a evidência dos dados: a pergunta, o score, o concorrente ou a fonte.
+2. As ações são concretas e próprias de cada canal. Referências do que costuma funcionar:
+   - site da marca: páginas que respondem direto às perguntas em que a marca não aparece, guias de "como escolher", comparações, casos com resultados aprovados e perguntas frequentes, com o nome da marca e das ofertas sempre escrito igual;
+   - ajuste técnico: conferir se os robôs das IAs conseguem acessar o site e se as páginas têm estrutura clara; é a base, não o principal;
+   - LinkedIn: artigos com intertítulos que respondem às perguntas, publicados por executivos;
+   - YouTube: vídeos curtos que respondem às perguntas, com título e descrição claros;
+   - imprensa, parceiros, avaliações e analistas: presença nas fontes que as IAs mais citaram nesta rodada.
+3. Nada de táticas enganosas: avaliações falsas, perfis falsos, conteúdo escondido ou manipulação de fóruns.
+4. Não invente fatos sobre a marca. Se uma ação depende de um caso, número ou prêmio, use só o que está na base aprovada ou diga que precisa ser levantado.
+5. Marque o_motor_faz como verdadeiro só para ações que o Motor de campanhas executa: posts, carrosséis e artigos de LinkedIn. Nelas, escreva orientacao_para_o_motor como um pedido curto (tema e pergunta que o conteúdo responde) e escolha o formato.
+6. Priorize o que fecha as maiores lacunas com menos esforço. Escreva em português do Brasil, frases diretas, sem jargão.`;
+  const r = await ia({ modelo, sistema, conteudo, ferramenta: ferramentaDiagnostico(), maxTokens: 4000 });
+  const d = r.dados || {};
+  return {
+    gerado_em: new Date().toISOString(),
+    modelo: r.modelo || modelo,
+    resumo: String(d.resumo || '').trim(),
+    fragilidades: (d.fragilidades || []).map((f) => ({ ...f, perguntas: (f.perguntas || []).filter((n) => Number.isInteger(n)) })),
+    acoes: (d.acoes || [])
+      .filter((a) => CANAIS[a.canal])
+      .map((a) => ({ ...a, orientacao_para_o_motor: a.o_motor_faz ? String(a.orientacao_para_o_motor || '').trim() : '' }))
+      .sort((a, b) => ['alta', 'media', 'baixa'].indexOf(a.prioridade) - ['alta', 'media', 'baixa'].indexOf(b.prioridade)),
+    vitorias_rapidas: (d.vitorias_rapidas || []).map(String),
+    como_medir: String(d.como_medir || '').trim(),
+  };
+}
+
+/** O plano em texto simples, para mandar ao time do site e a outras áreas. */
+export function planoEmTexto(rodada) {
+  const { resumo, diagnostico: d, criada_em } = rodada;
+  const data = new Date(criada_em).toLocaleDateString('pt-BR');
+  const linhas = [
+    `PLANO DE VISIBILIDADE EM IA · ${marca.nome} · rodada de ${data}`,
+    '',
+    `Score: ${resumo.score} · Menção: ${resumo.taxa_mencao}% · Citação do site: ${resumo.taxa_citacao}% · Presença frente aos concorrentes: ${resumo.presenca}%`,
+    '',
+  ];
+  if (d?.resumo) linhas.push('SITUAÇÃO', d.resumo, '');
+  const sinais = resumo.sinais || [];
+  if (sinais.length) {
+    linhas.push('SINAIS NOS NÚMEROS');
+    for (const s of sinais) linhas.push(`- ${s.titulo}${s.detalhe?.length ? `: ${s.detalhe.join('; ')}` : ''}`);
+    linhas.push('');
+  }
+  if (d?.fragilidades?.length) {
+    linhas.push('FRAGILIDADES');
+    for (const f of d.fragilidades) linhas.push(`- [impacto ${f.impacto}] ${f.titulo}. Evidência: ${f.evidencia}`);
+    linhas.push('');
+  }
+  if (d?.acoes?.length) {
+    linhas.push('PLANO DE AÇÃO');
+    for (const [canal, nome] of Object.entries(CANAIS)) {
+      const doCanal = d.acoes.filter((a) => a.canal === canal);
+      if (!doCanal.length) continue;
+      linhas.push('', nome.toUpperCase());
+      for (const a of doCanal) {
+        linhas.push(`- ${a.titulo} (prioridade ${a.prioridade}, esforço ${a.esforco}, ${a.prazo})`, `  O que fazer: ${a.o_que_fazer}`, `  Por quê: ${a.por_que}`);
+        if (a.o_motor_faz && a.orientacao_para_o_motor) linhas.push(`  No Motor: ${a.orientacao_para_o_motor}`);
+      }
+    }
+    linhas.push('');
+  }
+  if (d?.vitorias_rapidas?.length) {
+    linhas.push('VITÓRIAS RÁPIDAS (PRÓXIMAS DUAS SEMANAS)');
+    for (const v of d.vitorias_rapidas) linhas.push(`- ${v}`);
+    linhas.push('');
+  }
+  if (d?.como_medir) linhas.push('COMO MEDIR', d.como_medir, '');
+  return linhas.join('\n');
+}
+
 /* --------------------------------------------------------------- IAs consultadas */
 
 async function lerJson(resposta, nome) {
@@ -255,7 +463,7 @@ export function situacaoDosMotores(motores) {
  * Radar de visibilidade: guarda a configuração e as rodadas no armazenamento do motor
  * e roda as perguntas em segundo plano, três de cada vez.
  */
-export function criarGeo({ db, motores, agora = () => new Date() }) {
+export function criarGeo({ db, motores, ia = null, modelo = env.modeloIa, agora = () => new Date() }) {
   let execucao = { rodando: false, feitas: 0, total: 0, erro: null, iniciada_em: null, por: null };
 
   async function config() {
@@ -297,7 +505,8 @@ export function criarGeo({ db, motores, agora = () => new Date() }) {
     await Promise.all(Array.from({ length: Math.min(3, tarefas.length) }, trabalhador));
     respostas.sort((a, b) => a.pergunta - b.pergunta || a.motor.localeCompare(b.motor) || a.repeticao - b.repeticao);
     const resumo = calcularResumo(respostas, cfg, motores);
-    const rodada = await db.salvarRodadaGeo({
+    resumo.sinais = sinaisDeFragilidade(resumo, cfg);
+    let rodada = await db.salvarRodadaGeo({
       id: `rodada-${agora().getTime()}`,
       criada_em: agora().toISOString(),
       por,
@@ -308,6 +517,15 @@ export function criarGeo({ db, motores, agora = () => new Date() }) {
     });
     const todas = await db.listarRodadasGeo();
     for (const velha of todas.slice(MAX_RODADAS)) await db.excluirRodadaGeo(velha.id);
+    // Diagnóstico e plano de ação pela IA, logo depois da rodada (se falhar, dá para gerar de novo no painel).
+    if (ia && resumo.respostas_validas) {
+      execucao.etapa = 'diagnostico';
+      try {
+        rodada = await db.salvarRodadaGeo({ ...rodada, diagnostico: await gerarDiagnostico({ ia, modelo, rodada }) });
+      } catch (erro) {
+        rodada = await db.salvarRodadaGeo({ ...rodada, diagnostico_erro: String(erro.message).slice(0, 300) });
+      }
+    }
     return rodada;
   }
 
@@ -348,6 +566,22 @@ export function criarGeo({ db, motores, agora = () => new Date() }) {
     },
 
     obter: (id) => db.obterRodadaGeo(id),
+
+    /** Gera de novo o diagnóstico e o plano de uma rodada. */
+    async diagnosticar(id) {
+      if (!ia) throw Object.assign(new Error('Falta a chave da IA para gerar o diagnóstico.'), { status: 400 });
+      const rodada = await db.obterRodadaGeo(id);
+      if (!rodada) throw Object.assign(new Error('Rodada não encontrada.'), { status: 404 });
+      const resumo = { ...rodada.resumo, sinais: rodada.resumo.sinais || sinaisDeFragilidade(rodada.resumo, rodada.config) };
+      const { diagnostico_erro, ...resto } = rodada;
+      return db.salvarRodadaGeo({ ...resto, resumo, diagnostico: await gerarDiagnostico({ ia, modelo, rodada: { ...rodada, resumo } }) });
+    },
+
+    async plano(id) {
+      const rodada = await db.obterRodadaGeo(id);
+      if (!rodada) throw Object.assign(new Error('Rodada não encontrada.'), { status: 404 });
+      return planoEmTexto(rodada);
+    },
 
     async comparar(idAtual, idAnterior) {
       const [a, b] = await Promise.all([db.obterRodadaGeo(idAtual), db.obterRodadaGeo(idAnterior)]);

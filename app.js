@@ -1839,8 +1839,82 @@ async function carregarGeo() {
   if (!ids.includes(ui.geo.atualId)) ui.geo.atualId = ids[0] || null;
   if (!ids.includes(ui.geo.comparaId) || ui.geo.comparaId === ui.geo.atualId) ui.geo.comparaId = ids[ids.indexOf(ui.geo.atualId) + 1] || null;
   renderGeo();
+  const id = ui.geo.atualId;
+  if (id && (!ui.geo.detalhes?.[id] || ui.geo.recarregarDetalhe)) {
+    ui.geo.recarregarDetalhe = false;
+    const rodada = await api(`/api/geo/rodadas/${encodeURIComponent(id)}`);
+    ui.geo.detalhes = { ...(ui.geo.detalhes || {}), [id]: rodada };
+    renderGeo();
+  }
   clearTimeout(ui.geoEspera);
-  if (dados.situacao.rodando && ui.aba === 'geo') ui.geoEspera = setTimeout(() => carregarGeo().catch(() => {}), 3000);
+  if (dados.situacao.rodando && ui.aba === 'geo') {
+    ui.geo.recarregarDetalhe = true;
+    ui.geoEspera = setTimeout(() => carregarGeo().catch(() => {}), 3000);
+  }
+}
+
+const CANAIS_GEO = {
+  site: 'Site da marca',
+  linkedin: 'LinkedIn',
+  youtube: 'YouTube',
+  imprensa: 'Imprensa',
+  parceiros: 'Parceiros e marketplaces',
+  avaliacoes: 'Avaliações e diretórios',
+  analistas: 'Analistas de mercado',
+  eventos: 'Eventos e palestras',
+  tecnico: 'Ajuste técnico do site',
+};
+
+/** Fragilidades (sinais dos números e diagnóstico da IA) e o plano de ação por canal. */
+function geoDiagnosticoHtml(atual, detalhe, rodando) {
+  const sinais = atual.resumo.sinais || [];
+  const listaSinais = sinais.length
+    ? `<ul class="geo__sinais">${sinais
+        .map((x) => `<li><strong>${esc(x.titulo)}</strong>${x.detalhe?.length ? `<span class="geo__meta">${x.detalhe.map(esc).join(' · ')}</span>` : ''}</li>`)
+        .join('')}</ul>`
+    : '<p class="geo__meta">Nenhum sinal de fragilidade nos números desta rodada.</p>';
+  const d = detalhe?.diagnostico;
+  let corpo;
+  if (!detalhe) corpo = '<p class="geo__meta">Carregando o diagnóstico…</p>';
+  else if (!d) {
+    corpo = `${detalhe.diagnostico_erro ? `<p class="geo__progresso geo__progresso--erro">O diagnóstico falhou: ${esc(detalhe.diagnostico_erro)}</p>` : ''}
+      <div class="geo__acoes"><button type="button" class="botao botao--primario" data-acao="geo-diagnosticar" ${rodando ? 'disabled' : ''}>Gerar diagnóstico e plano</button></div>`;
+  } else {
+    const fragilidades = d.fragilidades
+      .map((f) => `<li class="geo__fragilidade"><span class="geo__chip geo__chip--${esc(f.impacto)}">Impacto ${esc(f.impacto === 'medio' ? 'médio' : f.impacto)}</span><strong>${esc(f.titulo)}</strong><span class="geo__meta">${esc(f.evidencia)}</span></li>`)
+      .join('');
+    const porCanal = Object.entries(CANAIS_GEO)
+      .map(([canal, nome]) => {
+        const acoes = d.acoes.filter((a) => a.canal === canal);
+        if (!acoes.length) return '';
+        return `<div class="geo__canal"><h4 class="geo__subtitulo">${esc(nome)}</h4>${acoes
+          .map(
+            (a) => `<div class="geo__acao">
+              <div class="geo__acao-topo"><strong>${esc(a.titulo)}</strong>
+                <span class="geo__chip geo__chip--${esc(a.prioridade)}">Prioridade ${esc(a.prioridade === 'media' ? 'média' : a.prioridade)}</span>
+                <span class="geo__chip">Esforço ${esc(a.esforco === 'medio' ? 'médio' : a.esforco)}</span>
+                <span class="geo__chip">${esc(a.prazo)}</span></div>
+              <p>${esc(a.o_que_fazer)}</p>
+              <p class="geo__meta">Por quê: ${esc(a.por_que)}</p>
+              ${a.o_motor_faz && a.orientacao_para_o_motor ? `<button type="button" class="botao botao--secundario" data-acao="geo-gerar-no-motor" data-orientacao="${esc(a.orientacao_para_o_motor)}" data-formato="${esc(a.formato === 'nenhum' ? 'post' : a.formato)}">Gerar no Motor</button>` : ''}
+            </div>`,
+          )
+          .join('')}</div>`;
+      })
+      .join('');
+    corpo = `<p class="geo__explica">${esc(d.resumo)}</p>
+      <h4 class="geo__subtitulo">Fragilidades</h4><ul class="geo__fragilidades">${fragilidades}</ul>
+      <h4 class="geo__subtitulo">Vitórias rápidas, para as próximas duas semanas</h4><ul class="geo__rapidas">${d.vitorias_rapidas.map((v) => `<li>${esc(v)}</li>`).join('')}</ul>
+      <h4 class="geo__subtitulo">Plano de ação por canal</h4>${porCanal}
+      <h4 class="geo__subtitulo">Como medir</h4><p class="geo__explica">${esc(d.como_medir)}</p>
+      <div class="geo__acoes">
+        <a class="botao botao--secundario" href="/api/geo/rodadas/${encodeURIComponent(atual.id)}/plano" download>Baixar plano</a>
+        <button type="button" class="botao botao--texto" data-acao="geo-diagnosticar" ${rodando ? 'disabled' : ''}>Gerar de novo</button>
+      </div>
+      <p class="geo__meta">Diagnóstico gerado em ${esc(dataHora(d.gerado_em))}. As ações dependem dos dados desta rodada; confira antes de executar.</p>`;
+  }
+  return `<section class="config geo__diagnostico"><h3 class="config__titulo">Fragilidades e plano de ação</h3>
+      <h4 class="geo__subtitulo">Sinais nos números</h4>${listaSinais}${corpo}</section>`;
 }
 
 function renderGeo() {
@@ -1856,7 +1930,7 @@ function renderGeo() {
       .map((r) => `<option value="${esc(r.id)}" ${r.id === selecionada ? 'selected' : ''}>${esc(dataHora(r.criada_em))} · score ${geoNum(r.resumo?.score)}</option>`)
       .join('');
   const rodando = situacao.rodando
-    ? `<p class="geo__progresso">Rodando: ${situacao.feitas} de ${situacao.total || '…'} respostas. Pode sair desta aba; a rodada continua.</p>`
+    ? `<p class="geo__progresso">${situacao.etapa === 'diagnostico' ? 'Respostas prontas. Gerando o diagnóstico e o plano de ação…' : `Rodando: ${situacao.feitas} de ${situacao.total || '…'} respostas. Pode sair desta aba; a rodada continua.`}</p>`
     : situacao.erro
       ? `<p class="geo__progresso geo__progresso--erro">A última rodada falhou: ${esc(situacao.erro)}</p>`
       : '';
@@ -1948,6 +2022,7 @@ function renderGeo() {
         <section class="config"><h3 class="config__titulo">Concorrentes que mais aparecem</h3>${topo(r.concorrentes_top, 'Nenhum concorrente da lista apareceu.')}</section>
         <section class="config"><h3 class="config__titulo">Fontes que as IAs mais usaram</h3>${topo(r.fontes_top, 'As respostas não trouxeram fontes.')}</section>
       </div>
+      ${geoDiagnosticoHtml(atual, detalhe, situacao.rodando)}
       <section class="config"><h3 class="config__titulo">Evolução do score</h3><div class="geo__evolucao">${evolucao}</div></section>`;
   }
 
@@ -2468,6 +2543,26 @@ const acoesPorNome = {
       avisar('Configuração do radar salva.', 'sucesso');
       await carregarGeo();
     });
+  },
+
+  'geo-diagnosticar': async (alvo) => {
+    const id = ui.geo.atualId;
+    await executar(alvo, 'Gerando o diagnóstico…', async () => {
+      const rodada = await api(`/api/geo/rodadas/${encodeURIComponent(id)}/diagnostico`, { metodo: 'POST', corpo: {} });
+      ui.geo.detalhes = { ...(ui.geo.detalhes || {}), [id]: rodada };
+      renderGeo();
+      avisar('Diagnóstico e plano de ação prontos.', 'sucesso');
+    });
+  },
+
+  'geo-gerar-no-motor': (alvo) => {
+    abrirGerar();
+    const campo = $('#form-gerar textarea');
+    if (campo) campo.value = alvo.dataset.orientacao || '';
+    const formato = $('#gerar-formato');
+    const pedido = alvo.dataset.formato || 'post';
+    if (formato && [...formato.options].some((o) => o.value === pedido && !o.disabled)) formato.value = pedido;
+    atualizarDialogoGerar();
   },
 
   'geo-abrir': async (alvo) => {
