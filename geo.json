@@ -1,17 +1,40 @@
 {
-  "observacao": "Configuração inicial do radar de visibilidade em IA (teste). As perguntas são as que um comprador faria a uma IA, sem citar a marca. Tudo pode ser editado na aba Visibilidade em IA do painel.",
-  "nomes_da_marca": ["Capgemini", "Capgemini Invent"],
-  "dominios": ["capgemini.com"],
-  "concorrentes": ["Accenture", "Deloitte", "IBM", "EY", "KPMG", "PwC", "McKinsey", "BCG", "Bain", "Cognizant", "Infosys", "TCS", "Globant", "CI&T", "Stefanini", "NTT Data", "Wipro"],
+  "observacao": "Configuração inicial do radar de visibilidade em IA (teste), com foco na Capgemini Brasil: só conta como citação uma página dentro de capgemini.com/br-pt. As perguntas são as que um comprador no Brasil faria a uma IA, sem citar a marca. Tudo pode ser editado na aba Visibilidade em IA do painel.",
+  "nomes_da_marca": [
+    "Capgemini",
+    "Capgemini Invent"
+  ],
+  "dominios": [
+    "capgemini.com/br-pt"
+  ],
+  "concorrentes": [
+    "Accenture",
+    "Deloitte",
+    "IBM",
+    "EY",
+    "KPMG",
+    "PwC",
+    "McKinsey",
+    "BCG",
+    "Bain",
+    "Cognizant",
+    "Infosys",
+    "TCS",
+    "Globant",
+    "CI&T",
+    "Stefanini",
+    "NTT Data",
+    "Wipro"
+  ],
   "perguntas": [
     "Quais são as melhores consultorias de Martech no Brasil?",
     "Qual consultoria contratar para implementar Salesforce Marketing Cloud em uma grande empresa no Brasil?",
     "Quais empresas ajudam a criar uma visão única do cliente (Customer 360) no Brasil?",
-    "Como escolher uma consultoria de CRM para uma empresa grande?",
-    "Quais consultorias são referência em transformação de marketing com inteligência artificial?",
+    "Como escolher uma consultoria de CRM para uma empresa grande no Brasil?",
+    "Quais consultorias são referência em transformação de marketing com inteligência artificial no Brasil?",
     "Quem são os principais parceiros da Salesforce no Brasil para marketing e CRM?",
     "Quais empresas implementam Agentforce no Brasil?",
-    "Quais consultorias ajudam a medir o retorno do investimento em Martech?"
+    "Quais consultorias ajudam a medir o retorno do investimento em Martech no Brasil?"
   ],
   "repeticoes": 2,
   "semanal": false

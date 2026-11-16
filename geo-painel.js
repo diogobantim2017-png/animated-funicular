@@ -632,7 +632,7 @@ function renderGeo() {
                   return `<div class="geo__resposta">
                     <div class="geo__resposta-topo"><strong>${esc(nome)}</strong>
                       <span class="geo__chip ${a.mencionada ? 'geo__chip--ok' : ''}">${a.mencionada ? `Mencionada em ${a.posicao}º` : 'Não mencionada'}</span>
-                      <span class="geo__chip ${a.citada ? 'geo__chip--ok' : ''}">${a.citada ? 'Site da marca citado' : 'Sem site da marca'}</span>
+                      <span class="geo__chip ${a.citada ? 'geo__chip--ok' : ''}">${a.citada ? 'Site da marca citado' : a.outra_pagina ? 'Outra página da marca (não conta)' : 'Sem site da marca'}</span>
                       <span class="geo__pontos">${a.pontos} pontos</span></div>
                     <p class="geo__trecho">${esc(x.texto.slice(0, 700))}${x.texto.length > 700 ? '…' : ''}</p>
                     ${a.concorrentes.length ? `<p class="geo__meta">Concorrentes na resposta: ${a.concorrentes.map(esc).join(', ')}</p>` : ''}
@@ -676,7 +676,7 @@ function renderGeo() {
         </div>
         <div class="geo__metricas">
           <div><span class="geo__rotulo">Menção</span><strong>${geoNum(r.taxa_mencao, '%')}</strong>${geoSeta(d?.taxa_mencao, ' p.p.')}<span class="geo__meta">das respostas citam a marca</span></div>
-          <div><span class="geo__rotulo">Citação</span><strong>${geoNum(r.taxa_citacao, '%')}</strong>${geoSeta(d?.taxa_citacao, ' p.p.')}<span class="geo__meta">usam um site da marca como fonte</span></div>
+          <div><span class="geo__rotulo">Citação</span><strong>${geoNum(r.taxa_citacao, '%')}</strong>${geoSeta(d?.taxa_citacao, ' p.p.')}<span class="geo__meta">usam ${esc(config.dominios.join(' ou ') || 'um site da marca')} como fonte</span></div>
           <div><span class="geo__rotulo">Presença</span><strong>${geoNum(r.presenca, '%')}</strong>${geoSeta(d?.presenca, ' p.p.')}<span class="geo__meta">das menções, contando os concorrentes</span></div>
         </div>
         <div class="geo__controles">
@@ -714,14 +714,14 @@ function renderGeo() {
       ${painel}
       <section class="config">
         <h3 class="config__titulo">Como o score é calculado</h3>
-        <p class="geo__explica">Cada resposta vale até 100 pontos: 50 se a marca é mencionada, mais 20 se ela aparece antes dos concorrentes (10 se em segundo, 5 depois), mais 30 se a IA usa um site da marca como fonte. O score de cada pergunta é a média das suas respostas, e o da rodada é a média das perguntas. As IAs não respondem sempre igual: variações de até 5 pontos entre rodadas podem ser só oscilação.</p>
+        <p class="geo__explica">Cada resposta vale até 100 pontos: 50 se a marca é mencionada, mais 20 se ela aparece antes dos concorrentes (10 se em segundo, 5 depois), mais 30 se a IA usa como fonte uma página de ${esc(config.dominios.join(' ou ') || 'um site da marca')}${config.dominios.some((d) => d.includes('/')) ? ' (outras páginas do mesmo domínio, como o site global, não contam)' : ''}. O score de cada pergunta é a média das suas respostas, e o da rodada é a média das perguntas. As IAs não respondem sempre igual: variações de até 5 pontos entre rodadas podem ser só oscilação.</p>
       </section>
       <section class="config">
         <h3 class="config__titulo">Configuração</h3>
         <div class="geo__config">
           <label class="campo geo__config-largo"><span class="campo__rotulo">Perguntas, uma por linha (as que um cliente faria, sem citar a marca)</span><textarea id="geo-perguntas" rows="8">${esc(config.perguntas.join('\n'))}</textarea></label>
           <label class="campo"><span class="campo__rotulo">Nomes da marca, um por linha</span><textarea id="geo-nomes" rows="3">${esc(config.nomes_da_marca.join('\n'))}</textarea></label>
-          <label class="campo"><span class="campo__rotulo">Sites da marca, um por linha</span><textarea id="geo-dominios" rows="3">${esc(config.dominios.join('\n'))}</textarea></label>
+          <label class="campo"><span class="campo__rotulo">Sites da marca, um por linha (pode ter caminho, ex.: capgemini.com/br-pt)</span><textarea id="geo-dominios" rows="3">${esc(config.dominios.join('\n'))}</textarea></label>
           <label class="campo geo__config-largo"><span class="campo__rotulo">Concorrentes, um por linha</span><textarea id="geo-concorrentes" rows="4">${esc(config.concorrentes.join('\n'))}</textarea></label>
           <label class="campo"><span class="campo__rotulo">Vezes que cada pergunta é feita em cada IA</span><select id="geo-repeticoes">${[1, 2, 3].map((n) => `<option value="${n}" ${n === config.repeticoes ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
           <label class="interruptor"><input type="checkbox" id="geo-semanal" ${config.semanal ? 'checked' : ''}><span>Rodar sozinho uma vez por semana</span></label>

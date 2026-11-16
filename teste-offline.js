@@ -1321,7 +1321,8 @@ await caso('Programação: o calendário mostra horários salvos e datas da rég
 });
 
 await caso('Visibilidade em IA: análise das respostas, score, comparação, histórico e rodada semanal', async () => {
-  const { analisarResposta, criarGeo, limparConfig, configPadrao } = await import('./geo.js');
+  const { analisarResposta, criarGeo, limparConfig, configPadrao, atualizarConfigAntiga, calcularResumo } = await import('./geo.js');
+  const geoMod = await import('./geo.js');
   const cfg = limparConfig({
     nomes_da_marca: ['Capgemini', 'Capgemini Invent'],
     dominios: ['https://www.capgemini.com/br-pt'],
@@ -1329,7 +1330,8 @@ await caso('Visibilidade em IA: análise das respostas, score, comparação, his
     perguntas: ['Quais as melhores consultorias de CRM?', 'Quem implementa Customer 360?'],
     repeticoes: 1,
   });
-  assert.deepEqual(cfg.dominios, ['capgemini.com']);
+  assert.deepEqual(cfg.dominios, ['capgemini.com/br-pt'], 'guarda o caminho do site do Brasil');
+  assert.deepEqual(configPadrao().dominios, ['capgemini.com/br-pt'], 'padrão com foco na Capgemini Brasil');
 
   // Análise de uma resposta: menção, posição frente aos concorrentes, site citado e pontos.
   const a = analisarResposta({ texto: 'As mais citadas são Accenture, CAPGEMINI e Deloitte.', fontes: ['https://www.capgemini.com/br-pt/servicos', 'https://exame.com/x'] }, cfg);
@@ -1338,7 +1340,28 @@ await caso('Visibilidade em IA: análise das respostas, score, comparação, his
   assert.equal(a.citada, true);
   assert.equal(a.pontos, 50 + 10 + 30);
   assert.deepEqual(a.concorrentes, ['Accenture', 'Deloitte']);
-  assert.deepEqual(a.dominios, ['capgemini.com', 'exame.com']);
+  assert.deepEqual(a.dominios, ['capgemini.com/br-pt', 'exame.com']);
+
+  // Foco Brasil: página do site global não conta como citação; fonte só com o domínio (Gemini) conta.
+  const global = analisarResposta({ texto: 'Capgemini.', fontes: ['https://www.capgemini.com/us-en/services/', 'https://www.capgemini.com/br-ptx/'] }, cfg);
+  assert.equal(global.citada, false);
+  assert.equal(global.outra_pagina, true);
+  assert.equal(global.pontos, 70);
+  assert.deepEqual(global.dominios, ['capgemini.com (fora de /br-pt)']);
+  assert.equal(analisarResposta({ texto: 'x', fontes: ['https://www.capgemini.com/br-pt'] }, cfg).citada, true, 'a própria página inicial do Brasil conta');
+  assert.equal(analisarResposta({ texto: 'x', fontes: ['https://capgemini.com'] }, cfg).citada, true, 'Gemini informa só o domínio');
+  const resumoGlobal = calcularResumo([{ pergunta: 0, motor: 'ia1', analise: global }], cfg, [{ id: 'ia1', nome: 'IA 1' }]);
+  assert.equal(resumoGlobal.respostas_outra_pagina, 1);
+  const sinaisGlobal = geoMod.sinaisDeFragilidade(resumoGlobal, cfg);
+  assert.ok(sinaisGlobal.some((x) => x.tipo === 'outra_pagina'), 'avisa quando a IA usa outra página da marca');
+  assert.ok(!sinaisGlobal.some((x) => x.tipo === 'fontes' && x.detalhe.some((d) => d.startsWith('capgemini.com'))), 'site da marca não entra na lista de sites para estar presente');
+
+  // Configuração salva na versão antiga: passa a ter o site do Brasil e as perguntas com recorte de Brasil.
+  const antiga = atualizarConfigAntiga({ nomes_da_marca: ['Capgemini'], dominios: ['capgemini.com'], perguntas: ['Como escolher uma consultoria de CRM para uma empresa grande?', 'Outra pergunta?'], repeticoes: 2 });
+  assert.deepEqual(antiga.dominios, ['capgemini.com/br-pt']);
+  assert.deepEqual(antiga.perguntas, ['Como escolher uma consultoria de CRM para uma empresa grande no Brasil?', 'Outra pergunta?']);
+  assert.equal(antiga.versao, 2);
+  assert.deepEqual(atualizarConfigAntiga({ dominios: ['exemplo.com.br'], perguntas: [] }).dominios, ['exemplo.com.br'], 'site escolhido pela equipe é mantido');
   const b = analisarResposta({ texto: 'A CI&T e a capgeminiano não são a mesma coisa.', fontes: [] }, cfg);
   assert.equal(b.mencionada, false, 'só conta o nome inteiro da marca');
   assert.deepEqual(b.concorrentes, ['CI&T']);
@@ -1356,7 +1379,7 @@ await caso('Visibilidade em IA: análise das respostas, score, comparação, his
       nome: 'IA 1',
       perguntar: async (p) =>
         p.includes('CRM')
-          ? { texto: rodada === 1 ? 'Accenture e Deloitte.' : 'Capgemini e Accenture.', fontes: rodada === 1 ? [] : ['https://capgemini.com/a'] }
+          ? { texto: rodada === 1 ? 'Accenture e Deloitte.' : 'Capgemini e Accenture.', fontes: rodada === 1 ? [] : ['https://capgemini.com/br-pt/a'] }
           : { texto: 'Capgemini e CI&T.', fontes: [] },
     },
     { id: 'ia2', nome: 'IA 2', perguntar: async (p) => (p.includes('CRM') ? { texto: 'Deloitte.', fontes: [] } : (() => { throw new Error('limite de uso'); })()) },

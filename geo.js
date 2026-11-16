@@ -40,12 +40,24 @@ export function configPadrao() {
 
 const lista = (v) => [...new Set((Array.isArray(v) ? v : String(v || '').split('\n')).map((x) => String(x).trim()).filter(Boolean))];
 
+/** Endereço do site da marca sem protocolo, www e barra final. Mantém o caminho: "capgemini.com/br-pt". */
+export function limparEndereco(d) {
+  return String(d || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/^www\./, '')
+    .replace(/[?#].*$/, '')
+    .replace(/\/+$/, '');
+}
+
+export const VERSAO_CONFIG = 2;
+
 export function limparConfig(c = {}) {
   return {
+    versao: VERSAO_CONFIG,
     nomes_da_marca: lista(c.nomes_da_marca).slice(0, 10),
-    dominios: lista(c.dominios)
-      .map((d) => d.toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, ''))
-      .slice(0, 10),
+    dominios: [...new Set(lista(c.dominios).map(limparEndereco).filter(Boolean))].slice(0, 10),
     concorrentes: lista(c.concorrentes).slice(0, 40),
     perguntas: lista(c.perguntas).slice(0, 30),
     repeticoes: Math.min(3, Math.max(1, Number(c.repeticoes) || 2)),
@@ -73,6 +85,41 @@ export function dominioDe(url) {
   }
 }
 
+function partesDoEndereco(url) {
+  try {
+    const u = new URL(url);
+    return { host: u.hostname.toLowerCase().replace(/^www\./, ''), caminho: u.pathname.toLowerCase().replace(/\/+$/, ''), temCaminho: u.pathname.length > 1 };
+  } catch {
+    const limpo = limparEndereco(url);
+    const i = limpo.indexOf('/');
+    return i < 0 ? { host: limpo, caminho: '', temCaminho: false } : { host: limpo.slice(0, i), caminho: limpo.slice(i), temCaminho: true };
+  }
+}
+
+const mesmoHost = (host, base) => host === base || host.endsWith(`.${base}`);
+
+/**
+ * Como uma fonte se relaciona com os sites da marca.
+ * - "marca": está dentro de um dos endereços (com caminho, ex.: capgemini.com/br-pt/...).
+ * - "outra_pagina": mesmo domínio da marca, mas fora do caminho (ex.: o site global capgemini.com/us-en).
+ * - null: não é da marca.
+ * O Gemini só informa o domínio da fonte (sem a página); nesse caso, o domínio da marca conta como "marca".
+ */
+export function fonteDaMarca(url, dominios) {
+  const f = partesDoEndereco(url);
+  if (!f.host) return { tipo: null, rotulo: null };
+  let outra = null;
+  for (const d of dominios) {
+    const i = d.indexOf('/');
+    const host = i < 0 ? d : d.slice(0, i);
+    const caminho = i < 0 ? '' : d.slice(i);
+    if (!mesmoHost(f.host, host)) continue;
+    if (!caminho || !f.temCaminho || f.caminho === caminho || f.caminho.startsWith(`${caminho}/`)) return { tipo: 'marca', rotulo: d };
+    outra = { tipo: 'outra_pagina', rotulo: `${f.host} (fora de ${caminho})` };
+  }
+  return outra || { tipo: null, rotulo: f.host };
+}
+
 /** Analisa uma resposta: menção, posição frente aos concorrentes, citação de site da marca e pontos. */
 export function analisarResposta({ texto = '', fontes = [] }, config) {
   const t = normalizar(texto);
@@ -84,11 +131,13 @@ export function analisarResposta({ texto = '', fontes = [] }, config) {
     .filter((c) => c.pos >= 0)
     .sort((a, b) => a.pos - b.pos);
   const posicao = mencionada ? 1 + concorrentes.filter((c) => c.pos < posMarca).length : null;
-  const dominios = [...new Set(fontes.map(dominioDe).filter(Boolean))];
-  const citada = dominios.some((d) => config.dominios.some((m) => d === m || d.endsWith(`.${m}`)));
+  const relacoes = fontes.map((f) => fonteDaMarca(f, config.dominios)).filter((r) => r.rotulo);
+  const dominios = [...new Set(relacoes.map((r) => r.rotulo))];
+  const citada = relacoes.some((r) => r.tipo === 'marca');
+  const outra_pagina = !citada && relacoes.some((r) => r.tipo === 'outra_pagina');
   const bonus = posicao === 1 ? PONTOS.primeiro : posicao === 2 ? PONTOS.segundo : PONTOS.depois;
   const pontos = (mencionada ? PONTOS.mencao + bonus : 0) + (citada ? PONTOS.citacao : 0);
-  return { mencionada, posicao, citada, concorrentes: concorrentes.map((c) => c.nome), dominios, pontos };
+  return { mencionada, posicao, citada, outra_pagina, concorrentes: concorrentes.map((c) => c.nome), dominios, pontos };
 }
 
 const media = (xs) => (xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : null);
@@ -139,6 +188,7 @@ export function calcularResumo(respostas, config, motores = []) {
     fontes_top: contar(validas.flatMap((r) => r.analise.dominios)).slice(0, 12),
     respostas_validas: validas.length,
     respostas_com_erro: respostas.length - validas.length,
+    respostas_outra_pagina: validas.filter((r) => r.analise.outra_pagina).length,
   };
 }
 
@@ -189,7 +239,15 @@ export function sinaisDeFragilidade(resumo, config) {
   if (motoresSemMarca.length) {
     sinais.push({ tipo: 'motor', titulo: `A marca não aparece em nenhuma resposta do ${motoresSemMarca.map((m) => m.nome).join(' nem do ')}`, detalhe: [] });
   }
-  const daMarca = (d) => config.dominios.some((m) => d === m || d.endsWith(`.${m}`));
+  if (resumo.respostas_outra_pagina) {
+    sinais.push({
+      tipo: 'outra_pagina',
+      titulo: `Em ${resumo.respostas_outra_pagina} ${resumo.respostas_outra_pagina === 1 ? 'resposta' : 'respostas'}, a IA usou outra página da marca como fonte, e não ${config.dominios.join(' ou ')}`,
+      detalhe: resumo.fontes_top.filter((f) => f.nome.includes('(fora de ')).map((f) => `${f.nome} (${f.vezes}×)`),
+    });
+  }
+  const hostsDaMarca = config.dominios.map((d) => d.split('/')[0]);
+  const daMarca = (nome) => config.dominios.includes(nome) || hostsDaMarca.some((h) => mesmoHost(nome.split(' ')[0], h));
   const fontes = resumo.fontes_top.filter((f) => !daMarca(f.nome)).slice(0, 6);
   if (fontes.length) {
     sinais.push({ tipo: 'fontes', titulo: 'Sites que as IAs mais usaram como fonte: vale a marca estar presente neles', detalhe: fontes.map((f) => `${f.nome} (${f.vezes}×)`) });
@@ -281,7 +339,10 @@ ${rs
     .join('\n\n');
   const ofertas = (conhecimento?.ofertas || []).map((o) => o.nome).filter(Boolean);
   const reconhecimentos = (conhecimento?.reconhecimentos || []).map((r) => r.nome || r.titulo).filter(Boolean);
-  const conteudo = `Marca: ${marca.nome} (nomes considerados: ${config.nomes_da_marca.join(', ')}). Sites da marca: ${config.dominios.join(', ') || 'não informado'}.
+  const foco = config.dominios.some((d) => d.includes('/'))
+    ? ` Foco do trabalho: só contam como citação as páginas dentro desses endereços (ex.: ${config.dominios[0]}/...). Outras páginas do mesmo domínio, como o site global, não contam: o plano deve levar as IAs a usar as páginas do foco.${resumo.respostas_outra_pagina ? ` Nesta rodada, ${resumo.respostas_outra_pagina} respostas usaram outra página da marca.` : ''}`
+    : '';
+  const conteudo = `Marca: ${marca.nome} (nomes considerados: ${config.nomes_da_marca.join(', ')}). Sites da marca: ${config.dominios.join(', ') || 'não informado'}.${foco}
 Concorrentes acompanhados: ${config.concorrentes.join(', ')}.
 ${ofertas.length ? `Ofertas da marca (base aprovada): ${ofertas.join('; ')}.` : ''}
 ${reconhecimentos.length ? `Reconhecimentos na base aprovada: ${reconhecimentos.join('; ')}.` : ''}
@@ -459,6 +520,25 @@ export function situacaoDosMotores(motores) {
 
 /* --------------------------------------------------------------- rodadas */
 
+/** Perguntas do padrão antigo que ganharam o recorte de Brasil. */
+const PERGUNTAS_ANTIGAS = {
+  'Como escolher uma consultoria de CRM para uma empresa grande?': 'Como escolher uma consultoria de CRM para uma empresa grande no Brasil?',
+  'Quais consultorias são referência em transformação de marketing com inteligência artificial?': 'Quais consultorias são referência em transformação de marketing com inteligência artificial no Brasil?',
+  'Quais consultorias ajudam a medir o retorno do investimento em Martech?': 'Quais consultorias ajudam a medir o retorno do investimento em Martech no Brasil?',
+};
+
+/** Configuração salva na versão 1: o site da marca era só "capgemini.com". Passa a ser a Capgemini Brasil. */
+export function atualizarConfigAntiga(salva) {
+  const padrao = configPadrao();
+  const dominios = (salva.dominios || []).map(limparEndereco);
+  const soDominioGeral = !dominios.length || (dominios.length === 1 && dominios[0] === 'capgemini.com');
+  return limparConfig({
+    ...salva,
+    dominios: soDominioGeral ? padrao.dominios : dominios,
+    perguntas: (salva.perguntas || []).map((p) => PERGUNTAS_ANTIGAS[p] || p),
+  });
+}
+
 /**
  * Radar de visibilidade: guarda a configuração e as rodadas no armazenamento do motor
  * e roda as perguntas em segundo plano, três de cada vez.
@@ -468,7 +548,13 @@ export function criarGeo({ db, motores, ia = null, modelo = env.modeloIa, agora 
 
   async function config() {
     const salva = await db.obterGeoConfig();
-    return salva ? limparConfig(salva) : configPadrao();
+    if (!salva) return configPadrao();
+    if ((salva.versao || 1) < VERSAO_CONFIG) {
+      const nova = atualizarConfigAntiga(salva);
+      await db.salvarGeoConfig(nova);
+      return nova;
+    }
+    return limparConfig(salva);
   }
 
   async function executar(cfg, por) {
@@ -617,7 +703,9 @@ export function criarGeo({ db, motores, ia = null, modelo = env.modeloIa, agora 
         await db.salvarRodadaGeo(r);
         novas++;
       }
-      if (dados.config && !(await db.obterGeoConfig())) await db.salvarGeoConfig(limparConfig(dados.config));
+      if (dados.config && !(await db.obterGeoConfig())) {
+        await db.salvarGeoConfig((dados.config.versao || 1) < VERSAO_CONFIG ? atualizarConfigAntiga(dados.config) : limparConfig(dados.config));
+      }
       return { novas };
     },
   };
