@@ -28,6 +28,15 @@ export const env = {
   imagemQualidade: v('IMAGEM_QUALIDADE', 'medium'),
   imagemTamanho: v('IMAGEM_TAMANHO', '1024x1536'),
   openaiKey: v('OPENAI_API_KEY'),
+  // Radar de visibilidade em IA (GEO): chaves opcionais de outras IAs e os modelos usados nas perguntas.
+  // Senha da aba reservada de visibilidade em IA. Sem ela, o radar fica desligado e invisível.
+  geoSenha: v('GEO_SENHA'),
+  perplexityKey: v('PERPLEXITY_API_KEY'),
+  geminiKey: v('GEMINI_API_KEY'),
+  geoModeloClaude: v('GEO_MODELO_CLAUDE') || v('CLAUDE_MODELO', 'claude-sonnet-5-5'),
+  geoModeloOpenai: v('GEO_MODELO_OPENAI', 'gpt-5-mini'),
+  geoModeloPerplexity: v('GEO_MODELO_PERPLEXITY', 'sonar'),
+  geoModeloGemini: v('GEO_MODELO_GEMINI', 'gemini-2.5-flash'),
   googleKey: v('GOOGLE_API_KEY'),
   pexelsKey: v('PEXELS_API_KEY'),
   armazenamento: v('ARMAZENAMENTO', 'local').toLowerCase(),

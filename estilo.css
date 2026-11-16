@@ -212,6 +212,7 @@ textarea {
 /* ------------------------------------------------------------------- campos */
 
 input[type="text"],
+input[type="password"],
 input[type="time"],
 input[type="datetime-local"],
 textarea,
@@ -1798,6 +1799,11 @@ textarea:disabled {
   margin: 0 0 8px;
   font-size: 1.25rem;
   line-height: 1.3;
+}
+
+.dialogo__texto.dialogo__erro {
+  color: var(--vermelho);
+  font-weight: 500;
 }
 
 .dialogo__texto {

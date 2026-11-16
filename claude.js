@@ -97,3 +97,27 @@ Formato da resposta: ${ferramentasServidor.length ? 'faça as pesquisas necessá
   }
   return { dados: bloco.input, modelo: resposta.model, uso: resposta.usage, buscas };
 }
+
+/**
+ * Faz uma pergunta livre ao Claude com busca na web, como uma pessoa faria, e devolve o texto da resposta
+ * e as fontes citadas. Usado pelo radar de visibilidade em IA.
+ */
+export async function perguntarComBusca({ modelo, pergunta, maxTokens = 1600, maxBuscas = 3 }) {
+  const api = obterCliente();
+  const pedido = {
+    model: modelo,
+    max_tokens: maxTokens,
+    tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: maxBuscas }],
+    messages: [{ role: 'user', content: pergunta }],
+  };
+  let resposta = await api.messages.create(pedido);
+  let turno = [...resposta.content];
+  for (let i = 0; i < 5 && resposta.stop_reason === 'pause_turn'; i++) {
+    resposta = await api.messages.create({ ...pedido, messages: [...pedido.messages, { role: 'assistant', content: turno }] });
+    turno = [...turno, ...resposta.content];
+  }
+  const textos = turno.filter((b) => b.type === 'text');
+  const citadas = textos.flatMap((b) => (b.citations || []).map((c) => c.url)).filter(Boolean);
+  const vistas = resultadosDeBusca(turno).map((r) => r.url);
+  return { texto: textos.map((b) => b.text).join(''), fontes: [...new Set(citadas.length ? citadas : vistas)], modelo: resposta.model };
+}

@@ -155,6 +155,9 @@ const ui = {
   cache: {},
 };
 
+/** Abas extras, que não fazem parte do painel padrão (ver "área reservada", no fim do arquivo). */
+const extras = {};
+
 /** Só troca o HTML quando o conteúdo muda: preserva rolagem, foco e blocos abertos. */
 function pintar(elemento, chave, html) {
   if (ui.cache[chave] === html) return;
@@ -264,7 +267,7 @@ async function carregarEstado() {
 }
 
 async function carregarLista() {
-  if (ui.aba === 'autonomia' || ui.aba === 'programacao' || ui.aba === 'banco') return;
+  if (ui.aba === 'autonomia' || ui.aba === 'programacao' || ui.aba === 'banco' || extras[ui.aba]) return;
   const status = ui.aba === 'fila' ? 'gerando,em_revisao,aprovada,agendada' : ui.filtro;
   const [pecas, historico] = await Promise.all([
     api(`/api/pecas${status ? `?status=${encodeURIComponent(status)}` : ''}`),
@@ -1725,12 +1728,15 @@ function trocarAba(aba) {
     b.setAttribute('aria-selected', String(b.dataset.aba === aba));
     b.tabIndex = b.dataset.aba === aba ? 0 : -1;
   }
-  $('#area-pecas').hidden = aba === 'autonomia' || aba === 'programacao' || aba === 'regua' || aba === 'banco';
+  const extra = extras[aba];
+  $('#area-pecas').hidden = aba === 'autonomia' || aba === 'programacao' || aba === 'regua' || aba === 'banco' || Boolean(extra);
   $('#area-autonomia').hidden = aba !== 'autonomia';
   $('#area-programacao').hidden = aba !== 'programacao';
   $('#area-regua').hidden = aba !== 'regua';
   $('#area-banco').hidden = aba !== 'banco';
+  for (const e of Object.values(extras)) e.area.hidden = e.id !== aba;
   if (aba === 'autonomia') renderAutonomia();
+  else if (extra) extra.carregar().catch((erro) => avisar(erro.message, 'erro'));
   else if (aba === 'banco') carregarBanco().catch((erro) => avisar(erro.message, 'erro'));
   else if (aba === 'programacao') carregarProgramacao().catch((erro) => avisar(erro.message, 'erro'));
   else if (aba === 'regua') carregarRegua().catch((erro) => avisar(erro.message, 'erro'));
@@ -2370,6 +2376,7 @@ document.addEventListener('input', (evento) => {
 });
 
 document.addEventListener('change', (evento) => {
+  for (const e of Object.values(extras)) if (e.aoMudar?.(evento)) return;
   if (evento.target.id === 'gerar-formato' || evento.target.id === 'gerar-slides') {
     atualizarDialogoGerar();
     return;
@@ -2509,7 +2516,7 @@ document.addEventListener(
   true,
 );
 
-for (const aba of $$('.aba')) {
+function ligarAba(aba) {
   // Clicar de novo na aba em que você já está fecha a peça aberta.
   aba.addEventListener('click', () => {
     if (ui.aba === aba.dataset.aba && ui.selecionada) acoesPorNome.voltar();
@@ -2524,6 +2531,113 @@ for (const aba of $$('.aba')) {
     trocarAba(proxima.dataset.aba);
   });
 }
+
+for (const aba of $$('.aba')) ligarAba(aba);
+
+/* ---------------------------------------------------------- área reservada */
+
+// Aba extra que fica fora do painel padrão. Só aparece quando o endereço termina em #geo e a
+// pessoa informa a senha reservada; vale só para a guia do navegador em que ela entrou.
+const ENDERECO_RESERVADO = '#geo';
+const CHAVE_RESERVADA = 'motor-campanhas:reservado';
+
+function sessao(chave, valor) {
+  try {
+    if (valor === undefined) return sessionStorage.getItem(chave);
+    if (valor === null) sessionStorage.removeItem(chave);
+    else sessionStorage.setItem(chave, valor);
+  } catch {
+    /* navegação privada sem armazenamento: a aba some ao recarregar */
+  }
+  return null;
+}
+
+function registrarExtra(extra) {
+  extras[extra.id] = extra;
+  Object.assign(acoesPorNome, extra.acoes || {});
+  ligarAba(extra.botao);
+}
+
+async function sairReservado() {
+  try {
+    await acao('/api/reservado/sair');
+  } catch {
+    /* mesmo sem resposta, a aba some ao recarregar */
+  }
+  sessao(CHAVE_RESERVADA, null);
+  location.replace(location.pathname);
+}
+
+async function carregarReservado() {
+  if (Object.keys(extras).length) return;
+  const modulo = await import('/api/reservado/painel.js');
+  modulo.iniciar({ ui, $, esc, api, pintar, avisar, dataHora, executar, exigirNome, nomeRevisor, abrirGerar, atualizarDialogoGerar, registrar: registrarExtra, sair: sairReservado });
+}
+
+function pedirSenhaReservada() {
+  let dialogo = $('#dlg-reservado');
+  if (!dialogo) {
+    dialogo = document.createElement('dialog');
+    dialogo.className = 'dialogo';
+    dialogo.id = 'dlg-reservado';
+    dialogo.setAttribute('aria-labelledby', 'dlg-reservado-titulo');
+    dialogo.innerHTML = `<form class="dialogo__form" method="dialog">
+        <h2 class="dialogo__titulo" id="dlg-reservado-titulo">Acesso restrito</h2>
+        <label class="campo"><span class="campo__rotulo">Senha</span><input type="password" name="senha" autocomplete="off" required></label>
+        <p class="dialogo__texto dialogo__erro" data-erro hidden></p>
+        <div class="dialogo__acoes">
+          <button class="botao botao--secundario" value="cancelar" formnovalidate>Cancelar</button>
+          <button class="botao botao--primario" value="entrar">Entrar</button>
+        </div>
+      </form>`;
+    document.body.append(dialogo);
+    const form = dialogo.querySelector('form');
+    form.addEventListener('submit', async (evento) => {
+      if (evento.submitter?.value === 'cancelar') return;
+      evento.preventDefault();
+      const erro = form.querySelector('[data-erro]');
+      const botao = form.querySelector('button[value="entrar"]');
+      botao.disabled = true;
+      try {
+        await acao('/api/reservado/entrar', { senha: form.senha.value });
+        sessao(CHAVE_RESERVADA, '1');
+        dialogo.close();
+        await carregarReservado();
+        trocarAba(Object.keys(extras)[0]);
+      } catch {
+        erro.textContent = 'Senha incorreta.';
+        erro.hidden = false;
+        form.senha.select();
+      } finally {
+        botao.disabled = false;
+      }
+    });
+  }
+  dialogo.querySelector('form').reset();
+  dialogo.querySelector('[data-erro]').hidden = true;
+  dialogo.showModal();
+}
+
+async function verificarReservado() {
+  if (location.hash === ENDERECO_RESERVADO) {
+    // Tira o #geo da barra de endereço na hora.
+    history.replaceState(null, '', location.pathname + location.search);
+    if (Object.keys(extras).length) trocarAba(Object.keys(extras)[0]);
+    else pedirSenhaReservada();
+    return;
+  }
+  if (sessao(CHAVE_RESERVADA) === '1') {
+    try {
+      await carregarReservado();
+    } catch {
+      sessao(CHAVE_RESERVADA, null);
+    }
+  }
+}
+
+window.addEventListener('hashchange', () => {
+  if (location.hash === ENDERECO_RESERVADO) verificarReservado();
+});
 
 /* -------------------------------------------------------------------- início */
 
@@ -2541,6 +2655,7 @@ async function iniciar() {
     avisar(`Não foi possível carregar o painel: ${erro.message}`, 'erro');
   }
   agendar();
+  verificarReservado().catch(() => {});
 }
 
 iniciar();

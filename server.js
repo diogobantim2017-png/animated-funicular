@@ -10,7 +10,8 @@ import { verificarConexaoInstagram } from './instagram.js';
 /* Conexão com o Instagram, conferida no início quando a publicação é real. */
 let statusInstagram = null;
 import { criarArmazenamento } from './index.js';
-import { chamarFerramenta } from './claude.js';
+import { chamarFerramenta, perguntarComBusca } from './claude.js';
+import { criarGeo, motoresDisponiveis } from './geo.js';
 import { criarGeradorImagem } from './gerador.js';
 import { criarCanalInstagram } from './instagram.js';
 import { CHECAGENS_VISUAIS, NOTAS } from './juiz.js';
@@ -23,10 +24,18 @@ const imagem = criarGeradorImagem();
 const canal = criarCanalInstagram();
 const fotos = criarBancoDeFotos();
 const motor = criarMotor({ db, ia: chamarFerramenta, imagem, fotos, canal });
+// Radar de visibilidade em IA (GEO): só existe quando GEO_SENHA está definida no Render.
+const geoLigado = Boolean(env.geoSenha);
+const geo = geoLigado
+  ? criarGeo({ db, motores: motoresDisponiveis({ perguntarClaude: perguntarComBusca }), ia: env.anthropicKey ? chamarFerramenta : null, modelo: env.modeloIa })
+  : null;
 
 const app = express();
 app.disable('x-powered-by');
-app.use(express.json({ limit: '1mb' }));
+// O histórico do radar de visibilidade pode passar de 1 MB; as outras rotas seguem com o limite menor.
+const jsonPadrao = express.json({ limit: '1mb' });
+const jsonGrande = express.json({ limit: '25mb' });
+app.use((req, res, next) => (req.path === '/api/geo/importar' ? jsonGrande : jsonPadrao)(req, res, next));
 
 /* Rotas públicas: checagem de saúde e imagens (o Instagram precisa baixar a arte sem senha). */
 app.get('/saude', (req, res) => res.json({ ok: true }));
@@ -79,6 +88,19 @@ function quem(req) {
 }
 
 /* ---------------------------------------------------------------- agenda */
+
+// Radar de visibilidade em IA: confere de hora em hora se já passou uma semana desde a última rodada.
+if (geoLigado) cron.schedule(
+  '23 * * * *',
+  async () => {
+    try {
+      await geo.verificarSemanal();
+    } catch (erro) {
+      console.error('Falha na rodada semanal de visibilidade em IA:', erro.message);
+    }
+  },
+  { timezone: env.fuso, noOverlap: true, name: 'geo' },
+);
 
 let tarefaAgenda = null;
 let avisoAgenda = null;
@@ -227,6 +249,84 @@ app.post('/api/pecas/:id/reagendar', async (req, res) => {
 app.post('/api/pecas/:id/cancelar-agendamento', async (req, res) => {
   res.json(await motor.cancelarAgendamento(req.params.id, quem(req)));
 });
+
+/* Área reservada: radar de visibilidade em IA (GEO, em teste).
+   Não aparece no painel. Abre com o endereço do site terminado em #geo e a senha GEO_SENHA.
+   Quem não entrou com a senha recebe "rota não encontrada" em tudo, como se nada disso existisse. */
+if (geoLigado) {
+  const COOKIE_RESERVADO = 'mc_r';
+  const tokenReservado = createHash('sha256').update(`motor-reservado:${env.geoSenha}`).digest('hex');
+  const naoEncontrada = (res) => res.status(404).json({ erro: 'Rota não encontrada.' });
+
+  function lerCookie(req, nome) {
+    for (const parte of String(req.headers.cookie || '').split(';')) {
+      const i = parte.indexOf('=');
+      if (i > 0 && parte.slice(0, i).trim() === nome) return parte.slice(i + 1).trim();
+    }
+    return '';
+  }
+
+  app.post('/api/reservado/entrar', async (req, res) => {
+    const senha = String(req.body?.senha || '');
+    if (!senha || !igual(senha, env.geoSenha)) {
+      await new Promise((r) => setTimeout(r, 700));
+      return naoEncontrada(res);
+    }
+    const seguro = req.secure || req.headers['x-forwarded-proto'] === 'https';
+    res.set('Set-Cookie', `${COOKIE_RESERVADO}=${tokenReservado}; Path=/; HttpOnly; SameSite=Strict${seguro ? '; Secure' : ''}`);
+    res.json({ ok: true });
+  });
+
+  app.post('/api/reservado/sair', (req, res) => {
+    res.set('Set-Cookie', `${COOKIE_RESERVADO}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`);
+    res.json({ ok: true });
+  });
+
+  app.use(['/api/reservado', '/api/geo'], (req, res, next) => (igual(lerCookie(req, COOKIE_RESERVADO), tokenReservado) ? next() : naoEncontrada(res)));
+
+  app.get('/api/reservado/painel.js', (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    res.type('text/javascript; charset=utf-8');
+    res.sendFile(path.join(raiz, 'geo-painel.js'));
+  });
+
+  app.get('/api/geo', async (req, res) => {
+    res.json({ config: await geo.config(), motores: geo.motores(), situacao: geo.situacao(), rodadas: await geo.listar() });
+  });
+
+  app.put('/api/geo/config', async (req, res) => {
+    res.json(await geo.salvarConfig(req.body || {}));
+  });
+
+  app.post('/api/geo/rodar', async (req, res) => {
+    res.json(await geo.rodar(String(req.body?.usuario || 'equipe').slice(0, 80)));
+  });
+
+  app.get('/api/geo/rodadas/:id', async (req, res) => {
+    const rodada = await geo.obter(req.params.id);
+    if (!rodada) return res.status(404).json({ erro: 'Rodada não encontrada.' });
+    res.json(rodada);
+  });
+
+  app.post('/api/geo/rodadas/:id/diagnostico', async (req, res) => {
+    res.json(await geo.diagnosticar(req.params.id));
+  });
+
+  app.get('/api/geo/rodadas/:id/plano', async (req, res) => {
+    const texto = await geo.plano(req.params.id);
+    res.set('Content-Disposition', `attachment; filename="plano-visibilidade-em-ia-${req.params.id.replace(/[^a-z0-9-]/gi, '')}.txt"`);
+    res.type('text/plain; charset=utf-8').send(texto);
+  });
+
+  app.get('/api/geo/exportar', async (req, res) => {
+    res.set('Content-Disposition', `attachment; filename="visibilidade-em-ia-${new Date().toISOString().slice(0, 10)}.json"`);
+    res.type('application/json').send(JSON.stringify(await geo.exportar()));
+  });
+
+  app.post('/api/geo/importar', async (req, res) => {
+    res.json(await geo.importar(req.body));
+  });
+}
 
 // Banco de imagens da marca: fotos banco-*.jpg na pasta do projeto.
 app.get('/api/banco', async (req, res) => {
